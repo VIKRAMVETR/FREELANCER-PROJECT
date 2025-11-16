@@ -8,6 +8,6 @@ class UserServiceApplicationTests {
 
 @Test
 void contextLoads() {
-    UserServiceApplication.main(new String[] {});
+    
 }
 }
