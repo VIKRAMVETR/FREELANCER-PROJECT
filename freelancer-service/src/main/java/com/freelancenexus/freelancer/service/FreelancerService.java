@@ -186,11 +186,11 @@ public class FreelancerService {
 
     @Transactional(readOnly = true)
     public List<FreelancerDTO> searchFreelancers(BigDecimal minRate, BigDecimal maxRate, 
-                                                   BigDecimal minRating, String availability) {
-        log.info("Searching freelancers with filters - minRate: {}, maxRate: {}, minRating: {}, availability: {}", 
-                 minRate, maxRate, minRating, availability);
+                                                                     String availability) {
+        log.info("Searching freelancers with filters - minRate: {}, maxRate: {}, availability: {}", 
+                 minRate, maxRate, availability);
         
-        List<Freelancer> freelancers = freelancerRepository.searchFreelancers(minRate, maxRate, minRating, availability);
+        List<Freelancer> freelancers = freelancerRepository.searchFreelancers(minRate, maxRate, availability);
         
         return freelancers.stream()
             .map(this::mapToDTO)

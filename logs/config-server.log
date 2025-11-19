@@ -37,52 +37,97 @@
  =========|_|==============|___/=/_/_/_/
  :: Spring Boot ::                (v3.2.0)
 
-2025-11-16 16:29:25 - Starting ConfigServerApplication using Java 17.0.17 with PID 2287 (/workspaces/FREELANCER-PROJECT/config-server/target/classes started by vscode in /workspaces/FREELANCER-PROJECT/config-server)
-2025-11-16 16:29:25 - The following 1 profile is active: "native"
-2025-11-16 16:29:26 - BeanFactory id=f5f112fa-35e8-3748-bcd8-690fe1f9a144
-2025-11-16 16:29:26 - Tomcat initialized with port 8888 (http)
-2025-11-16 16:29:26 - Starting service [Tomcat]
-2025-11-16 16:29:26 - Starting Servlet engine: [Apache Tomcat/10.1.16]
-2025-11-16 16:29:26 - Initializing Spring embedded WebApplicationContext
-2025-11-16 16:29:26 - Root WebApplicationContext: initialization completed in 1646 ms
-2025-11-16 16:29:27 - Exposing 3 endpoint(s) beneath base path '/actuator'
-2025-11-16 16:29:27 - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@33e50ff2, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@7ab33ca8, org.springframework.security.web.context.SecurityContextHolderFilter@6eeb29c0, org.springframework.security.web.header.HeaderWriterFilter@2b9b17ce, org.springframework.web.filter.CorsFilter@704d3b00, org.springframework.security.web.csrf.CsrfFilter@2e3252, org.springframework.security.web.authentication.logout.LogoutFilter@7d28cdcd, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@5b3518e1, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@5beb6be2, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@21e484b, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@37cfda1c, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@6f986501, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@15d88c10, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@191f4d65, org.springframework.security.web.access.ExceptionTranslationFilter@4a2e1e52, org.springframework.security.web.access.intercept.AuthorizationFilter@283d3628]
-2025-11-16 16:29:27 - Tomcat started on port 8888 (http) with context path ''
-2025-11-16 16:29:27 - Started ConfigServerApplication in 3.343 seconds (process running for 3.687)
+2025-11-17 04:29:45 - Starting ConfigServerApplication using Java 17.0.17 with PID 2815 (/workspaces/FREELANCER-PROJECT/config-server/target/classes started by vscode in /workspaces/FREELANCER-PROJECT/config-server)
+2025-11-17 04:29:45 - The following 1 profile is active: "native"
+2025-11-17 04:29:47 - BeanFactory id=f5f112fa-35e8-3748-bcd8-690fe1f9a144
+2025-11-17 04:29:47 - Tomcat initialized with port 8888 (http)
+2025-11-17 04:29:47 - Starting service [Tomcat]
+2025-11-17 04:29:47 - Starting Servlet engine: [Apache Tomcat/10.1.16]
+2025-11-17 04:29:47 - Initializing Spring embedded WebApplicationContext
+2025-11-17 04:29:47 - Root WebApplicationContext: initialization completed in 1489 ms
+2025-11-17 04:29:48 - Exposing 3 endpoint(s) beneath base path '/actuator'
+2025-11-17 04:29:48 - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@5f45bc8e, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@33e50ff2, org.springframework.security.web.context.SecurityContextHolderFilter@274bae2c, org.springframework.security.web.header.HeaderWriterFilter@3dfe92ef, org.springframework.web.filter.CorsFilter@7ab33ca8, org.springframework.security.web.csrf.CsrfFilter@2c0798bd, org.springframework.security.web.authentication.logout.LogoutFilter@1d4cc7, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@283d3628, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@29c1249a, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@704d3b00, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@33ebe4f0, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@1d3d76b4, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@6f986501, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@21e484b, org.springframework.security.web.access.ExceptionTranslationFilter@74a85515, org.springframework.security.web.access.intercept.AuthorizationFilter@74d22ddd]
+2025-11-17 04:29:48 - Tomcat started on port 8888 (http) with context path ''
+2025-11-17 04:29:48 - Started ConfigServerApplication in 3.035 seconds (process running for 3.44)
 ==============================================
 Config Server started successfully on port 8888
 ==============================================
-2025-11-16 16:30:21 - Initializing Spring DispatcherServlet 'dispatcherServlet'
-2025-11-16 16:30:21 - Initializing Servlet 'dispatcherServlet'
-2025-11-16 16:30:21 - Completed initialization in 2 ms
-2025-11-16 16:30:21 - Securing GET /gateway-service/default
-2025-11-16 16:30:22 - Cache miss for REQUEST dispatch to '/gateway-service/default' (previous null). Performing CorsConfiguration lookup. This is logged once only at WARN level, and every time at TRACE.
-2025-11-16 16:30:22 - Authenticated user
-2025-11-16 16:30:22 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
-2025-11-16 16:30:22 - Secured GET /gateway-service/default
-2025-11-16 16:30:22 - Adding property source: Config resource 'class path resource [config/gateway-service.properties]' via location 'classpath:/config/'
-2025-11-16 16:30:53 - Securing GET /user-service/default
-2025-11-16 16:30:53 - Authenticated user
-2025-11-16 16:30:53 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
-2025-11-16 16:30:53 - Secured GET /user-service/default
-2025-11-16 16:30:53 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
-2025-11-16 16:31:21 - Securing GET /freelancer-service/default
-2025-11-16 16:31:21 - Authenticated user
-2025-11-16 16:31:21 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
-2025-11-16 16:31:21 - Secured GET /freelancer-service/default
-2025-11-16 16:31:21 - Adding property source: Config resource 'class path resource [config/freelancer-service.properties]' via location 'classpath:/config/'
-2025-11-16 16:32:01 - Securing GET /project-service/default
-2025-11-16 16:32:01 - Authenticated user
-2025-11-16 16:32:01 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
-2025-11-16 16:32:01 - Secured GET /project-service/default
-2025-11-16 16:32:01 - Adding property source: Config resource 'class path resource [config/project-service.properties]' via location 'classpath:/config/'
-2025-11-16 16:32:33 - Securing GET /payment-service/default
-2025-11-16 16:32:33 - Authenticated user
-2025-11-16 16:32:33 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
-2025-11-16 16:32:33 - Secured GET /payment-service/default
-2025-11-16 16:32:33 - Adding property source: Config resource 'class path resource [config/payment-service.properties]' via location 'classpath:/config/'
-2025-11-16 16:33:04 - Securing GET /notification-service/default
-2025-11-16 16:33:04 - Authenticated user
-2025-11-16 16:33:04 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
-2025-11-16 16:33:04 - Secured GET /notification-service/default
-2025-11-16 16:33:04 - Adding property source: Config resource 'class path resource [config/notification-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:30:46 - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-11-17 04:30:46 - Initializing Servlet 'dispatcherServlet'
+2025-11-17 04:30:46 - Completed initialization in 1 ms
+2025-11-17 04:30:46 - Securing GET /gateway-service/default
+2025-11-17 04:30:46 - Cache miss for REQUEST dispatch to '/gateway-service/default' (previous null). Performing CorsConfiguration lookup. This is logged once only at WARN level, and every time at TRACE.
+2025-11-17 04:30:47 - Authenticated user
+2025-11-17 04:30:47 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:30:47 - Secured GET /gateway-service/default
+2025-11-17 04:30:47 - Adding property source: Config resource 'class path resource [config/gateway-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:31:18 - Securing GET /user-service/default
+2025-11-17 04:31:18 - Authenticated user
+2025-11-17 04:31:18 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:31:18 - Secured GET /user-service/default
+2025-11-17 04:31:18 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:31:46 - Securing GET /freelancer-service/default
+2025-11-17 04:31:46 - Authenticated user
+2025-11-17 04:31:46 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:31:46 - Secured GET /freelancer-service/default
+2025-11-17 04:31:46 - Adding property source: Config resource 'class path resource [config/freelancer-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:32:29 - Securing GET /project-service/default
+2025-11-17 04:32:29 - Authenticated user
+2025-11-17 04:32:29 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:32:29 - Secured GET /project-service/default
+2025-11-17 04:32:29 - Adding property source: Config resource 'class path resource [config/project-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:33:01 - Securing GET /payment-service/default
+2025-11-17 04:33:02 - Authenticated user
+2025-11-17 04:33:02 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:33:02 - Secured GET /payment-service/default
+2025-11-17 04:33:02 - Adding property source: Config resource 'class path resource [config/payment-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:33:32 - Securing GET /notification-service/default
+2025-11-17 04:33:33 - Authenticated user
+2025-11-17 04:33:33 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:33:33 - Secured GET /notification-service/default
+2025-11-17 04:33:33 - Adding property source: Config resource 'class path resource [config/notification-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:53:33 - Securing GET /freelancer-service/default
+2025-11-17 04:53:33 - Authenticated user
+2025-11-17 04:53:33 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:53:33 - Secured GET /freelancer-service/default
+2025-11-17 04:53:33 - Adding property source: Config resource 'class path resource [config/freelancer-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:59:28 - Securing GET /user-service/default
+2025-11-17 04:59:28 - Authenticated user
+2025-11-17 04:59:28 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:59:28 - Secured GET /user-service/default
+2025-11-17 04:59:28 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:59:43 - Securing GET /user-service/test
+2025-11-17 04:59:44 - Authenticated user
+2025-11-17 04:59:44 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:59:44 - Secured GET /user-service/test
+2025-11-17 04:59:44 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
+2025-11-17 04:59:47 - Securing GET /user-service/test
+2025-11-17 04:59:47 - Authenticated user
+2025-11-17 04:59:47 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 04:59:47 - Secured GET /user-service/test
+2025-11-17 04:59:47 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
+2025-11-17 05:06:41 - Securing GET /user-service/default
+2025-11-17 05:06:41 - Authenticated user
+2025-11-17 05:06:41 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 05:06:41 - Secured GET /user-service/default
+2025-11-17 05:06:41 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
+2025-11-17 05:07:57 - Securing GET /user-service/default
+2025-11-17 05:07:57 - Authenticated user
+2025-11-17 05:07:57 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 05:07:57 - Secured GET /user-service/default
+2025-11-17 05:07:57 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
+2025-11-17 05:08:20 - Securing GET /user-service/test
+2025-11-17 05:08:21 - Authenticated user
+2025-11-17 05:08:21 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 05:08:21 - Secured GET /user-service/test
+2025-11-17 05:08:21 - Adding property source: Config resource 'class path resource [config/user-service.properties]' via location 'classpath:/config/'
+2025-11-17 05:20:22 - Securing GET /freelancer-service/default
+2025-11-17 05:20:22 - Authenticated user
+2025-11-17 05:20:22 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 05:20:22 - Secured GET /freelancer-service/default
+2025-11-17 05:20:22 - Adding property source: Config resource 'class path resource [config/freelancer-service.properties]' via location 'classpath:/config/'
+2025-11-17 05:24:18 - Securing GET /freelancer-service/default
+2025-11-17 05:24:18 - Authenticated user
+2025-11-17 05:24:18 - Set SecurityContextHolder to UsernamePasswordAuthenticationToken [Principal=org.springframework.security.core.userdetails.User [Username=config-admin, Password=[PROTECTED], Enabled=true, AccountNonExpired=true, CredentialsNonExpired=true, AccountNonLocked=true, Granted Authorities=[]], Credentials=[PROTECTED], Authenticated=true, Details=WebAuthenticationDetails [RemoteIpAddress=127.0.0.1, SessionId=null], Granted Authorities=[]]
+2025-11-17 05:24:18 - Secured GET /freelancer-service/default
+2025-11-17 05:24:18 - Adding property source: Config resource 'class path resource [config/freelancer-service.properties]' via location 'classpath:/config/'

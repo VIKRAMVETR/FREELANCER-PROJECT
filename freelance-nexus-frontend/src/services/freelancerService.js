@@ -2,42 +2,42 @@ import api from './api';
 
 const freelancerService = {
   getFreelancerProfile: async (freelancerId) => {
-    const response = await api.get(`/freelancers/${freelancerId}`);
+    const response = await api.get(`/api/freelancers/${freelancerId}`);
     return response.data;
   },
 
   updateFreelancerProfile: async (freelancerId, profileData) => {
-    const response = await api.put(`/freelancers/${freelancerId}`, profileData);
+    const response = await api.put(`/api/freelancers/${freelancerId}`, profileData);
     return response.data;
   },
 
   getFreelancerSkills: async (freelancerId) => {
-    const response = await api.get(`/freelancers/${freelancerId}/skills`);
+    const response = await api.get(`/api/freelancers/${freelancerId}/skills`);
     return response.data;
   },
 
   updateFreelancerSkills: async (freelancerId, skills) => {
-    const response = await api.put(`/freelancers/${freelancerId}/skills`, skills);
+    const response = await api.put(`/api/freelancers/${freelancerId}/skills`, skills);
     return response.data;
   },
 
   getFreelancerPortfolio: async (freelancerId) => {
-    const response = await api.get(`/freelancers/${freelancerId}/portfolio`);
+    const response = await api.get(`/api/freelancers/${freelancerId}/portfolio`);
     return response.data;
   },
 
   addPortfolioItem: async (freelancerId, portfolioItem) => {
-    const response = await api.post(`/freelancers/${freelancerId}/portfolio`, portfolioItem);
+    const response = await api.post(`/api/freelancers/${freelancerId}/portfolio`, portfolioItem);
     return response.data;
   },
 
   deletePortfolioItem: async (freelancerId, itemId) => {
-    const response = await api.delete(`/freelancers/${freelancerId}/portfolio/${itemId}`);
+    const response = await api.delete(`/api/freelancers/${freelancerId}/portfolio/${itemId}`);
     return response.data;
   },
 
   getFreelancerStats: async (freelancerId) => {
-    const response = await api.get(`/freelancers/${freelancerId}/stats`);
+    const response = await api.get(`/api/freelancers/${freelancerId}/stats`);
     return response.data;
   }
 };

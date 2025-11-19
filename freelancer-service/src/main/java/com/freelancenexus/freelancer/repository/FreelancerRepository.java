@@ -102,7 +102,6 @@ public interface FreelancerRepository extends JpaRepository<Freelancer, Long>, J
     List<Freelancer> searchFreelancers(
         @Param("minRate") BigDecimal minRate,
         @Param("maxRate") BigDecimal maxRate,
-        @Param("minRating") BigDecimal minRating,
         @Param("availability") String availability
     );
 }

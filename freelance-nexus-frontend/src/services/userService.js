@@ -12,12 +12,12 @@ const userService = {
   },
 
   getAllUsers: async () => {
-    const response = await api.get('api/users');
+    const response = await api.get('/api/users');
     return response.data;
   },
 
   deleteUser: async (userId) => {
-    const response = await api.delete(`api/users/${userId}`);
+    const response = await api.delete(`/api/users/${userId}`);
     return response.data;
   }
 };

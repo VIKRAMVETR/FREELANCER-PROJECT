@@ -113,7 +113,6 @@ public class FreelancerController {
     public ResponseEntity<List<FreelancerDTO>> searchFreelancers(
             @RequestParam(required = false) BigDecimal minRate,
             @RequestParam(required = false) BigDecimal maxRate,
-            @RequestParam(required = false) BigDecimal minRating,
             @RequestParam(required = false) String availability,
             @RequestParam(required = false) List<String> skills) {
         log.info("REST request to search freelancers");
@@ -122,8 +121,8 @@ public class FreelancerController {
         
         if (skills != null && !skills.isEmpty()) {
             freelancers = freelancerService.getFreelancersBySkills(skills);
-        } else if (minRate != null || maxRate != null || minRating != null || availability != null) {
-            freelancers = freelancerService.searchFreelancers(minRate, maxRate, minRating, availability);
+        } else if (minRate != null || maxRate != null || availability != null) {
+            freelancers = freelancerService.searchFreelancers(minRate, maxRate, availability);
         } else {
             freelancers = freelancerService.getAllFreelancers();
         }

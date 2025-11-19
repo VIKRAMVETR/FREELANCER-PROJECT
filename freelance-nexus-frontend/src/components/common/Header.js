@@ -33,7 +33,7 @@ const Header = () => {
               <Link className="nav-link" to="/projects">Browse Projects</Link>
             </li>
             
-            {authenticated && user?.roles?.includes('FREELANCER') && (
+            {authenticated && user?.role === "FREELANCER" && (
               <>
                 <li className="nav-item">
                   <Link className="nav-link" to="/freelancer/dashboard">
@@ -53,7 +53,7 @@ const Header = () => {
               </>
             )}
             
-            {authenticated && user?.roles?.includes('CLIENT') && (
+            {authenticated && user?.role === "CLIENT" && (
               <>
                 <li className="nav-item">
                   <Link className="nav-link" to="/client/dashboard">
@@ -86,7 +86,7 @@ const Header = () => {
   👤 {user?.username || 'User'}
 </button>
                   <ul className="dropdown-menu dropdown-menu-end">
-                    {user?.roles?.includes('FREELANCER') && (
+                    {user?.role === "FREELANCER" && (
                       <li>
                         <Link className="dropdown-item" to="/freelancer/profile">
                           My Profile
