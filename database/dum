@@ -355,3 +355,938 @@ public class ProjectService {
         }
     }
 }
+
+
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import projectService from '../../services/projectService';
+import Loader from '../common/Loader';
+ 
+const ProjectList = () => {
+  const { user, authenticated } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [loading, setLoading] = useState(true);
+ 
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+ 
+  const fetchProjects = async () => {
+    try {
+      const data = await projectService.getAllProjects({ status: 'OPEN' });
+      setProjects(data);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+ 
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (searchTerm) {
+      try {
+        const data = await projectService.searchProjects(searchTerm);
+        setProjects(data);
+      } catch (error) {
+        console.error('Search error:', error);
+      }
+    } else {
+      fetchProjects();
+    }
+  };
+ 
+  const filteredProjects = categoryFilter === 'ALL'
+    ? projects
+    : projects.filter(p => p.category === categoryFilter);
+ 
+  if (loading) return <Loader />;
+ 
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <h2>Browse Projects</h2>
+          <p className="text-muted">Find your next opportunity</p>
+        </div>
+      </div>
+ 
+      {/* Search and Filter */}
+      <div className="row mb-4">
+        <div className="col-md-8">
+          <form onSubmit={handleSearch}>
+            <div className="input-group">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <button className="btn btn-primary" type="submit">
+                Search
+              </button>
+            </div>
+          </form>
+        </div>
+        <div className="col-md-4">
+          <select
+            className="form-select"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="ALL">All Categories</option>
+            <option value="WEB_DEVELOPMENT">Web Development</option>
+            <option value="MOBILE_DEVELOPMENT">Mobile Development</option>
+            <option value="DESIGN">Design</option>
+            <option value="WRITING">Writing</option>
+            <option value="MARKETING">Marketing</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+      </div>
+ 
+      {/* Project Grid */}
+      {filteredProjects.length === 0 ? (
+        <div className="alert alert-info">
+          <h5>No projects found</h5>
+          <p className="mb-0">Try adjusting your search or filters</p>
+        </div>
+      ) : (
+        <div className="row g-4">
+          {filteredProjects.map((project) => (
+            <div key={project.id} className="col-md-6 col-lg-4">
+              <div className="card h-100 shadow-sm project-card">
+                <div className="card-body">
+                  <h5 className="card-title">{project.title}</h5>
+                  <p className="card-text text-muted">
+                    {project.description?.substring(0, 100)}...
+                  </p>
+ 
+                  <div className="mb-3">
+                    <strong>Budget:</strong> ₹{project.minBudget} - ₹{project.maxBudget}
+                  </div>
+ 
+                  <div className="mb-3">
+                    <strong>Duration:</strong> {project.duration} days
+                  </div>
+ 
+                  <div className="mb-3">
+                    <strong>Skills:</strong>
+                    <div className="mt-2">
+                      {project.requiredSkills?.slice(0, 3).map((skill, idx) => (
+                        <span key={idx} className="badge bg-secondary me-1 mb-1">
+                          {skill}
+                        </span>
+                      ))}
+                      {project.requiredSkills?.length > 3 && (
+                        <span className="badge bg-secondary">
+                          +{project.requiredSkills.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+ 
+                  <div className="d-grid gap-2">
+                    <Link
+                      to={`/projects/${project.id}`}
+                      className="btn btn-outline-primary"
+                    >
+                      View Details
+                    </Link>
+                    {authenticated && user?.roles?.includes('FREELANCER') && (
+                      <Link
+                        to={`/freelancer/submit-proposal/${project.id}`}
+                        className="btn btn-primary"
+                      >
+                        Submit Proposal
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                <div className="card-footer bg-transparent">
+                  <small className="text-muted">
+                    Posted: {new Date(project.createdAt).toLocaleDateString()}
+                  </small>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+ 
+export default ProjectList;
+ 
+ 
+package com.freelancenexus.userservice.model;
+ 
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+ 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+ 
+/**
+* Project
+*
+* <p>JPA entity representing a freelance project posted by a client.
+* Stores project details, budget information, required skills, status,
+* and relationships to proposals and milestones.</p>
+*
+* <p>A project can have multiple proposals from different freelancers
+* and can be broken down into multiple milestones for progressive delivery.</p>
+*
+* @since 1.0
+*/
+@Entity
+@Table(name = "projects")
+public class Project {
+ 
+    /**
+     * Primary key identifier for the project.
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+ 
+    /**
+     * Unique identifier of the client who created and owns the project.
+     */
+    @Column(name = "client_id", nullable = false)
+    private Long clientId;
+ 
+    /**
+     * Project title (required). Typically short and descriptive.
+     */
+    @Column(nullable = false)
+    private String title;
+ 
+    /**
+     * Detailed project description including requirements, scope, and deliverables.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String description;
+ 
+    /**
+     * Minimum budget for the project. Precision: 10 digits total, 2 after decimal.
+     */
+    @Column(name = "budget_min", precision = 10, scale = 2)
+    private BigDecimal budgetMin;
+ 
+    /**
+     * Maximum budget for the project. Precision: 10 digits total, 2 after decimal.
+     */
+    @Column(name = "budget_max", precision = 10, scale = 2)
+    private BigDecimal budgetMax;
+ 
+    /**
+     * Estimated project duration in days.
+     */
+    @Column(name = "duration_days")
+    private Integer durationDays;
+ 
+    /**
+     * Comma-separated or JSON array of required skills stored as a string.
+     * Examples: "Java,Spring,AWS" or "[\"Java\", \"Spring\", \"AWS\"]"
+     */
+    @Column(name = "required_skills", columnDefinition = "TEXT")
+    private String requiredSkills;
+ 
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     * Max length: 100 characters.
+     */
+    @Column(length = 100)
+    private String category;
+ 
+    /**
+     * Current status of the project (OPEN, IN_PROGRESS, COMPLETED, CANCELLED).
+     * Default value is OPEN.
+     *
+     * @see ProjectStatus
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProjectStatus status = ProjectStatus.OPEN;
+ 
+    /**
+     * Project deadline date. Optional field.
+     */
+    private LocalDate deadline;
+ 
+    /**
+     * Unique identifier of the assigned freelancer (if any).
+     * Null if no freelancer has been assigned yet.
+     */
+    @Column(name = "assigned_freelancer")
+    private Long assignedFreelancer;
+ 
+    /**
+     * Timestamp when the project was created. Managed by Hibernate.
+     */
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+ 
+    /**
+     * Timestamp when the project was last updated. Managed by Hibernate.
+     */
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+ 
+    /**
+     * One-to-many relationship with Proposal entities.
+     * A project can have multiple proposals from different freelancers.
+     * Cascade delete ensures proposals are removed when the project is deleted.
+     *
+     * @see Proposal
+     */
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Proposal> proposals = new ArrayList<>();
+ 
+    /**
+     * One-to-many relationship with ProjectMilestone entities.
+     * A project can be broken down into multiple milestones for phased delivery.
+     * Cascade delete ensures milestones are removed when the project is deleted.
+     *
+     * @see ProjectMilestone
+     */
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProjectMilestone> milestones = new ArrayList<>();
+ 
+	public Long getId() {
+		return id;
+	}
+ 
+	public void setId(Long id) {
+		this.id = id;
+	}
+ 
+	public Long getClientId() {
+		return clientId;
+	}
+ 
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+ 
+	public String getTitle() {
+		return title;
+	}
+ 
+	public void setTitle(String title) {
+		this.title = title;
+	}
+ 
+	public String getDescription() {
+		return description;
+	}
+ 
+	public void setDescription(String description) {
+		this.description = description;
+	}
+ 
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+ 
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+ 
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+ 
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+ 
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+ 
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+ 
+	public String getRequiredSkills() {
+		return requiredSkills;
+	}
+ 
+	public void setRequiredSkills(String requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+ 
+	public String getCategory() {
+		return category;
+	}
+ 
+	public void setCategory(String category) {
+		this.category = category;
+	}
+ 
+	public ProjectStatus getStatus() {
+		return status;
+	}
+ 
+	public void setStatus(ProjectStatus status) {
+		this.status = status;
+	}
+ 
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+ 
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+ 
+	public Long getAssignedFreelancer() {
+		return assignedFreelancer;
+	}
+ 
+	public void setAssignedFreelancer(Long assignedFreelancer) {
+		this.assignedFreelancer = assignedFreelancer;
+	}
+ 
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+ 
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+ 
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+ 
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+ 
+	public List<Proposal> getProposals() {
+		return proposals;
+	}
+ 
+	public void setProposals(List<Proposal> proposals) {
+		this.proposals = proposals;
+	}
+ 
+	public List<ProjectMilestone> getMilestones() {
+		return milestones;
+	}
+ 
+	public void setMilestones(List<ProjectMilestone> milestones) {
+		this.milestones = milestones;
+	}
+ 
+	public Project(Long id, Long clientId, String title, String description, BigDecimal budgetMin, BigDecimal budgetMax,
+			Integer durationDays, String requiredSkills, String category, ProjectStatus status, LocalDate deadline,
+			Long assignedFreelancer, LocalDateTime createdAt, LocalDateTime updatedAt, List<Proposal> proposals,
+			List<ProjectMilestone> milestones) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposals = proposals;
+		this.milestones = milestones;
+	}
+ 
+	public Project() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+ 
+package com.freelancenexus.userservice.dto;
+ 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+ 
+import com.freelancenexus.userservice.model.ProjectStatus;
+ 
+/**
+* ProjectDTO
+*
+* <p>Data Transfer Object representing project information returned by API endpoints.
+* Contains project details, status, budget information, required skills, and metadata.
+* Excludes sensitive information and is used for transferring project data to clients.</p>
+*
+* <p>Typically returned by project retrieval, creation, and update endpoints.</p>
+*
+* @since 1.0
+*/
+public class ProjectDTO {
+    
+    /**
+     * Unique identifier of the project.
+     */
+    private Long id;
+    
+    /**
+     * Unique identifier of the client who created the project.
+     */
+    private Long clientId;
+    
+    /**
+     * Project title.
+     */
+    private String title;
+    
+    /**
+     * Detailed description of the project and its requirements.
+     */
+    private String description;
+    
+    /**
+     * Minimum budget amount for the project.
+     */
+    private BigDecimal budgetMin;
+    
+    /**
+     * Maximum budget amount for the project.
+     */
+    private BigDecimal budgetMax;
+    
+    /**
+     * Estimated project duration in days.
+     */
+    private Integer durationDays;
+    
+    /**
+     * List of required skills to complete the project.
+     */
+    private List<String> requiredSkills;
+    
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     */
+    private String category;
+    
+    /**
+     * Current status of the project (e.g., OPEN, IN_PROGRESS, COMPLETED).
+     *
+     * @see ProjectStatus
+     */
+    private ProjectStatus status;
+    
+    /**
+     * Project deadline date.
+     */
+    private LocalDate deadline;
+    
+    /**
+     * Unique identifier of the freelancer assigned to the project (if any).
+     * {@code null} if no freelancer is assigned.
+     */
+    private Long assignedFreelancer;
+    
+    /**
+     * Timestamp when the project was created.
+     */
+    private LocalDateTime createdAt;
+    
+    /**
+     * Timestamp when the project was last updated.
+     */
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Number of proposals submitted for this project.
+     */
+    private Integer proposalCount;
+ 
+	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
+			ProjectStatus status, LocalDate deadline, Long assignedFreelancer,
+			LocalDateTime createdAt, LocalDateTime updatedAt, Integer proposalCount) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposalCount = proposalCount;
+	}
+ 
+	public ProjectDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+ 
+	public Long getId() {
+		return id;
+	}
+ 
+	public void setId(Long id) {
+		this.id = id;
+	}
+ 
+	public Long getClientId() {
+		return clientId;
+	}
+ 
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+ 
+	public String getTitle() {
+		return title;
+	}
+ 
+	public void setTitle(String title) {
+		this.title = title;
+	}
+ 
+	public String getDescription() {
+		return description;
+	}
+ 
+	public void setDescription(String description) {
+		this.description = description;
+	}
+ 
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+ 
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+ 
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+ 
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+ 
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+ 
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+ 
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+ 
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+ 
+	public String getCategory() {
+		return category;
+	}
+ 
+	public void setCategory(String category) {
+		this.category = category;
+	}
+ 
+	public ProjectStatus getStatus() {
+		return status;
+	}
+ 
+	public void setStatus(ProjectStatus status) {
+		this.status = status;
+	}
+ 
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+ 
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+ 
+	public Long getAssignedFreelancer() {
+		return assignedFreelancer;
+	}
+ 
+	public void setAssignedFreelancer(Long assignedFreelancer) {
+		this.assignedFreelancer = assignedFreelancer;
+	}
+ 
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+ 
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+ 
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+ 
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+ 
+	public Integer getProposalCount() {
+		return proposalCount;
+	}
+ 
+	public void setProposalCount(Integer proposalCount) {
+		this.proposalCount = proposalCount;
+	}
+	
+	
+    
+    
+}
+ 
+package com.freelancenexus.userservice.controller;
+ 
+import java.util.List;
+ 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+ 
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.service.ProjectService;
+ 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+ 
+/**
+* ProjectController
+*
+* <p>REST API controller for project management in the Project Service.
+* Provides endpoints for creating, retrieving, updating, and deleting projects.
+* Implements role-based access control to restrict operations by user role.</p>
+*
+* <p>Endpoints are categorized by operation type:
+* <ul>
+*   <li><strong>Creation</strong> — clients create new projects</li>
+*   <li><strong>Retrieval</strong> — authenticated users view projects</li>
+*   <li><strong>Updates</strong> — clients update their projects</li>
+*   <li><strong>Deletion</strong> — clients and admins delete projects</li>
+*   <li><strong>Search/Filter</strong> — keyword, category, and status filtering</li>
+*   <li><strong>Assignment</strong> — clients assign freelancers to projects</li>
+* </ul>
+* </p>
+*
+* @since 1.0
+*/
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+@Slf4j
+public class ProjectController {
+	private final Logger log= LoggerFactory.getLogger(ProjectController.class);
+    private final ProjectService projectService;
+    
+    public ProjectController(ProjectService projectService) {
+		super();
+		this.projectService = projectService;
+	}
+ 
+	/**
+     * Create a new project.
+     *
+     * <p>Requires CLIENT role. Accepts validated project creation details and
+     * persists the new project to the database.</p>
+     *
+     * @param createDTO project creation details
+     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProjectDTO}
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> createProject(@Valid @RequestBody ProjectCreateDTO createDTO) {
+        log.info("POST /api/projects - Creating project: {}", createDTO.getTitle());
+        ProjectDTO createdProject = projectService.createProject(createDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
+    }
+ 
+    /**
+     * Retrieve a project by id.
+     *
+     * <p>Requires authentication. Any authenticated user can view project details.</p>
+     *
+     * @param id the unique identifier of the project
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProjectDTO}
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProjectDTO> getProject(@PathVariable Long id) {
+        log.info("GET /api/projects/{} - Fetching project", id);
+        ProjectDTO project = projectService.getProjectById(id);
+        return ResponseEntity.ok(project);
+    }
+ 
+    /**
+     * Update an existing project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can update it.</p>
+     *
+     * @param id the unique identifier of the project to update
+     * @param updateDTO updated project details
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> updateProject(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectCreateDTO updateDTO) {
+        log.info("PUT /api/projects/{} - Updating project", id);
+        ProjectDTO updatedProject = projectService.updateProject(id, updateDTO);
+        return ResponseEntity.ok(updatedProject);
+    }
+ 
+    /**
+     * Delete a project by id.
+     *
+     * <p>Requires CLIENT or ADMIN role. Only the project owner (client) or an admin can delete.</p>
+     *
+     * @param id the unique identifier of the project to delete
+     * @return ResponseEntity with HTTP 204 (No Content) status
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
+        log.info("DELETE /api/projects/{} - Deleting project", id);
+        projectService.deleteProject(id);
+        return ResponseEntity.noContent().build();
+    }
+ 
+    /**
+     * Retrieve all projects with optional filtering.
+     *
+     * <p>Requires authentication. Supports filtering by keyword, status, and category.
+     * Returns open projects by default if status="OPEN" is specified.</p>
+     *
+     * @param keyword optional keyword for searching project titles/descriptions
+     * @param status optional status filter (e.g., "OPEN", "IN_PROGRESS")
+     * @param category optional category filter
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProjectDTO>> getAllProjects(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category) {
+        log.info("GET /api/projects - Fetching projects with filters");
+        
+        List<ProjectDTO> projects;
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            projects = projectService.searchProjects(keyword, status);
+        } else if (category != null && !category.isEmpty()) {
+            projects = projectService.getProjectsByCategory(category);
+        } else if ("OPEN".equalsIgnoreCase(status)) {
+            projects = projectService.getOpenProjects();
+        } else {
+            projects = projectService.getAllProjects();
+        }
+        
+        return ResponseEntity.ok(projects);
+    }
+ 
+    /**
+     * Retrieve all projects created by a specific client.
+     *
+     * <p>Requires CLIENT role.</p>
+     *
+     * @param clientId the unique identifier of the client
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping("/client/{clientId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<ProjectDTO>> getClientProjects(@PathVariable Long clientId) {
+        log.info("GET /api/projects/client/{} - Fetching client projects", clientId);
+        List<ProjectDTO> projects = projectService.getProjectsByClientId(clientId);
+        return ResponseEntity.ok(projects);
+    }
+ 
+    /**
+     * Assign a freelancer to a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can assign a freelancer.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param freelancerId the unique identifier of the freelancer to assign
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{projectId}/assign/{freelancerId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> assignFreelancer(
+            @PathVariable Long projectId,
+            @PathVariable Long freelancerId) {
+        log.info("PUT /api/projects/{}/assign/{} - Assigning freelancer", projectId, freelancerId);
+        ProjectDTO project = projectService.assignFreelancer(projectId, freelancerId);
+        return ResponseEntity.ok(project);
+    }
+ 
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in ProjectController", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+}
+ 
