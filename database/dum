@@ -1,311 +1,272 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import freelancerService from '../../services/freelancerService';
-import proposalService from '../../services/proposalService';
-import Loader from '../common/Loader';
 
-const FreelancerDashboard = () => {
-  const { user } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [recentProposals, setRecentProposals] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchDashboardData = useCallback(async () => {
-    if (!user?.id) return; // ✅ guard if user isn't ready yet
-    try {
-      const [statsData, proposalsData] = await Promise.all([
-        freelancerService.getFreelancerStats(user.id),
-        proposalService.getFreelancerProposals(user.id),
-      ]);
-      setStats(statsData);
-      setRecentProposals(proposalsData.slice(0, 5));
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]); // ✅ dependency properly declared
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]); // ✅ ESLint clean, no warnings
-
-  if (loading) return <Loader />;
-
+const Footer = () => {
   return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>Welcome back, {user?.firstName || user?.username}! 👋</h2>
-          <p className="text-muted">Here's your freelance activity overview</p>
+    <footer className="bg-dark text-white mt-5">
+      <div className="container py-4">
+        <div className="row">
+          <div className="col-md-4 mb-3">
+            <h5 className="fw-bold">Freelance Nexus</h5>
+            <p className="text-muted">
+              AI-powered freelance marketplace connecting talented professionals with amazing projects.
+            </p>
+          </div>
+          
+          <div className="col-md-4 mb-3">
+            <h6 className="fw-bold">Quick Links</h6>
+            <ul className="list-unstyled">
+              <li><Link to="/projects" className="text-muted text-decoration-none">Browse Projects</Link></li>
+              <li><Link to="/login" className="text-muted text-decoration-none">Login</Link></li>
+              <li><Link to="/register" className="text-muted text-decoration-none">Register</Link></li>
+            </ul>
+          </div>
+          
+          <div className="col-md-4 mb-3">
+            <h6 className="fw-bold">Contact</h6>
+            <p className="text-muted mb-1">
+              <small>Email: support@freelancenexus.com</small>
+            </p>
+            <p className="text-muted">
+              <small>Phone: +91 1234567890</small>
+            </p>
+          </div>
+        </div>
+        
+        <hr className="border-secondary" />
+        
+        <div className="text-center text-muted">
+          <small>&copy; 2024 Freelance Nexus. All rights reserved.</small>
         </div>
       </div>
+    </footer>
+  );
+};
 
-      {/* Stats Cards */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-3">
-          <div className="card stat-card bg-primary text-white">
-            <div className="card-body text-center">
-              <h3>{stats?.totalProposals || 0}</h3>
-              <p className="mb-0">Total Proposals</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-success text-white">
-            <div className="card-body text-center">
-              <h3>{stats?.acceptedProposals || 0}</h3>
-              <p className="mb-0">Accepted</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-warning text-dark">
-            <div className="card-body text-center">
-              <h3>{stats?.pendingProposals || 0}</h3>
-              <p className="mb-0">Pending</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-info text-white">
-            <div className="card-body text-center">
-              <h3>₹{stats?.totalEarnings || 0}</h3>
-              <p className="mb-0">Total Earnings</p>
-            </div>
-          </div>
-        </div>
-      </div>
+export default Footer;
 
-      {/* AI Recommendations */}
-      <div className="row mb-4">
-        <div className="col">
-          <div className="card shadow-sm ai-feature">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h5 className="mb-2">
-                    <span className="ai-badge">AI</span> Project Recommendations
-                  </h5>
-                  <p className="mb-0">
-                    We found projects matching your skills and experience
-                  </p>
-                </div>
-                <Link to="/freelancer/recommendations" className="btn btn-light">
-                  View Recommendations
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+const Header = () => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+  return (
+<nav className="navbar navbar-expand-lg navbar-dark bg-primary">
+<div className="container">
+<Link className="navbar-brand fw-bold" to="/">
+          🚀 Freelance Nexus
+</Link>
+ 
+        <button
+          className="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navbarNav"
+>
+<span className="navbar-toggler-icon"></span>
+</button>
+<div className="collapse navbar-collapse" id="navbarNav">
+ 
+          {/* LEFT MENU */}
+<ul className="navbar-nav me-auto">
+<li className="nav-item">
+<Link className="nav-link" to="/projects">Browse Projects</Link>
+</li>
+ 
+            {/* FREELANCER MENU */}
+            {user && user.role === "FREELANCER" && (
+<>
+<li className="nav-item">
+<Link className="nav-link" to="/freelancer/dashboard">Dashboard</Link>
+</li>
+ 
+                <li className="nav-item">
+<Link className="nav-link" to="/freelancer/recommendations">
+<span className="badge bg-warning text-dark">AI</span> Recommendations
+</Link>
+</li>
+ 
+                <li className="nav-item">
+<Link className="nav-link" to="/freelancer/proposals">My Proposals</Link>
+</li>
+</>
+            )}
+ 
+            {/* CLIENT MENU */}
+            {user && user.role === "CLIENT" && (
+<>
+<li className="nav-item">
+<Link className="nav-link" to="/client/dashboard">Dashboard</Link>
+</li>
+ 
+                <li className="nav-item">
+<Link className="nav-link" to="/client/post-project">Post Project</Link>
+</li>
+ 
+                <li className="nav-item">
+<Link className="nav-link" to="/client/projects">My Projects</Link>
+</li>
+</>
+            )}
+</ul>
+ 
+          {/* RIGHT MENU */}
+<ul className="navbar-nav">
+ 
+            {/* LOGGED IN */}
+            {user ? (
+<li className="nav-item dropdown">
+<button
+                  className="nav-link dropdown-toggle bg-transparent border-0"
+                  type="button"
+                  data-bs-toggle="dropdown"
+>
+                  👤 {user.fullName || user.username || "User"}
+</button>
+ 
+                <ul className="dropdown-menu dropdown-menu-end">
+                  {user.role === "FREELANCER" && (
+<li>
+<Link className="dropdown-item" to="/freelancer/profile">
+                        My Profile
+</Link>
+</li>
+                  )}
+ 
+                  <li>
+<Link className="dropdown-item" to="/payment-history">
+                      Payment History
+</Link>
+</li>
+ 
+                  <li><hr className="dropdown-divider" /></li>
+ 
+                  <li>
+<button className="dropdown-item" onClick={handleLogout}>
+                      Logout
+</button>
+</li>
+</ul>
+</li>
+            ) : (
+<>
+                {/* NOT LOGGED IN */}
+<li className="nav-item">
+<Link className="nav-link" to="/login">Login</Link>
+</li>
+ 
+                <li className="nav-item">
+<Link className="btn btn-light btn-sm ms-2" to="/register">
+                    Sign Up
+</Link>
+</li>
+</>
+            )}
+ 
+          </ul>
+</div>
+</div>
+</nav>
+  );
+};
+export default Header;
 
-      {/* Recent Proposals */}
-      <div className="row">
-        <div className="col-md-8">
-          <div className="card shadow-sm">
-            <div className="card-header bg-white">
-              <h5 className="mb-0">Recent Proposals</h5>
-            </div>
-            <div className="card-body">
-              {recentProposals.length === 0 ? (
-                <p className="text-muted text-center py-3">No proposals yet</p>
-              ) : (
-                <div className="list-group list-group-flush">
-                  {recentProposals.map((proposal) => (
-                    <div key={proposal.id} className="list-group-item">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div>
-                          <h6 className="mb-1">{proposal.projectTitle}</h6>
-                          <p className="mb-1 text-muted small">
-                            Bid: ₹{proposal.bidAmount} | Duration: {proposal.duration} days
-                          </p>
-                          <small className="text-muted">
-                            Submitted: {new Date(proposal.submittedAt).toLocaleDateString()}
-                          </small>
-                        </div>
-                        <span
-                          className={`badge bg-${
-                            proposal.status === 'ACCEPTED'
-                              ? 'success'
-                              : proposal.status === 'REJECTED'
-                              ? 'danger'
-                              : 'warning'
-                          }`}
-                        >
-                          {proposal.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="text-center mt-3">
-                <Link to="/freelancer/proposals" className="btn btn-outline-primary">
-                  View All Proposals
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+import React from 'react';
 
-        {/* Quick Actions */}
-        <div className="col-md-4">
-          <div className="card shadow-sm">
-            <div className="card-header bg-white">
-              <h5 className="mb-0">Quick Actions</h5>
-            </div>
-            <div className="card-body">
-              <div className="d-grid gap-2">
-                <Link to="/projects" className="btn btn-primary">
-                  Browse Projects
-                </Link>
-                <Link to="/freelancer/profile" className="btn btn-outline-primary">
-                  Edit Profile
-                </Link>
-                <Link to="/freelancer/proposals" className="btn btn-outline-secondary">
-                  My Proposals
-                </Link>
-                <Link to="/payment-history" className="btn btn-outline-info">
-                  Payment History
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Profile Completion */}
-          <div className="card shadow-sm mt-3">
-            <div className="card-body">
-              <h6 className="mb-3">Profile Completion</h6>
-              <div className="progress mb-2" style={{ height: '20px' }}>
-                <div
-                  className="progress-bar"
-                  role="progressbar"
-                  style={{ width: `${stats?.profileCompletion || 60}%` }}
-                >
-                  {stats?.profileCompletion || 60}%
-                </div>
-              </div>
-              <small className="text-muted">
-                Complete your profile to get better project matches
-              </small>
-            </div>
-          </div>
+const Loader = () => {
+  return (
+    <div className="d-flex justify-content-center align-items-center" style={{ minHeight: '400px' }}>
+      <div className="text-center">
+        <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
+          <span className="visually-hidden">Loading...</span>
         </div>
+        <p className="mt-3 text-muted">Loading...</p>
       </div>
     </div>
   );
 };
 
-export default FreelancerDashboard;
+export default Loader;
 
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import proposalService from '../../services/proposalService';
+import paymentService from '../../services/paymentService';
+import Loader from '../common/Loader';
 
-
-
-import React, { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../../context/AuthContext";
-import freelancerService from "../../services/freelancerService";
-import Loader from "../common/Loader";
-
-const FreelancerProfile = () => {
+const PaymentForm = () => {
+  const { proposalId } = useParams();
   const { user } = useAuth();
-
-  const [profile, setProfile] = useState({
-    bio: "",
-    hourlyRate: "",
-    skills: [],        // NOW SkillDTO[]
-    portfolio: []
+  const navigate = useNavigate();
+  const [proposal, setProposal] = useState(null);
+  const [paymentData, setPaymentData] = useState({
+    upiId: '',
+    amount: '',
+    description: ''
   });
-
-  const [newSkill, setNewSkill] = useState({
-    skillName: "",
-    proficiencyLevel: "BEGINNER",
-    yearsExperience: 1
-  });
-
-  const [newPortfolio, setNewPortfolio] = useState({
-    title: "",
-    description: "",
-    url: ""
-  });
-
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
-
-  // Fetch profile
-  const fetchProfile = useCallback(async () => {
-    try {
-      const data = await freelancerService.getFreelancerProfile(user.id);
-      setProfile(data);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (user?.id) {
-      fetchProfile();
-    }
-  }, [fetchProfile, user?.id]);
+    const fetchProposal = async () => {
+      try {
+        const data = await proposalService.getProposalById(proposalId);
+        setProposal(data);
+        setPaymentData(prev => ({
+          ...prev,
+          amount: data.bidAmount,
+          description: `Payment for project: ${data.projectTitle}`
+        }));
+      } catch (error) {
+        setError('Failed to load proposal details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProposal();
+  }, [proposalId]);
+
+  const handleChange = (e) => {
+    setPaymentData({ ...paymentData, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
+    setError('');
+    setProcessing(true);
 
     try {
-      await freelancerService.updateFreelancerProfile(user.id, profile);
-      setMessage({ type: "success", text: "Profile updated successfully!" });
-    } catch (error) {
-      setMessage({ type: "danger", text: "Failed to update profile" });
+      const payment = await paymentService.initiatePayment({
+        proposalId: parseInt(proposalId),
+        clientId: user.id,
+        freelancerId: proposal.freelancerId,
+        amount: parseFloat(paymentData.amount),
+        paymentMethod: 'UPI',
+        description: paymentData.description
+      });
+
+      // Process UPI payment
+      await paymentService.processUPIPayment(payment.id, {
+        upiId: paymentData.upiId,
+        amount: paymentData.amount
+      });
+
+      navigate('/payment-history', { 
+        state: { message: 'Payment initiated successfully!' } 
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Payment failed. Please try again.');
     } finally {
-      setSaving(false);
+      setProcessing(false);
     }
-  };
-
-  // Add SkillDTO
-  const addSkill = () => {
-    if (!newSkill.skillName.trim()) return;
-
-    setProfile((prev) => ({
-      ...prev,
-      skills: [...prev.skills, { ...newSkill, id: Date.now() }]
-    }));
-
-    setNewSkill({
-      skillName: "",
-      proficiencyLevel: "BEGINNER",
-      yearsExperience: 1
-    });
-  };
-
-  const removeSkill = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s.id !== id)
-    }));
-  };
-
-  // Portfolio
-  const addPortfolioItem = () => {
-    if (newPortfolio.title && newPortfolio.description) {
-      setProfile((prev) => ({
-        ...prev,
-        portfolio: [...prev.portfolio, { ...newPortfolio, id: Date.now() }]
-      }));
-
-      setNewPortfolio({ title: "", description: "", url: "" });
-    }
-  };
-
-  const removePortfolioItem = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      portfolio: prev.portfolio.filter((item) => item.id !== id)
-    }));
   };
 
   if (loading) return <Loader />;
@@ -314,236 +275,113 @@ const FreelancerProfile = () => {
     <div className="container mt-4">
       <div className="row">
         <div className="col-lg-8 mx-auto">
-          <h2 className="mb-4">My Profile</h2>
+          <h2 className="mb-4">Make Payment</h2>
 
-          {message.text && (
-            <div className={`alert alert-${message.type}`}>{message.text}</div>
+          {error && (
+            <div className="alert alert-danger">{error}</div>
           )}
 
+          {/* Proposal Details */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Payment Details</h5>
+            </div>
+            <div className="card-body">
+              <div className="row mb-3">
+                <div className="col-sm-6">
+                  <strong>Project:</strong>
+                  <div>{proposal?.projectTitle}</div>
+                </div>
+                <div className="col-sm-6">
+                  <strong>Freelancer:</strong>
+                  <div>{proposal?.freelancerName}</div>
+                </div>
+              </div>
+              <div className="row">
+                <div className="col-sm-6">
+                  <strong>Agreed Amount:</strong>
+                  <div className="text-success fs-4">₹{proposal?.bidAmount}</div>
+                </div>
+                <div className="col-sm-6">
+                  <strong>Duration:</strong>
+                  <div>{proposal?.duration} days</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Form */}
           <form onSubmit={handleSubmit}>
-            {/* Basic Info */}
             <div className="card shadow-sm mb-4">
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">Basic Information</h5>
+              <div className="card-header bg-success text-white">
+                <h5 className="mb-0">💳 UPI Payment</h5>
               </div>
               <div className="card-body">
                 <div className="mb-3">
-                  <label className="form-label">Bio</label>
-                  <textarea
+                  <label className="form-label">UPI ID *</label>
+                  <input
+                    type="text"
                     className="form-control"
-                    rows="4"
-                    value={profile.bio}
-                    onChange={(e) =>
-                      setProfile({ ...profile, bio: e.target.value })
-                    }
-                    placeholder="Tell us about your expertise..."
+                    name="upiId"
+                    value={paymentData.upiId}
+                    onChange={handleChange}
+                    placeholder="username@upi"
+                    required
                   />
+                  <small className="text-muted">
+                    Enter your UPI ID (e.g., yourname@paytm, yourname@ybl)
+                  </small>
                 </div>
 
                 <div className="mb-3">
-                  <label className="form-label">Hourly Rate (₹)</label>
+                  <label className="form-label">Amount (₹) *</label>
                   <input
                     type="number"
                     className="form-control"
-                    value={profile.hourlyRate}
-                    onChange={(e) =>
-                      setProfile({ ...profile, hourlyRate: e.target.value })
-                    }
-                    placeholder="Enter your hourly rate"
+                    name="amount"
+                    value={paymentData.amount}
+                    onChange={handleChange}
+                    readOnly
+                    required
                   />
                 </div>
-              </div>
-            </div>
 
-            {/* Skills */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">Skills</h5>
-              </div>
-              <div className="card-body">
-                <div className="row g-2 align-items-end">
-                  <div className="col-md-4">
-                    <label>Skill Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={newSkill.skillName}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          skillName: e.target.value
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="col-md-4">
-                    <label>Proficiency</label>
-                    <select
-                      className="form-select"
-                      value={newSkill.proficiencyLevel}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          proficiencyLevel: e.target.value
-                        })
-                      }
-                    >
-                      <option value="BEGINNER">Beginner</option>
-                      <option value="INTERMEDIATE">Intermediate</option>
-                      <option value="ADVANCED">Advanced</option>
-                      <option value="EXPERT">Expert</option>
-                    </select>
-                  </div>
-
-                  <div className="col-md-3">
-                    <label>Years</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      min="0"
-                      max="50"
-                      value={newSkill.yearsExperience}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          yearsExperience: Number(e.target.value)
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="col-md-1">
-                    <button
-                      type="button"
-                      className="btn btn-success w-100"
-                      onClick={addSkill}
-                    >
-                      +
-                    </button>
-                  </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <textarea
+                    className="form-control"
+                    name="description"
+                    rows="2"
+                    value={paymentData.description}
+                    onChange={handleChange}
+                  />
                 </div>
 
-                {/* Skill List */}
-                <div className="mt-3">
-                  {profile.skills.map((skill) => (
-                    <div
-                      key={skill.id}
-                      className="d-flex justify-content-between p-2 border rounded mb-2"
-                    >
-                      <div>
-                        <strong>{skill.skillName}</strong> —{" "}
-                        {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => removeSkill(skill.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                <div className="alert alert-info">
+                  <small>
+                    <strong>Note:</strong> You will be redirected to your UPI app to complete the payment. 
+                    The amount will be held in escrow until the project is completed.
+                  </small>
                 </div>
               </div>
             </div>
 
-            {/* Portfolio */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-info text-white">
-                <h5 className="mb-0">Portfolio</h5>
-              </div>
-              <div className="card-body">
-                <div className="row mb-3">
-                  <div className="col-md-6">
-                    <input
-                      type="text"
-                      className="form-control mb-2"
-                      value={newPortfolio.title}
-                      onChange={(e) =>
-                        setNewPortfolio({
-                          ...newPortfolio,
-                          title: e.target.value
-                        })
-                      }
-                      placeholder="Project Title"
-                    />
-                  </div>
-
-                  <div className="col-md-6">
-                    <input
-                      type="url"
-                      className="form-control mb-2"
-                      value={newPortfolio.url}
-                      onChange={(e) =>
-                        setNewPortfolio({
-                          ...newPortfolio,
-                          url: e.target.value
-                        })
-                      }
-                      placeholder="Project URL (optional)"
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <textarea
-                      className="form-control mb-2"
-                      rows="2"
-                      value={newPortfolio.description}
-                      onChange={(e) =>
-                        setNewPortfolio({
-                          ...newPortfolio,
-                          description: e.target.value
-                        })
-                      }
-                      placeholder="Project Description"
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <button
-                      type="button"
-                      className="btn btn-info"
-                      onClick={addPortfolioItem}
-                    >
-                      Add Portfolio Item
-                    </button>
-                  </div>
-                </div>
-
-                {profile.portfolio.map((item) => (
-                  <div
-                    key={item.id}
-                    className="portfolio-item d-flex justify-content-between"
-                  >
-                    <div>
-                      <h6>{item.title}</h6>
-                      <p className="text-muted mb-1">{item.description}</p>
-                      {item.url && (
-                        <a href={item.url} target="_blank" rel="noreferrer">
-                          View Project →
-                        </a>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removePortfolioItem(item.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
+            <div className="d-grid gap-2 d-md-flex justify-content-md-end">
+              <button 
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => navigate(-1)}
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                className="btn btn-success"
+                disabled={processing}
+              >
+                {processing ? 'Processing...' : `Pay ₹${paymentData.amount}`}
+              </button>
             </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary w-100"
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Profile"}
-            </button>
           </form>
         </div>
       </div>
@@ -551,48 +389,35 @@ const FreelancerProfile = () => {
   );
 };
 
-export default FreelancerProfile;
+export default PaymentForm;
 
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import proposalService from '../../services/proposalService';
+import paymentService from '../../services/paymentService';
 import Loader from '../common/Loader';
 
-const MyProposals = () => {
+const PaymentHistory = () => {
   const { user } = useAuth();
-  const [proposals, setProposals] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [filter, setFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
 
-  const fetchProposals = useCallback(async () => {
-    try {
-      const data = await proposalService.getFreelancerProposals(user.id);
-      setProposals(data);
-    } catch (error) {
-      console.error('Error fetching proposals:', error);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const data = await paymentService.getPaymentHistory(user.id);
+        setPayments(data);
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPayments();
   }, [user.id]);
 
-  useEffect(() => {
-    fetchProposals();
-  }, [fetchProposals]);
-
-  const handleWithdraw = async (proposalId) => {
-    if (window.confirm('Are you sure you want to withdraw this proposal?')) {
-      try {
-        await proposalService.withdrawProposal(proposalId);
-        fetchProposals(); // safe now
-      } catch (error) {
-        alert('Failed to withdraw proposal');
-      }
-    }
-  };
-
-  const filteredProposals = proposals.filter(p => 
+  const filteredPayments = payments.filter(p => 
     filter === 'ALL' || p.status === filter
   );
 
@@ -602,8 +427,8 @@ const MyProposals = () => {
     <div className="container mt-4">
       <div className="row mb-4">
         <div className="col">
-          <h2>My Proposals</h2>
-          <p className="text-muted">Track all your submitted proposals</p>
+          <h2>Payment History</h2>
+          <p className="text-muted">View all your transactions</p>
         </div>
       </div>
 
@@ -615,2072 +440,605 @@ const MyProposals = () => {
               className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
               onClick={() => setFilter('ALL')}
             >
-              All ({proposals.length})
+              All ({payments.length})
+            </button>
+            <button 
+              className={`btn ${filter === 'COMPLETED' ? 'btn-success' : 'btn-outline-success'}`}
+              onClick={() => setFilter('COMPLETED')}
+            >
+              Completed ({payments.filter(p => p.status === 'COMPLETED').length})
             </button>
             <button 
               className={`btn ${filter === 'PENDING' ? 'btn-warning' : 'btn-outline-warning'}`}
               onClick={() => setFilter('PENDING')}
             >
-              Pending ({proposals.filter(p => p.status === 'PENDING').length})
+              Pending ({payments.filter(p => p.status === 'PENDING').length})
             </button>
             <button 
-              className={`btn ${filter === 'ACCEPTED' ? 'btn-success' : 'btn-outline-success'}`}
-              onClick={() => setFilter('ACCEPTED')}
+              className={`btn ${filter === 'FAILED' ? 'btn-danger' : 'btn-outline-danger'}`}
+              onClick={() => setFilter('FAILED')}
             >
-              Accepted ({proposals.filter(p => p.status === 'ACCEPTED').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'REJECTED' ? 'btn-danger' : 'btn-outline-danger'}`}
-              onClick={() => setFilter('REJECTED')}
-            >
-              Rejected ({proposals.filter(p => p.status === 'REJECTED').length})
+              Failed ({payments.filter(p => p.status === 'FAILED').length})
             </button>
           </div>
         </div>
       </div>
 
-      {/* Proposals List */}
-      {filteredProposals.length === 0 ? (
+      {/* Payments List */}
+      {filteredPayments.length === 0 ? (
         <div className="alert alert-info">
-          <h5>No proposals found</h5>
-          <p className="mb-0">
-            Start browsing projects and submit proposals to get started!
-          </p>
+          <h5>No payment history</h5>
+          <p className="mb-0">You haven't made any payments yet.</p>
         </div>
       ) : (
-        <div className="row g-4">
-          {filteredProposals.map((proposal) => (
-            <div key={proposal.id} className="col-12">
-              <div className="card shadow-sm proposal-card">
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-8">
-                      <h5 className="card-title">{proposal.projectTitle}</h5>
-                      <p className="text-muted mb-2">
-                        {proposal.projectDescription?.substring(0, 150)}...
-                      </p>
-                      
-                      <div className="row mb-2">
-                        <div className="col-sm-6">
-                          <strong>Your Bid:</strong> ₹{proposal.bidAmount}
-                        </div>
-                        <div className="col-sm-6">
-                          <strong>Duration:</strong> {proposal.duration} days
-                        </div>
-                      </div>
-
-                      <div className="mb-2">
-                        <strong>Cover Letter:</strong>
-                        <p className="text-muted small mt-1">
-                          {proposal.coverLetter?.substring(0, 100)}...
-                        </p>
-                      </div>
-
-                      <small className="text-muted">
-                        Submitted: {new Date(proposal.submittedAt).toLocaleDateString()}
-                      </small>
-                    </div>
-
-                    <div className="col-md-4 text-end">
-                      <span className={`badge bg-${
-                        proposal.status === 'ACCEPTED' ? 'success' :
-                        proposal.status === 'REJECTED' ? 'danger' :
-                        proposal.status === 'WITHDRAWN' ? 'secondary' :
-                        'warning'
-                      } mb-3`}>
-                        {proposal.status}
-                      </span>
-
-                      <div className="d-grid gap-2">
-                        <Link 
-                          to={`/projects/${proposal.projectId}`}
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          View Project
-                        </Link>
-                        
-                        {proposal.status === 'PENDING' && (
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleWithdraw(proposal.id)}
-                          >
-                            Withdraw
+        <div className="card shadow-sm">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Project</th>
+                    <th>
+                      {user?.roles?.includes('CLIENT') ? 'Freelancer' : 'Client'}
+                    </th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPayments.map((payment) => (
+                    <tr key={payment.id}>
+                      <td>
+                        <small>{new Date(payment.createdAt).toLocaleDateString()}</small>
+                      </td>
+                      <td>
+                        <strong>{payment.projectTitle}</strong>
+                        <br />
+                        <small className="text-muted">{payment.description}</small>
+                      </td>
+                      <td>
+                        {user?.roles?.includes('CLIENT') 
+                          ? payment.freelancerName 
+                          : payment.clientName}
+                      </td>
+                      <td>
+                        <strong className="text-success">₹{payment.amount}</strong>
+                      </td>
+                      <td>
+                        <span className="badge bg-info">{payment.paymentMethod}</span>
+                      </td>
+                      <td>
+                        <span className={`badge bg-${
+                          payment.status === 'COMPLETED' ? 'success' :
+                          payment.status === 'PENDING' ? 'warning' :
+                          payment.status === 'FAILED' ? 'danger' :
+                          'secondary'
+                        }`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td>
+                        {payment.status === 'PENDING' && (
+                          <button className="btn btn-sm btn-outline-primary">
+                            Verify
                           </button>
                         )}
-
-                        {proposal.status === 'ACCEPTED' && (
-                          <Link
-                            to={`/payment/${proposal.id}`}
-                            className="btn btn-sm btn-success"
-                          >
-                            View Payment
-                          </Link>
+                        {payment.status === 'COMPLETED' && (
+                          <button className="btn btn-sm btn-outline-secondary">
+                            Receipt
+                          </button>
                         )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
+          </div>
         </div>
       )}
-    </div>
-  );
-};
 
-export default MyProposals;
-
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import aiService from '../../services/aiService';
-import Loader from '../common/Loader';
-
-const ProjectRecommendations = () => {
-  const { user } = useAuth();
-  const [recommendations, setRecommendations] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  const fetchRecommendations = useCallback(async () => {
-    try {
-      const data = await aiService.getProjectRecommendations(user.id);
-      setRecommendations(data);
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user.id]);
-
-  useEffect(() => {
-    fetchRecommendations();
-  }, [fetchRecommendations]);
-
-  if (loading) return <Loader />;
-
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>
-            <span className="ai-badge">AI</span> Project Recommendations
-          </h2>
-          <p className="text-muted">
-            Projects matched to your skills and experience using AI
-          </p>
+      {/* Summary */}
+      <div className="row mt-4">
+        <div className="col-md-4">
+          <div className="card shadow-sm">
+            <div className="card-body text-center">
+              <h6 className="text-muted">Total Transactions</h6>
+              <h3>{payments.length}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card shadow-sm">
+            <div className="card-body text-center">
+              <h6 className="text-muted">Total Amount</h6>
+              <h3 className="text-success">
+                ₹{payments.reduce((sum, p) => sum + p.amount, 0)}
+              </h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card shadow-sm">
+            <div className="card-body text-center">
+              <h6 className="text-muted">Success Rate</h6>
+              <h3 className="text-info">
+                {payments.length > 0 
+                  ? Math.round((payments.filter(p => p.status === 'COMPLETED').length / payments.length) * 100)
+                  : 0}%
+              </h3>
+            </div>
+          </div>
         </div>
       </div>
-
-      {recommendations.length === 0 ? (
-        <div className="alert alert-info">
-          <h5>No recommendations yet</h5>
-          <p className="mb-0">
-            Complete your profile and add skills to get personalized project recommendations.
-          </p>
-        </div>
-      ) : (
-        <div className="row g-4">
-          {recommendations.map((rec) => (
-            <div key={rec.project.id} className="col-md-6 col-lg-4">
-              <div className="card h-100 shadow-sm project-card">
-                <div className="card-body">
-                  <div className="d-flex justify-content-between align-items-start mb-2">
-                    <h5 className="card-title">{rec.project.title}</h5>
-                    <span className="badge bg-success">{rec.matchScore}% Match</span>
-                  </div>
-
-                  <p className="card-text text-muted">
-                    {rec.project.description?.substring(0, 150)}...
-                  </p>
-
-                  <div className="mb-3">
-                    <strong>Budget:</strong> ₹{rec.project.minBudget} - ₹{rec.project.maxBudget}
-                  </div>
-
-                  <div className="mb-3">
-                    <strong>Required Skills:</strong>
-                    <div className="mt-2">
-                      {rec.project.requiredSkills?.slice(0, 3).map((skill, idx) => (
-                        <span key={idx} className="badge bg-secondary me-1 mb-1">{skill}</span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="ai-feature p-2 mb-3">
-                    <small className="d-block mb-1">
-                      <strong>Why this matches:</strong>
-                    </small>
-                    <small>{rec.reason}</small>
-                  </div>
-
-                  <div className="d-grid gap-2">
-                    <Link to={`/projects/${rec.project.id}`} className="btn btn-outline-primary">
-                      View Details
-                    </Link>
-                    <Link to={`/freelancer/submit-proposal/${rec.project.id}`} className="btn btn-primary">
-                      Submit Proposal
-                    </Link>
-                  </div>
-                </div>
-                <div className="card-footer bg-transparent">
-                  <small className="text-muted">
-                    Posted: {new Date(rec.project.postedAt).toLocaleDateString()}
-                  </small>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };
 
-export default ProjectRecommendations;
+export default PaymentHistory;
 
+import React, { useState } from 'react';
 
-import React, { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../../context/AuthContext";
-import freelancerService from "../../services/freelancerService";
-import Loader from "../common/Loader";
+const UPIPayment = ({ amount, onPaymentSuccess, onPaymentFailure }) => {
+  const [upiId, setUpiId] = useState('');
+  const [processing, setProcessing] = useState(false);
 
-const FreelancerProfile = () => {
-  const { user } = useAuth();
-
-  const [profile, setProfile] = useState({
-    bio: "",
-    hourlyRate: "",
-    skills: [],
-    portfolios: [] // <-- must match backend field name EXACTLY
-  });
-
-  // --------------------- SKILL MODEL ---------------------
-  const [newSkill, setNewSkill] = useState({
-    id: null,
-    skillName: "",
-    proficiencyLevel: "BEGINNER",
-    yearsExperience: 1
-  });
-
-  // --------------------- PORTFOLIO MODEL ---------------------
-  const [newPortfolio, setNewPortfolio] = useState({
-    id: null,
-    title: "",
-    description: "",
-    projectUrl: "",
-    imageUrl: "",
-    technologiesUsed: "",
-    completionDate: ""
-  });
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
-
-  // Fetch profile
-  const fetchProfile = useCallback(async () => {
-    try {
-      const data = await freelancerService.getFreelancerProfile(user.id);
-
-      // Backend returns portfolios not portfolio
-      setProfile({
-        ...data,
-        portfolios: data.portfolios || []
-      });
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (user?.id) fetchProfile();
-  }, [fetchProfile]);
-
-  // SAVE PROFILE
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSaving(true);
+    setProcessing(true);
 
     try {
-      const mapped = {
-        ...profile,
-        skills: profile.skills.map((s) => ({
-          id: s.id || null,
-          skillName: s.skillName,
-          proficiencyLevel: s.proficiencyLevel,
-          yearsExperience: s.yearsExperience
-        })),
-        portfolios: profile.portfolios.map((p) => ({
-          id: p.id || null,
-          title: p.title,
-          description: p.description,
-          projectUrl: p.projectUrl,
-          imageUrl: p.imageUrl || null,
-          technologiesUsed: p.technologiesUsed || "",
-          completionDate: p.completionDate || null
-        }))
-      };
-
-      await freelancerService.updateFreelancerProfile(user.id, mapped);
-
-      setMessage({ type: "success", text: "Profile updated successfully!" });
+      // Simulate UPI payment processing
+      // In production, this would integrate with actual UPI gateway
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const transactionId = 'TXN' + Date.now();
+      onPaymentSuccess({ transactionId, upiId, amount });
     } catch (error) {
-      console.error(error);
-      setMessage({ type: "danger", text: "Failed to update profile" });
+      onPaymentFailure(error);
     } finally {
-      setSaving(false);
+      setProcessing(false);
     }
   };
 
-  // --------------------- SKILLS ---------------------
-  const addSkill = () => {
-    if (!newSkill.skillName.trim()) return;
-
-    setProfile((prev) => ({
-      ...prev,
-      skills: [...prev.skills, { ...newSkill, id: Date.now() }]
-    }));
-
-    setNewSkill({
-      id: null,
-      skillName: "",
-      proficiencyLevel: "BEGINNER",
-      yearsExperience: 1
-    });
-  };
-
-  const removeSkill = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s.id !== id)
-    }));
-  };
-
-  // --------------------- PORTFOLIO ---------------------
-  const addPortfolioItem = () => {
-    if (!newPortfolio.title || !newPortfolio.description) return;
-
-    setProfile((prev) => ({
-      ...prev,
-      portfolios: [...prev.portfolios, { ...newPortfolio, id: Date.now() }]
-    }));
-
-    setNewPortfolio({
-      id: null,
-      title: "",
-      description: "",
-      projectUrl: "",
-      imageUrl: "",
-      technologiesUsed: "",
-      completionDate: ""
-    });
-  };
-
-  const removePortfolioItem = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      portfolios: prev.portfolios.filter((p) => p.id !== id)
-    }));
-  };
-
-  if (loading) return <Loader />;
-
   return (
-    <div className="container mt-4">
-      <div className="col-lg-8 mx-auto">
-        <h2>My Profile</h2>
-
-        {message.text && (
-          <div className={`alert alert-${message.type}`}>{message.text}</div>
-        )}
-
+    <div className="card shadow-sm">
+      <div className="card-header bg-success text-white">
+        <h5 className="mb-0">💳 Pay with UPI</h5>
+      </div>
+      <div className="card-body">
         <form onSubmit={handleSubmit}>
-          {/* ---------------- BASIC INFO ---------------- */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-primary text-white">
-              <h5>Basic Information</h5>
-            </div>
-            <div className="card-body">
-              <label className="form-label">Bio</label>
-              <textarea
-                className="form-control mb-3"
-                rows="4"
-                value={profile.bio}
-                onChange={(e) =>
-                  setProfile({ ...profile, bio: e.target.value })
-                }
-              />
-
-              <label className="form-label">Hourly Rate (₹)</label>
-              <input
-                type="number"
-                className="form-control"
-                value={profile.hourlyRate}
-                onChange={(e) =>
-                  setProfile({ ...profile, hourlyRate: e.target.value })
-                }
-              />
-            </div>
+          <div className="mb-3">
+            <label className="form-label">Enter UPI ID</label>
+            <input
+              type="text"
+              className="form-control"
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              placeholder="username@upi"
+              required
+            />
+            <small className="text-muted">
+              Supported: GPay, PhonePe, Paytm, BHIM
+            </small>
           </div>
 
-          {/* ---------------- SKILLS ---------------- */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-success text-white">
-              <h5>Skills</h5>
-            </div>
-            <div className="card-body">
-              <div className="row g-2">
-                <div className="col-md-4">
-                  <label>Skill Name</label>
-                  <input
-                    className="form-control"
-                    value={newSkill.skillName}
-                    onChange={(e) =>
-                      setNewSkill({ ...newSkill, skillName: e.target.value })
-                    }
-                  />
-                </div>
-
-                <div className="col-md-4">
-                  <label>Proficiency</label>
-                  <select
-                    className="form-select"
-                    value={newSkill.proficiencyLevel}
-                    onChange={(e) =>
-                      setNewSkill({
-                        ...newSkill,
-                        proficiencyLevel: e.target.value
-                      })
-                    }
-                  >
-                    <option value="BEGINNER">Beginner</option>
-                    <option value="INTERMEDIATE">Intermediate</option>
-                    <option value="EXPERT">Expert</option>
-                  </select>
-                </div>
-
-                <div className="col-md-3">
-                  <label>Years</label>
-                  <input
-                    className="form-control"
-                    type="number"
-                    min="0"
-                    max="50"
-                    value={newSkill.yearsExperience}
-                    onChange={(e) =>
-                      setNewSkill({
-                        ...newSkill,
-                        yearsExperience: Number(e.target.value)
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="col-md-1">
-                  <button
-                    type="button"
-                    className="btn btn-success w-100"
-                    onClick={addSkill}
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="mt-3">
-                {profile.skills.map((skill) => (
-                  <div
-                    key={skill.id}
-                    className="d-flex justify-content-between p-2 border rounded mb-2"
-                  >
-                    <div>
-                      <strong>{skill.skillName}</strong> —{" "}
-                      {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
-                    </div>
-                    <button
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removeSkill(skill.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="mb-3">
+            <label className="form-label">Amount</label>
+            <input
+              type="text"
+              className="form-control"
+              value={`₹${amount}`}
+              readOnly
+            />
           </div>
 
-          {/* ---------------- PORTFOLIO ---------------- */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-info text-white">
-              <h5>Portfolio</h5>
-            </div>
-            <div className="card-body">
-              {/* INPUTS */}
-              <input
-                className="form-control mb-2"
-                placeholder="Title"
-                value={newPortfolio.title}
-                onChange={(e) =>
-                  setNewPortfolio({ ...newPortfolio, title: e.target.value })
-                }
-              />
-
-              <textarea
-                className="form-control mb-2"
-                rows="2"
-                placeholder="Description"
-                value={newPortfolio.description}
-                onChange={(e) =>
-                  setNewPortfolio({
-                    ...newPortfolio,
-                    description: e.target.value
-                  })
-                }
-              />
-
-              <input
-                className="form-control mb-2"
-                placeholder="Project URL"
-                value={newPortfolio.projectUrl}
-                onChange={(e) =>
-                  setNewPortfolio({
-                    ...newPortfolio,
-                    projectUrl: e.target.value
-                  })
-                }
-              />
-
-              <input
-                className="form-control mb-2"
-                placeholder="Image URL (optional)"
-                value={newPortfolio.imageUrl}
-                onChange={(e) =>
-                  setNewPortfolio({
-                    ...newPortfolio,
-                    imageUrl: e.target.value
-                  })
-                }
-              />
-
-              <input
-                className="form-control mb-2"
-                placeholder="Technologies Used"
-                value={newPortfolio.technologiesUsed}
-                onChange={(e) =>
-                  setNewPortfolio({
-                    ...newPortfolio,
-                    technologiesUsed: e.target.value
-                  })
-                }
-              />
-
-              <input
-                type="date"
-                className="form-control mb-2"
-                value={newPortfolio.completionDate}
-                onChange={(e) =>
-                  setNewPortfolio({
-                    ...newPortfolio,
-                    completionDate: e.target.value
-                  })
-                }
-              />
-
-              <button
-                type="button"
-                className="btn btn-info mt-2"
-                onClick={addPortfolioItem}
-              >
-                Add Portfolio Item
-              </button>
-
-              {/* LIST */}
-              {profile.portfolios.map((p) => (
-                <div
-                  key={p.id}
-                  className="d-flex justify-content-between mt-3 border p-2"
-                >
-                  <div>
-                    <h6>{p.title}</h6>
-                    <p>{p.description}</p>
-                    {p.projectUrl && (
-                      <a href={p.projectUrl} target="_blank">
-                        View →
-                      </a>
-                    )}
-                  </div>
-
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => removePortfolioItem(p.id)}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
+          <div className="alert alert-info">
+            <small>
+              <strong>Note:</strong> You will receive a payment request on your UPI app. 
+              Please approve it to complete the transaction.
+            </small>
           </div>
 
-          {/* SAVE BUTTON */}
-          <button type="submit" className="btn btn-primary w-100">
-            {saving ? "Saving..." : "Save Profile"}
-          </button>
+          <div className="d-grid">
+            <button 
+              type="submit" 
+              className="btn btn-success"
+              disabled={processing || !upiId}
+            >
+              {processing ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  Processing...
+                </>
+              ) : (
+                `Pay ₹${amount}`
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>
   );
 };
 
-export default FreelancerProfile;
+export default UPIPayment;
 
-
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-
-const Login = () => {
-  const [credentials, setCredentials] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const { login, authenticated } = useAuth();
-
-  React.useEffect(() => {
-    if (authenticated) {
-      navigate('/');
-    }
-  }, [authenticated, navigate]);
-
-  const handleChange = (e) => {
-    setCredentials({ ...credentials, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      await login(credentials.email, credentials.password);
-      navigate('/');
-    } catch (err) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-6 col-lg-4">
-          <div className="card shadow">
-            <div className="card-body p-4">
-              <h2 className="text-center mb-4">Login to Freelance Nexus</h2>
-              
-              {error && (
-                <div className="alert alert-danger" role="alert">
-                  {error}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit}>
-                <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
-                  <input
-                    type="email"
-                    className="form-control"
-                    id="email"
-                    name="email"
-                    value={credentials.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="password" className="form-label">Password</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    id="password"
-                    name="password"
-                    value={credentials.password}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="btn btn-primary w-100"
-                  disabled={loading}
-                >
-                  {loading ? 'Logging in...' : 'Login'}
-                </button>
-              </form>
-
-              <div className="text-center mt-3">
-                <p className="text-muted">
-                  Don't have an account? <Link to="/register">Register here</Link>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Login;
-
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-
-const Logout = () => {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    logout(); // clear token & user
-    navigate('/login'); // redirect
-  }, [logout, navigate]);
-
-  return <p>Logging out...</p>;
-};
-
-export default Logout;
-
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import projectService from '../../services/projectService';
+import aiService from '../../services/aiService';
 import Loader from '../common/Loader';
 
-const ProtectedRoute = ({ children, roles = [] }) => {
-  const { user, loading, authenticated } = useAuth();
+const ProjectDetails = () => {
+  const { id } = useParams();
+  const { user, authenticated } = useAuth();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  if (loading) {
-    return <Loader />;
-  }
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const data = await projectService.getProjectById(id);
+        setProject(data);
+      } catch (error) {
+        console.error('Error fetching project:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (!authenticated) {
-    return <Navigate to="/api/users/login" replace />;
-  }
+    const fetchSummary = async () => {
+      try {
+        const data = await aiService.generateProjectSummary(id);
+        setSummary(data);
+      } catch (error) {
+        console.error('Error fetching AI summary:', error);
+      }
+    };
 
-  if (roles.length > 0 && !roles.includes(user?.role)) {
+    fetchProject();
+    fetchSummary();
+  }, [id]);
+
+  if (loading) return <Loader />;
+
+  if (!project) {
     return (
-      <div className="container mt-5">
-        <div className="alert alert-danger">
-          <h4>Access Denied</h4>
-          <p>You don't have permission to access this page.</p>
-        </div>
+      <div className="container mt-4">
+        <div className="alert alert-danger">Project not found</div>
       </div>
     );
   }
 
-  return children;
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <button 
+            className="btn btn-outline-secondary mb-3"
+            onClick={() => navigate(-1)}
+          >
+            ← Back
+          </button>
+          <h2>{project.title}</h2>
+          <p className="text-muted">
+            Posted by {project.clientName} on {new Date(project.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="col-lg-8">
+          {/* AI Summary */}
+          {summary && (
+            <div className="card shadow-sm mb-4 ai-feature">
+              <div className="card-body">
+                <h5 className="mb-3">
+                  <span className="ai-badge">AI</span> Project Summary
+                </h5>
+                <p>{summary.summary}</p>
+                <div className="mt-3">
+                  <strong>Key Requirements:</strong>
+                  <ul className="mt-2">
+                    {summary.keyRequirements?.map((req, idx) => (
+                      <li key={idx}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Project Description */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Project Description</h5>
+            </div>
+            <div className="card-body">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{project.description}</p>
+            </div>
+          </div>
+
+          {/* Required Skills */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0">Required Skills</h5>
+            </div>
+            <div className="card-body">
+              {project.requiredSkills?.map((skill, idx) => (
+                <span key={idx} className="badge bg-secondary me-2 mb-2">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-4">
+          {/* Project Info */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0">Project Details</h5>
+            </div>
+            <div className="card-body">
+              <div className="mb-3">
+                <strong>Budget:</strong>
+                <div className="mt-1">₹{project.budgetMin} - ₹{project.budgetMin}</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Duration:</strong>
+                <div className="mt-1">{project.durationDays} days</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Category:</strong>
+                <div className="mt-1">
+                  <span className="badge bg-primary">{project.category}</span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Status:</strong>
+                <div className="mt-1">
+                  <span className={`badge bg-${
+                    project.status === 'OPEN' ? 'success' :
+                    project.status === 'IN_PROGRESS' ? 'warning' :
+                    project.status === 'COMPLETED' ? 'info' : 'secondary'
+                  }`}>
+                    {project.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Proposals:</strong>
+                <div className="mt-1">{project.proposalCount || 0}</div>
+              </div>
+
+              {authenticated && user?.roles?.includes('FREELANCER') && project.status === 'OPEN' && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/freelancer/submit-proposal/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    Submit Proposal
+                  </Link>
+                </div>
+              )}
+
+              {authenticated && user?.roles?.includes('CLIENT') && user?.id === project.clientId && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/client/proposals/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    View Proposals
+                  </Link>
+                  <Link 
+                    to={`/client/ai-ranking/${project.id}`}
+                    className="btn btn-info"
+                  >
+                    <span className="ai-badge">AI</span> Rank Proposals
+                  </Link>
+                </div>
+              )}
+
+              {!authenticated && (
+                <div className="alert alert-info mt-4">
+                  <small>
+                    <Link to="/login">Login</Link> or <Link to="/register">Register</Link> to submit a proposal
+                  </small>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Client Info */}
+          <div className="card shadow-sm">
+            <div className="card-header bg-secondary text-white">
+              <h5 className="mb-0">About the Client</h5>
+            </div>
+            <div className="card-body">
+              <h6>{project.clientName}</h6>
+              <p className="text-muted mb-2">Member since {new Date(project.clientJoinDate).getFullYear()}</p>
+              <div className="mb-2">
+                <strong>Projects Posted:</strong> {project.clientProjectCount || 0}
+              </div>
+              <div className="mb-2">
+                <strong>Rating:</strong>  {project.clientRating || 'N/A'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
-export default ProtectedRoute;
+export default ProjectDetails;
 
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import authService from '../../services/authService';
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import projectService from '../../services/projectService';
+import Loader from '../common/Loader';
 
-const Register = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    firstName: '',
-    lastName: '',
-    phone: '',
-    role: 'FREELANCER'
-  });
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+const ProjectList = () => {
+  const { user, authenticated } = useAuth();
+  const [projects, setProjects] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [loading, setLoading] = useState(true);
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-
-    setLoading(true);
-
+  const fetchProjects = async () => {
     try {
-      // Transform data to match backend DTO
-      const registerData = {
-        email: formData.email,
-        password: formData.password,
-        fullName: `${formData.firstName} ${formData.lastName}`,
-        phone: formData.phone || '',
-        role: formData.role
-      };
-      
-      await authService.register(registerData);
-      setSuccess('Registration successful! Redirecting to login...');
-      setTimeout(() => navigate('/login'), 2000);
-    } catch (err) {
-      console.error('Registration error:', err);
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      const data = await projectService.getAllProjects({ status: 'OPEN' });
+      setProjects(data);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-8 col-lg-6">
-          <div className="card shadow">
-            <div className="card-body p-4">
-              <h2 className="text-center mb-4">Register for Freelance Nexus</h2>
-              
-              {error && (
-                <div className="alert alert-danger" role="alert">
-                  {error}
-                </div>
-              )}
-
-              {success && (
-                <div className="alert alert-success" role="alert">
-                  {success}
-                </div>
-              )}
-
-              <form onSubmit={handleSubmit}>
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label htmlFor="firstName" className="form-label">First Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="firstName"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-md-6 mb-3">
-                    <label htmlFor="lastName" className="form-label">Last Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      id="lastName"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="email" className="form-label">Email</label>
-                  <input
-                    type="email"
-                    className="form-control"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="phone" className="form-label">Phone (Optional)</label>
-                  <input
-                    type="tel"
-                    className="form-control"
-                    id="phone"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    placeholder="+1234567890"
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="role" className="form-label">Register as</label>
-                  <select
-                    className="form-select"
-                    id="role"
-                    name="role"
-                    value={formData.role}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="FREELANCER">Freelancer</option>
-                    <option value="CLIENT">Client</option>
-                  </select>
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="password" className="form-label">Password</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    id="password"
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                  />
-                  <small className="form-text text-muted">
-                    Password must be at least 8 characters long
-                  </small>
-                </div>
-
-                <div className="mb-3">
-                  <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
-                  <input
-                    type="password"
-                    className="form-control"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <button 
-                  type="submit" 
-                  className="btn btn-primary w-100"
-                  disabled={loading}
-                >
-                  {loading ? 'Registering...' : 'Register'}
-                </button>
-              </form>
-
-              <div className="text-center mt-3">
-                <p className="text-muted">
-                  Already have an account? <Link to="/login">Login here</Link>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Register;
-
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import aiService from '../../services/aiService';
-import projectService from '../../services/projectService';
-import Loader from '../common/Loader';
-
-const AIProposalRanking = () => {
-  const { projectId } = useParams();
-  const [project, setProject] = useState(null);
-  const [rankings, setRankings] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchRankings = async () => {
-      try {
-        const [projectData, rankingsData] = await Promise.all([
-          projectService.getProjectById(projectId),
-          aiService.rankProposals(projectId)
-        ]);
-        setProject(projectData);
-        setRankings(rankingsData);
-      } catch (error) {
-        console.error('Error fetching rankings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRankings();
-  }, [projectId]);
-
-  if (loading) return <Loader />;
-
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>
-            <span className="ai-badge">AI</span> Ranked Proposals
-          </h2>
-          <p className="text-muted">
-            Proposals ranked by AI based on experience, skills, and bid competitiveness
-          </p>
-        </div>
-      </div>
-
-      <div className="card shadow-sm mb-4 ai-feature">
-        <div className="card-body">
-          <h5 className="mb-3">Project: {project?.title}</h5>
-          <p className="mb-0">
-            Our AI has analyzed all proposals considering freelancer experience, skill match, 
-            bid amount, and past success rates to provide you with smart recommendations.
-          </p>
-        </div>
-      </div>
-
-      {rankings.length === 0 ? (
-        <div className="alert alert-info">
-          <h5>No proposals to rank</h5>
-          <p className="mb-0">There are no proposals submitted yet for this project.</p>
-        </div>
-      ) : (
-        <div className="row g-4">
-          {rankings.map((ranking, index) => (
-            <div key={ranking.proposalId} className="col-12">
-              <div className="card shadow-sm" style={{ 
-                borderLeft: `4px solid ${
-                  index === 0 ? '#198754' : 
-                  index === 1 ? '#0dcaf0' : 
-                  index === 2 ? '#ffc107' : '#6c757d'
-                }`
-              }}>
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-1 text-center">
-                      <div style={{ 
-                        fontSize: '2rem', 
-                        fontWeight: 'bold',
-                        color: index === 0 ? '#198754' : 
-                               index === 1 ? '#0dcaf0' : 
-                               index === 2 ? '#ffc107' : '#6c757d'
-                      }}>
-                        #{index + 1}
-                      </div>
-                      <div className="badge bg-success">
-                        {ranking.score}% Match
-                      </div>
-                    </div>
-
-                    <div className="col-md-7">
-                      <h5 className="mb-2">{ranking.freelancerName}</h5>
-                      
-                      <div className="row mb-2">
-                        <div className="col-sm-6">
-                          <strong>Bid:</strong> ₹{ranking.bidAmount}
-                        </div>
-                        <div className="col-sm-6">
-                          <strong>Duration:</strong> {ranking.duration} days
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
-                        <strong>Skills Match:</strong>
-                        <div className="mt-2">
-                          {ranking.matchingSkills?.map((skill, idx) => (
-                            <span key={idx} className="badge bg-success me-1 mb-1">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="ai-feature p-2">
-                        <small>
-                          <strong>AI Reasoning:</strong> {ranking.aiReasoning}
-                        </small>
-                      </div>
-                    </div>
-
-                    <div className="col-md-4 text-end">
-                      <div className="mb-3">
-                        <div className="mb-2">
-                          <small className="text-muted">Experience Score</small>
-                          <div className="progress" style={{ height: '10px' }}>
-                            <div 
-                              className="progress-bar bg-info" 
-                              style={{ width: `${ranking.experienceScore}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        <div className="mb-2">
-                          <small className="text-muted">Success Rate</small>
-                          <div className="progress" style={{ height: '10px' }}>
-                            <div 
-                              className="progress-bar bg-success" 
-                              style={{ width: `${ranking.successRate}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="d-grid gap-2">
-                        <Link
-                          to={`/client/proposals/${projectId}`}
-                          className="btn btn-primary"
-                        >
-                          View Full Proposal
-                        </Link>
-                        <Link
-                          to={`/freelancer/profile/${ranking.freelancerId}`}
-                          className="btn btn-outline-primary"
-                        >
-                          View Profile
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default AIProposalRanking;
-
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import projectService from '../../services/projectService';
-import Loader from '../common/Loader';
-
-const ClientDashboard = () => {
-  const { user } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [stats, setStats] = useState({
-    totalProjects: 0,
-    activeProjects: 0,
-    completedProjects: 0,
-    totalSpent: 0
-  });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const projectsData = await projectService.getClientProjects(user.id);
-        setProjects(projectsData.slice(0, 5));
-        
-        setStats({
-          totalProjects: projectsData.length,
-          activeProjects: projectsData.filter(p => p.status === 'IN_PROGRESS').length,
-          completedProjects: projectsData.filter(p => p.status === 'COMPLETED').length,
-          totalSpent: projectsData.reduce((sum, p) => sum + (p.budget || 0), 0)
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, [user.id]);
-
-  if (loading) return <Loader />;
-
-  return (
-    <div className="container mt-4">
-      <h2>Welcome, {user?.firstName || user?.username}! 👋</h2>
-      <p className="text-muted">Manage your projects and find talented freelancers</p>
-
-      <div className="row g-4 mb-4">
-        <div className="col-md-3">
-          <div className="card stat-card bg-primary text-white">
-            <div className="card-body text-center">
-              <h3>{stats.totalProjects}</h3>
-              <p className="mb-0">Total Projects</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-warning text-dark">
-            <div className="card-body text-center">
-              <h3>{stats.activeProjects}</h3>
-              <p className="mb-0">Active</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-success text-white">
-            <div className="card-body text-center">
-              <h3>{stats.completedProjects}</h3>
-              <p className="mb-0">Completed</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-info text-white">
-            <div className="card-body text-center">
-              <h3>₹{stats.totalSpent}</h3>
-              <p className="mb-0">Total Spent</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="row">
-        <div className="col-md-8">
-          <div className="card shadow-sm">
-            <div className="card-header bg-white">
-              <h5 className="mb-0">Recent Projects</h5>
-            </div>
-            <div className="card-body">
-              {projects.length === 0 ? (
-                <p className="text-center text-muted py-3">No projects yet</p>
-              ) : (
-                <div className="list-group list-group-flush">
-                  {projects.map(project => (
-                    <div key={project.id} className="list-group-item">
-                      <div className="d-flex justify-content-between">
-                        <div>
-                          <h6 className="mb-1">{project.title}</h6>
-                          <p className="mb-1 text-muted small">
-                            Budget: ₹{project.budget} | Proposals: {project.proposalCount || 0}
-                          </p>
-                          <small className="text-muted">
-                            Posted: {new Date(project.createdAt).toLocaleDateString()}
-                          </small>
-                        </div>
-                        <span className={`badge bg-${
-                          project.status === 'COMPLETED' ? 'success' :
-                          project.status === 'IN_PROGRESS' ? 'warning' : 'primary'
-                        }`}>
-                          {project.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="text-center mt-3">
-                <Link to="/client/projects" className="btn btn-outline-primary">
-                  View All Projects
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="col-md-4">
-          <div className="card shadow-sm">
-            <div className="card-header bg-white">
-              <h5 className="mb-0">Quick Actions</h5>
-            </div>
-            <div className="card-body">
-              <div className="d-grid gap-2">
-                <Link to="/client/post-project" className="btn btn-primary">
-                  Post New Project
-                </Link>
-                <Link to="/client/projects" className="btn btn-outline-primary">
-                  My Projects
-                </Link>
-                <Link to="/payment-history" className="btn btn-outline-info">
-                  Payment History
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default ClientDashboard;
-
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import projectService from '../../services/projectService';
-import Loader from '../common/Loader';
-
-const MyProjects = () => {
-  const { user } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [filter, setFilter] = useState('ALL');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const data = await projectService.getClientProjects(user.id);
-        setProjects(data);
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProjects();
-  }, [user.id]);
-
-  const handleDelete = async (projectId) => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      try {
-        await projectService.deleteProject(projectId);
-        setProjects(projects.filter(p => p.id !== projectId));
-      } catch (error) {
-        alert('Failed to delete project');
-      }
-    }
-  };
-
-  const filteredProjects = projects.filter(p => 
-    filter === 'ALL' || p.status === filter
-  );
-
-  if (loading) return <Loader />;
-
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>My Projects</h2>
-          <p className="text-muted">Manage all your posted projects</p>
-        </div>
-        <div className="col-auto">
-          <Link to="/client/post-project" className="btn btn-primary">
-            Post New Project
-          </Link>
-        </div>
-      </div>
-
-      <div className="row mb-4">
-        <div className="col">
-          <div className="btn-group" role="group">
-            <button 
-              className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => setFilter('ALL')}
-            >
-              All ({projects.length})
-            </button>
-            <button 
-              className={`btn ${filter === 'OPEN' ? 'btn-success' : 'btn-outline-success'}`}
-              onClick={() => setFilter('OPEN')}
-            >
-              Open ({projects.filter(p => p.status === 'OPEN').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'IN_PROGRESS' ? 'btn-warning' : 'btn-outline-warning'}`}
-              onClick={() => setFilter('IN_PROGRESS')}
-            >
-              In Progress ({projects.filter(p => p.status === 'IN_PROGRESS').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'COMPLETED' ? 'btn-info' : 'btn-outline-info'}`}
-              onClick={() => setFilter('COMPLETED')}
-            >
-              Completed ({projects.filter(p => p.status === 'COMPLETED').length})
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {filteredProjects.length === 0 ? (
-        <div className="alert alert-info">
-          <h5>No projects found</h5>
-          <p className="mb-0">Start by posting your first project!</p>
-        </div>
-      ) : (
-        <div className="row g-4">
-          {filteredProjects.map((project) => (
-            <div key={project.id} className="col-12">
-              <div className="card shadow-sm project-card">
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-8">
-                      <h5 className="card-title">{project.title}</h5>
-                      <p className="text-muted mb-2">
-                        {project.description?.substring(0, 200)}...
-                      </p>
-                      
-                      <div className="row mb-2">
-                        <div className="col-sm-6">
-                          <strong>Budget:</strong> ₹{project.minBudget} - ₹{project.maxBudget}
-                        </div>
-                        <div className="col-sm-6">
-                          <strong>Duration:</strong> {project.duration} days
-                        </div>
-                      </div>
-
-                      <div className="mb-2">
-                        <strong>Proposals:</strong> {project.proposalCount || 0}
-                      </div>
-
-                      <small className="text-muted">
-                        Posted: {new Date(project.createdAt).toLocaleDateString()}
-                      </small>
-                    </div>
-
-                    <div className="col-md-4 text-end">
-                      <span className={`badge bg-${
-                        project.status === 'COMPLETED' ? 'success' :
-                        project.status === 'IN_PROGRESS' ? 'warning' :
-                        project.status === 'CANCELLED' ? 'danger' :
-                        'primary'
-                      } mb-3`}>
-                        {project.status}
-                      </span>
-
-                      <div className="d-grid gap-2">
-                        <Link 
-                          to={`/projects/${project.id}`}
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          View Details
-                        </Link>
-                        
-                        <Link 
-                          to={`/client/proposals/${project.id}`}
-                          className="btn btn-sm btn-primary"
-                        >
-                          View Proposals ({project.proposalCount || 0})
-                        </Link>
-
-                        {project.proposalCount > 0 && (
-                          <Link 
-                            to={`/client/ai-ranking/${project.id}`}
-                            className="btn btn-sm btn-info"
-                          >
-                            <span className="ai-badge">AI</span> Rank Proposals
-                          </Link>
-                        )}
-
-                        {project.status === 'OPEN' && (
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDelete(project.id)}
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default MyProjects;
-
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import projectService from '../../services/projectService';
-import Loader from '../common/Loader';
-
-const MyProjects = () => {
-  const { user } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [filter, setFilter] = useState('ALL');
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        const data = await projectService.getClientProjects(user.id);
-        setProjects(data);
-      } catch (error) {
-        console.error('Error fetching projects:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProjects();
-  }, [user.id]);
-
-  const handleDelete = async (projectId) => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
-      try {
-        await projectService.deleteProject(projectId);
-        setProjects(projects.filter(p => p.id !== projectId));
-      } catch (error) {
-        alert('Failed to delete project');
-      }
-    }
-  };
-
-  const filteredProjects = projects.filter(p => 
-    filter === 'ALL' || p.status === filter
-  );
-
-  if (loading) return <Loader />;
-
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>My Projects</h2>
-          <p className="text-muted">Manage all your posted projects</p>
-        </div>
-        <div className="col-auto">
-          <Link to="/client/post-project" className="btn btn-primary">
-            Post New Project
-          </Link>
-        </div>
-      </div>
-
-      <div className="row mb-4">
-        <div className="col">
-          <div className="btn-group" role="group">
-            <button 
-              className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => setFilter('ALL')}
-            >
-              All ({projects.length})
-            </button>
-            <button 
-              className={`btn ${filter === 'OPEN' ? 'btn-success' : 'btn-outline-success'}`}
-              onClick={() => setFilter('OPEN')}
-            >
-              Open ({projects.filter(p => p.status === 'OPEN').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'IN_PROGRESS' ? 'btn-warning' : 'btn-outline-warning'}`}
-              onClick={() => setFilter('IN_PROGRESS')}
-            >
-              In Progress ({projects.filter(p => p.status === 'IN_PROGRESS').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'COMPLETED' ? 'btn-info' : 'btn-outline-info'}`}
-              onClick={() => setFilter('COMPLETED')}
-            >
-              Completed ({projects.filter(p => p.status === 'COMPLETED').length})
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {filteredProjects.length === 0 ? (
-        <div className="alert alert-info">
-          <h5>No projects found</h5>
-          <p className="mb-0">Start by posting your first project!</p>
-        </div>
-      ) : (
-        <div className="row g-4">
-          {filteredProjects.map((project) => (
-            <div key={project.id} className="col-12">
-              <div className="card shadow-sm project-card">
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-8">
-                      <h5 className="card-title">{project.title}</h5>
-                      <p className="text-muted mb-2">
-                        {project.description?.substring(0, 200)}...
-                      </p>
-                      
-                      <div className="row mb-2">
-                        <div className="col-sm-6">
-                          <strong>Budget:</strong> ₹{project.minBudget} - ₹{project.maxBudget}
-                        </div>
-                        <div className="col-sm-6">
-                          <strong>Duration:</strong> {project.duration} days
-                        </div>
-                      </div>
-
-                      <div className="mb-2">
-                        <strong>Proposals:</strong> {project.proposalCount || 0}
-                      </div>
-
-                      <small className="text-muted">
-                        Posted: {new Date(project.createdAt).toLocaleDateString()}
-                      </small>
-                    </div>
-
-                    <div className="col-md-4 text-end">
-                      <span className={`badge bg-${
-                        project.status === 'COMPLETED' ? 'success' :
-                        project.status === 'IN_PROGRESS' ? 'warning' :
-                        project.status === 'CANCELLED' ? 'danger' :
-                        'primary'
-                      } mb-3`}>
-                        {project.status}
-                      </span>
-
-                      <div className="d-grid gap-2">
-                        <Link 
-                          to={`/projects/${project.id}`}
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          View Details
-                        </Link>
-                        
-                        <Link 
-                          to={`/client/proposals/${project.id}`}
-                          className="btn btn-sm btn-primary"
-                        >
-                          View Proposals ({project.proposalCount || 0})
-                        </Link>
-
-                        {project.proposalCount > 0 && (
-                          <Link 
-                            to={`/client/ai-ranking/${project.id}`}
-                            className="btn btn-sm btn-info"
-                          >
-                            <span className="ai-badge">AI</span> Rank Proposals
-                          </Link>
-                        )}
-
-                        {project.status === 'OPEN' && (
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDelete(project.id)}
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default MyProjects;
-
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import projectService from '../../services/projectService';
-
-const PostProject = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    minBudget: '',
-    maxBudget: '',
-    duration: '',
-    requiredSkills: [],
-    category: ''
-  });
-  const [newSkill, setNewSkill] = useState('');
-  const [error, setError] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const addSkill = () => {
-    if (newSkill && !formData.requiredSkills.includes(newSkill)) {
-      setFormData({ 
-        ...formData, 
-        requiredSkills: [...formData.requiredSkills, newSkill] 
-      });
-      setNewSkill('');
-    }
-  };
-
-  const removeSkill = (skill) => {
-    setFormData({ 
-      ...formData, 
-      requiredSkills: formData.requiredSkills.filter(s => s !== skill) 
-    });
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    setError('');
-    setSubmitting(true);
-
-    try {
-      const projectData = {
-        ...formData,
-        clientId: user.id,
-        status: 'OPEN'
-      };
-      await projectService.createProject(projectData);
-      navigate('/client/projects');
-    } catch (err) {
-      setError(err.response?.data?.message || 'Failed to post project');
-    } finally {
-      setSubmitting(false);
+    if (searchTerm) {
+      try {
+        const data = await projectService.searchProjects(searchTerm);
+        setProjects(data);
+      } catch (error) {
+        console.error('Search error:', error);
+      }
+    } else {
+      fetchProjects();
     }
   };
 
+  const filteredProjects = categoryFilter === 'ALL' 
+    ? projects 
+    : projects.filter(p => p.category === categoryFilter);
+
+  if (loading) return <Loader />;
+
   return (
     <div className="container mt-4">
-      <div className="row">
-        <div className="col-lg-8 mx-auto">
-          <h2 className="mb-4">Post a New Project</h2>
+      <div className="row mb-4">
+        <div className="col">
+          <h2>Browse Projects</h2>
+          <p className="text-muted">Find your next opportunity</p>
+        </div>
+      </div>
 
-          {error && (
-            <div className="alert alert-danger">{error}</div>
-          )}
-
-          <form onSubmit={handleSubmit}>
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">Project Details</h5>
-              </div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <label className="form-label">Project Title *</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Description *</label>
-                  <textarea
-                    className="form-control"
-                    name="description"
-                    rows="6"
-                    value={formData.description}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Min Budget (₹) *</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      name="minBudget"
-                      value={formData.budgetMin}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                  <div className="col-md-6 mb-3">
-                    <label className="form-label">Max Budget (₹) *</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      name="maxBudget"
-                      value={formData.budgetMax}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Duration (days) *</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    name="duration"
-                    value={formData.durationDays}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Category *</label>
-                  <select
-                    className="form-select"
-                    name="category"
-                    value={formData.category}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select category</option>
-                    <option value="WEB_DEVELOPMENT">Web Development</option>
-                    <option value="MOBILE_DEVELOPMENT">Mobile Development</option>
-                    <option value="DESIGN">Design</option>
-                    <option value="WRITING">Writing</option>
-                    <option value="MARKETING">Marketing</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Required Skills *</label>
-                  <div className="input-group mb-2">
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={newSkill}
-                      onChange={(e) => setNewSkill(e.target.value)}
-                      placeholder="Add a skill"
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSkill())}
-                    />
-                    <button 
-                      className="btn btn-primary" 
-                      type="button"
-                      onClick={addSkill}
-                    >
-                      Add
-                    </button>
-                  </div>
-                  <div>
-                    {formData.requiredSkills.map((skill, idx) => (
-                      <span key={idx} className="skill-tag">
-                        {skill}
-                        <button
-                          type="button"
-                          className="btn-close btn-close-sm ms-2"
-                          onClick={() => removeSkill(skill)}
-                          style={{ fontSize: '0.7rem' }}
-                        ></button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="d-grid gap-2 d-md-flex justify-content-md-end">
-              <button 
-                type="button"
-                className="btn btn-outline-secondary"
-                onClick={() => navigate('/client/dashboard')}
-              >
-                Cancel
-              </button>
-              <button 
-                type="submit" 
-                className="btn btn-primary"
-                disabled={submitting}
-              >
-                {submitting ? 'Posting...' : 'Post Project'}
+      {/* Search and Filter */}
+      <div className="row mb-4">
+        <div className="col-md-8">
+          <form onSubmit={handleSearch}>
+            <div className="input-group">
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              <button className="btn btn-primary" type="submit">
+                Search
               </button>
             </div>
           </form>
         </div>
-      </div>
-    </div>
-  );
-};
-
-export default PostProject;
-
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import proposalService from '../../services/proposalService';
-import projectService from '../../services/projectService';
-import Loader from '../common/Loader';
-
-const ViewProposals = () => {
-  const { projectId } = useParams();
-  const [project, setProject] = useState(null);
-  const [proposals, setProposals] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchProposals = async () => {
-      try {
-        const [projectData, proposalsData] = await Promise.all([
-          projectService.getProjectById(projectId),
-          proposalService.getProposalsByProject(projectId)
-        ]);
-        setProject(projectData);
-        setProposals(proposalsData);
-      } catch (error) {
-        console.error('Error fetching proposals:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProposals();
-  }, [projectId]);
-
-  const handleAccept = async (proposalId) => {
-    if (window.confirm('Accept this proposal? This will reject all other proposals.')) {
-      try {
-        await proposalService.acceptProposal(proposalId);
-        window.location.reload();
-      } catch (error) {
-        alert('Failed to accept proposal');
-      }
-    }
-  };
-
-  const handleReject = async (proposalId) => {
-    if (window.confirm('Are you sure you want to reject this proposal?')) {
-      try {
-        await proposalService.rejectProposal(proposalId);
-        setProposals(proposals.map(p => 
-          p.id === proposalId ? { ...p, status: 'REJECTED' } : p
-        ));
-      } catch (error) {
-        alert('Failed to reject proposal');
-      }
-    }
-  };
-
-  if (loading) return <Loader />;
-
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>Proposals for: {project?.title}</h2>
-          <p className="text-muted">Review and manage proposals from freelancers</p>
-        </div>
-        <div className="col-auto">
-          <Link 
-            to={`/client/ai-ranking/${projectId}`}
-            className="btn btn-info"
+        <div className="col-md-4">
+          <select
+            className="form-select"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
           >
-            <span className="ai-badge">AI</span> Rank Proposals
-          </Link>
+            <option value="ALL">All Categories</option>
+            <option value="WEB_DEVELOPMENT">Web Development</option>
+            <option value="MOBILE_DEVELOPMENT">Mobile Development</option>
+            <option value="DESIGN">Design</option>
+            <option value="WRITING">Writing</option>
+            <option value="MARKETING">Marketing</option>
+            <option value="OTHER">Other</option>
+          </select>
         </div>
       </div>
 
-      <div className="card shadow-sm mb-4">
-        <div className="card-header bg-primary text-white">
-          <h5 className="mb-0">Project Details</h5>
-        </div>
-        <div className="card-body">
-          <p>{project?.description}</p>
-          <div className="row">
-            <div className="col-md-4">
-              <strong>Budget:</strong> ₹{project?.minBudget} - ₹{project?.maxBudget}
-            </div>
-            <div className="col-md-4">
-              <strong>Duration:</strong> {project?.duration} days
-            </div>
-            <div className="col-md-4">
-              <strong>Proposals:</strong> {proposals.length}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {proposals.length === 0 ? (
+      {/* Project Grid */}
+      {filteredProjects.length === 0 ? (
         <div className="alert alert-info">
-          <h5>No proposals yet</h5>
-          <p className="mb-0">Freelancers haven't submitted any proposals yet.</p>
+          <h5>No projects found</h5>
+          <p className="mb-0">Try adjusting your search or filters</p>
         </div>
       ) : (
         <div className="row g-4">
-          {proposals.map((proposal) => (
-            <div key={proposal.id} className="col-12">
-              <div className="card shadow-sm proposal-card">
+          {filteredProjects.map((project) => (
+            <div key={project.id} className="col-md-6 col-lg-4">
+              <div className="card h-100 shadow-sm project-card">
                 <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-8">
-                      <div className="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                          <h5 className="mb-1">{proposal.freelancerName}</h5>
-                          <small className="text-muted">
-                            Submitted: {new Date(proposal.submittedAt).toLocaleDateString()}
-                          </small>
-                        </div>
-                        <span className={`badge bg-${
-                          proposal.status === 'ACCEPTED' ? 'success' :
-                          proposal.status === 'REJECTED' ? 'danger' :
-                          'warning'
-                        }`}>
-                          {proposal.status}
+                  <h5 className="card-title">{project.title}</h5>
+                  <p className="card-text text-muted">
+                    {project.description?.substring(0, 100)}...
+                  </p>
+
+                  <div className="mb-3">
+                    <strong>Budget:</strong> ₹{project.budgetMin} - ₹{project.budgetMax}
+                  </div>
+
+                  <div className="mb-3">
+                    <strong>Duration:</strong> {project.durationDays} days
+                  </div>
+
+                  <div className="mb-3">
+                    <strong>Skills:</strong>
+                    <div className="mt-2">
+                      {project.requiredSkills?.slice(0, 3).map((skill, idx) => (
+                        <span key={idx} className="badge bg-secondary me-1 mb-1">
+                          {skill}
                         </span>
-                      </div>
-
-                      <div className="row mb-3">
-                        <div className="col-sm-6">
-                          <strong>Bid Amount:</strong> ₹{proposal.bidAmount}
-                        </div>
-                        <div className="col-sm-6">
-                          <strong>Duration:</strong> {proposal.duration} days
-                        </div>
-                      </div>
-
-                      <div className="mb-3">
-                        <strong>Cover Letter:</strong>
-                        <p className="mt-2">{proposal.coverLetter}</p>
-                      </div>
-
-                      <div className="mb-2">
-                        <strong>Freelancer Skills:</strong>
-                        <div className="mt-2">
-                          {proposal.freelancerSkills?.map((skill, idx) => (
-                            <span key={idx} className="badge bg-secondary me-1 mb-1">
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="col-md-4 text-end">
-                      {proposal.status === 'PENDING' && (
-                        <div className="d-grid gap-2">
-                          <button
-                            className="btn btn-success"
-                            onClick={() => handleAccept(proposal.id)}
-                          >
-                            Accept Proposal
-                          </button>
-                          <button
-                            className="btn btn-outline-danger"
-                            onClick={() => handleReject(proposal.id)}
-                          >
-                            Reject
-                          </button>
-                          <Link
-                            to={`/freelancer/profile/${proposal.freelancerId}`}
-                            className="btn btn-outline-primary"
-                          >
-                            View Profile
-                          </Link>
-                        </div>
-                      )}
-
-                      {proposal.status === 'ACCEPTED' && (
-                        <div className="d-grid gap-2">
-                          <Link
-                            to={`/payment/${proposal.id}`}
-                            className="btn btn-primary"
-                          >
-                            Make Payment
-                          </Link>
-                        </div>
+                      ))}
+                      {project.requiredSkills?.length > 3 && (
+                        <span className="badge bg-secondary">
+                          +{project.requiredSkills.length - 3}
+                        </span>
                       )}
                     </div>
                   </div>
+
+                  <div className="d-grid gap-2">
+                    <Link 
+                      to={`/projects/${project.id}`}
+                      className="btn btn-outline-primary"
+                    >
+                      View Details
+                    </Link>
+                    {authenticated && user?.roles?.includes('FREELANCER') && (
+                      <Link 
+                        to={`/freelancer/submit-proposal/${project.id}`}
+                        className="btn btn-primary"
+                      >
+                        Submit Proposal
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                <div className="card-footer bg-transparent">
+                  <small className="text-muted">
+                    Posted: {new Date(project.createdAt).toLocaleDateString()}
+                  </small>
                 </div>
               </div>
             </div>
@@ -2691,4 +1049,130 @@ const ViewProposals = () => {
   );
 };
 
-export default ViewProposals;
+export default ProjectList;
+
+
+import React from 'react';
+
+const ProjectSummary = ({ summary }) => {
+  if (!summary) return null;
+
+  return (
+    <div className="card shadow-sm ai-feature">
+      <div className="card-body">
+        <h5 className="mb-3">
+          <span className="ai-badge">AI</span> Project Summary
+        </h5>
+        <p>{summary.summary}</p>
+        
+        {summary.keyRequirements && (
+          <div className="mt-3">
+            <strong>Key Requirements:</strong>
+            <ul className="mt-2">
+              {summary.keyRequirements.map((req, idx) => (
+                <li key={idx}>{req}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {summary.suggestedSkills && (
+          <div className="mt-3">
+            <strong>Suggested Skills:</strong>
+            <div className="mt-2">
+              {summary.suggestedSkills.map((skill, idx) => (
+                <span key={idx} className="badge bg-success me-1 mb-1">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {summary.estimatedComplexity && (
+          <div className="mt-3">
+            <strong>Estimated Complexity:</strong>
+            <span className={`badge ms-2 bg-${
+              summary.estimatedComplexity === 'LOW' ? 'success' :
+              summary.estimatedComplexity === 'MEDIUM' ? 'warning' : 'danger'
+            }`}>
+              {summary.estimatedComplexity}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default ProjectSummary;
+
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import authService from '../services/authService';
+
+const AuthContext = createContext();
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authenticated, setAuthenticated] = useState(false);
+
+  useEffect(() => {
+    // Check if user is logged in on mount
+    const token = authService.getToken();
+    const storedUser = authService.getCurrentUser();
+    
+    if (token && storedUser) {
+      setUser(storedUser);
+      setAuthenticated(true);
+    }
+    
+    setLoading(false);
+  }, []);
+
+ const login = async (email, password) => {
+  try {
+    const response = await authService.login(email, password);
+    setUser(response.user);
+    setAuthenticated(true);
+    return response;
+  } catch (err) {
+ 
+    // Make sure Login.js receives the real backend error
+    throw err;
+  }
+};
+
+  const logout = () => {
+    authService.logout();
+    setUser(null);
+    setAuthenticated(false);
+  };
+
+  const hasRole = (role) => {
+    return user?.role === role;
+  };
+
+  const value = {
+    user,
+    loading,
+    authenticated,
+    login,
+    logout,
+    hasRole
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
+};
