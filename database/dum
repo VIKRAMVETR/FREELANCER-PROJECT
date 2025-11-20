@@ -1,684 +1,147 @@
-import api from './api';
+package com.freelancenexus.userservice.controller;
 
-const aiService = {
-  getProjectRecommendations: async (freelancerId) => {
-    const response = await api.get(`/api/ai/recommendations/freelancer/${freelancerId}`);
-    return response.data;
-  },
+import java.math.BigDecimal;
+import java.util.List;
 
-  rankProposals: async (projectId) => {
-    const response = await api.get(`/api/ai/rank-proposals/${projectId}`);
-    return response.data;
-  },
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-  generateProjectSummary: async (projectId) => {
-    const response = await api.get(`/api/ai/summarize-project/${projectId}`);
-    return response.data;
-  },
+import com.freelancenexus.userservice.dto.FreelancerDTO;
+import com.freelancenexus.userservice.dto.FreelancerProfileDTO;
+import com.freelancenexus.userservice.service.FreelancerService;
 
-  analyzeFreelancerProfile: async (freelancerId) => {
-    const response = await api.get(`/api/ai/analyze-profile/${freelancerId}`);
-    return response.data;
-  },
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancers.
+ * Provides endpoints for creating, retrieving, updating, and searching freelancer profiles.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+@CrossOrigin("http://localhost:3000")
+public class FreelancerController {
+	private final Logger log= LoggerFactory.getLogger(FreelancerController.class);
+    private final FreelancerService freelancerService;
+    
+    public FreelancerController(FreelancerService freelancerService) {
+		super();
+		this.freelancerService = freelancerService;
+	}
 
-  matchFreelancersToProject: async (projectId) => {
-    const response = await api.get(`/api/ai/match-freelancers/${projectId}`);
-    return response.data;
-  },
-
-  predictProjectSuccess: async (projectId) => {
-    const response = await api.get(`/api/ai/predict-success/${projectId}`);
-    return response.data;
-  }
-};
-
-export default aiService;
-
-import axios from 'axios';
-import { API_GATEWAY_URL } from '../utils/constants';
-
-const api = axios.create({
-  baseURL: API_GATEWAY_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
-});
-
-// Request interceptor to add JWT token
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+	/**
+     * Creates a freelancer profile.
+     *
+     * @param freelancerDTO the freelancer profile to be created
+     * @return the created freelancer profile
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> createFreelancer(@Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to create freelancer for user ID: {}", freelancerDTO.getUserId());
+        FreelancerDTO created = freelancerService.createFreelancer(freelancerDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Response interceptor for error handling
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = '/login';
+    
+    /**
+     * Retrieves a freelancer profile by its ID.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerById(@PathVariable Long id) {
+        log.info("REST request to get freelancer by ID: {}", id);
+        FreelancerDTO freelancer = freelancerService.getFreelancerById(id);
+        return ResponseEntity.ok(freelancer);
     }
-    return Promise.reject(error);
-  }
-);
-
-export default api;
-
-import api from './api';
-
-const authService = {
-  login: async (email, password) => {
-    const response = await api.post('/api/users/login', { email, password });
-    if (response.data.accessToken) {
-      localStorage.setItem('token', response.data.accessToken);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+    
+    /**
+     * Retrieves the complete profile of a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer's complete profile
+     */
+    @GetMapping("/{id}/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerProfileDTO> getFreelancerProfile(@PathVariable Long id) {
+        log.info("REST request to get complete freelancer profile for ID: {}", id);
+        FreelancerProfileDTO profile = freelancerService.getFreelancerProfile(id);
+        return ResponseEntity.ok(profile);
     }
-    return response.data;
-  },
-
-  register: async (userData) => {
-    const response = await api.post('/api/users/register', userData);
-    return response.data;
-  },
-
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-  },
-
-  getCurrentUser: () => {
-    const user = localStorage.getItem('user');
-    return user ? JSON.parse(user) : null;
-  },
-
-  getToken: () => localStorage.getItem('token'),
-
-  isAuthenticated: () => !!localStorage.getItem('token'),
-
-  hasRole: (role) => {
-    const user = authService.getCurrentUser();
-    return user?.role === role;
-  }
-};
-
-export default authService;
-
-import api from './api';
-
-const freelancerService = {
-  getFreelancerProfile: async (freelancerId) => {
-    const response = await api.get(`/api/freelancers/${freelancerId}`);
-    return response.data;
-  },
-
-  updateFreelancerProfile: async (freelancerId, profileData) => {
-    const response = await api.put(`/api/freelancers/${freelancerId}`, profileData);
-    return response.data;
-  },
-
-  getFreelancerSkills: async (freelancerId) => {
-    const response = await api.get(`/api/freelancers/${freelancerId}/skills`);
-    return response.data;
-  },
-
-  updateFreelancerSkills: async (freelancerId, skills) => {
-    const response = await api.put(`/api/freelancers/${freelancerId}/skills`, skills);
-    return response.data;
-  },
-
-  getFreelancerPortfolio: async (freelancerId) => {
-    const response = await api.get(`/api/freelancers/${freelancerId}/portfolio`);
-    return response.data;
-  },
-
-  addPortfolioItem: async (freelancerId, portfolioItem) => {
-    const response = await api.post(`/api/freelancers/${freelancerId}/portfolio`, portfolioItem);
-    return response.data;
-  },
-
-  deletePortfolioItem: async (freelancerId, itemId) => {
-    const response = await api.delete(`/api/freelancers/${freelancerId}/portfolio/${itemId}`);
-    return response.data;
-  },
-
-  getFreelancerStats: async (freelancerId) => {
-    const response = await api.get(`/api/freelancers/${freelancerId}/stats`);
-    return response.data;
-  }
-};
-
-export default freelancerService;
-
-import api from './api';
-
-const paymentService = {
-  initiatePayment: async (paymentData) => {
-    const response = await api.post('/api/payments', paymentData);
-    return response.data;
-  },
-
-  processUPIPayment: async (paymentId, upiData) => {
-    const response = await api.post(`/api/payments/${paymentId}/upi`, upiData);
-    return response.data;
-  },
-
-  getPaymentById: async (paymentId) => {
-    const response = await api.get(`/api/payments/${paymentId}`);
-    return response.data;
-  },
-
-  getPaymentHistory: async (userId) => {
-    const response = await api.get(`/api/payments/user/${userId}`);
-    return response.data;
-  },
-
-  getPaymentByProposal: async (proposalId) => {
-    const response = await api.get(`/api/payments/proposal/${proposalId}`);
-    return response.data;
-  },
-
-  verifyPayment: async (paymentId, transactionId) => {
-    const response = await api.post(`/api/payments/${paymentId}/verify`, { transactionId });
-    return response.data;
-  },
-
-  requestRefund: async (paymentId, reason) => {
-    const response = await api.post(`/api/payments/${paymentId}/refund`, { reason });
-    return response.data;
-  }
-};
-
-export default paymentService;
-
-
-import api from './api';
-
-const projectService = {
-  getAllProjects: async (filters = {}) => {
-    const params = new URLSearchParams(filters);
-    const response = await api.get(`/api/projects?${params}`);
-    return response.data;
-  },
-
-  getProjectById: async (projectId) => {
-    const response = await api.get(`/api/projects/${projectId}`);
-    return response.data;
-  },
-
-  createProject: async (projectData) => {
-    const response = await api.post('/api/projects', projectData);
-    return response.data;
-  },
-
-  updateProject: async (projectId, projectData) => {
-    const response = await api.put(`/api/projects/${projectId}`, projectData);
-    return response.data;
-  },
-
-  deleteProject: async (projectId) => {
-    const response = await api.delete(`/api/projects/${projectId}`);
-    return response.data;
-  },
-
-  getClientProjects: async (clientId) => {
-    const response = await api.get(`/api/projects/client/${clientId}`);
-    return response.data;
-  },
-
-  getProjectsByStatus: async (status) => {
-    const response = await api.get(`/api/projects/status/${status}`);
-    return response.data;
-  },
-
-  searchProjects: async (query) => {
-    const response = await api.get(`/api/projects/search?q=${query}`);
-    return response.data;
-  }
-};
-
-export default projectService;
-
-import api from './api';
-
-const proposalService = {
-  submitProposal: async (proposalData) => {
-    const response = await api.post('/api/proposals', proposalData);
-    return response.data;
-  },
-
-  getProposalById: async (proposalId) => {
-    const response = await api.get(`/api/proposals/${proposalId}`);
-    return response.data;
-  },
-
-  getProposalsByProject: async (projectId) => {
-    const response = await api.get(`/api/proposals/project/${projectId}`);
-    return response.data;
-  },
-
-  getFreelancerProposals: async (freelancerId) => {
-    const response = await api.get(`/api/proposals/freelancer/${freelancerId}`);
-    return response.data;
-  },
-
-  updateProposal: async (proposalId, proposalData) => {
-    const response = await api.put(`/api/proposals/${proposalId}`, proposalData);
-    return response.data;
-  },
-
-  deleteProposal: async (proposalId) => {
-    const response = await api.delete(`/api/proposals/${proposalId}`);
-    return response.data;
-  },
-
-  acceptProposal: async (proposalId) => {
-    const response = await api.post(`/api/proposals/${proposalId}/accept`);
-    return response.data;
-  },
-
-  rejectProposal: async (proposalId) => {
-    const response = await api.post(`api/proposals/${proposalId}/reject`);
-    return response.data;
-  },
-
-  withdrawProposal: async (proposalId) => {
-    const response = await api.post(`/api/proposals/${proposalId}/withdraw`);
-    return response.data;
-  }
-};
-
-export default proposalService;
-
-import api from './api';
-
-const userService = {
-  getUserProfile: async (userId) => {
-    const response = await api.get(`/api/users/${userId}`);
-    return response.data;
-  },
-
-  updateUserProfile: async (userId, userData) => {
-    const response = await api.put(`/api/users/profile`, userData);
-    return response.data;
-  },
-
-  getAllUsers: async () => {
-    const response = await api.get('/api/users');
-    return response.data;
-  },
-
-  deleteUser: async (userId) => {
-    const response = await api.delete(`/api/users/${userId}`);
-    return response.data;
-  }
-};
-
-export default userService;
-
-
-:root {
-  --primary-color: #0d6efd;
-  --secondary-color: #6c757d;
-  --success-color: #198754;
-  --danger-color: #dc3545;
-  --warning-color: #ffc107;
-  --info-color: #0dcaf0;
+    
+    /**
+     * Retrieves a freelancer profile by the user ID.
+     *
+     * @param userId the user ID associated with the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerByUserId(@PathVariable Long userId) {
+        log.info("REST request to get freelancer by user ID: {}", userId);
+        FreelancerDTO freelancer = freelancerService.getFreelancerByUserId(userId);
+        return ResponseEntity.ok(freelancer);
+    }
+    
+    /**
+     * Updates a freelancer profile.
+     *
+     * @param id the ID of the freelancer
+     * @param freelancerDTO the updated freelancer profile
+     * @return the updated freelancer profile
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> updateFreelancer(
+            @PathVariable Long id,
+            @Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to update freelancer with ID: {}", id);
+        FreelancerDTO updated = freelancerService.updateFreelancer(id, freelancerDTO);
+        return ResponseEntity.ok(updated);
+    }
+    
+    /**
+     * Searches for freelancers based on various criteria.
+     *
+     * @param minRate the minimum hourly rate
+     * @param maxRate the maximum hourly rate
+     * @param minRating the minimum rating
+     * @param availability the availability status
+     * @param skills the list of skills
+     * @return the list of freelancers matching the criteria
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<FreelancerDTO>> searchFreelancers(
+            @RequestParam(required = false) BigDecimal minRate,
+            @RequestParam(required = false) BigDecimal maxRate,
+            @RequestParam(required = false) BigDecimal minRating,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) List<String> skills) {
+        log.info("REST request to search freelancers");
+        
+        List<FreelancerDTO> freelancers;
+        
+        if (skills != null && !skills.isEmpty()) {
+            freelancers = freelancerService.getFreelancersBySkills(skills);
+        } else if (minRate != null || maxRate != null || minRating != null || availability != null) {
+            freelancers = freelancerService.searchFreelancers(minRate, maxRate, minRating, availability);
+        } else {
+            freelancers = freelancerService.getAllFreelancers();
+        }
+        
+        return ResponseEntity.ok(freelancers);
+    }
 }
-
-/* General Styles */
-body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f8f9fa;
-}
-
-/* Card Enhancements */
-.card {
-  border: none;
-  border-radius: 0.5rem;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-}
-
-/* Button Enhancements */
-.btn {
-  border-radius: 0.375rem;
-  padding: 0.5rem 1.5rem;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.15);
-}
-
-/* Badge Styles */
-.badge {
-  padding: 0.35em 0.65em;
-  font-weight: 500;
-}
-
-/* AI Feature Highlight */
-.ai-feature {
-  position: relative;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.ai-badge {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-  font-weight: bold;
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.75rem;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.8;
-  }
-}
-
-/* Project Cards */
-.project-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-left: 4px solid var(--primary-color);
-}
-
-.project-card:hover {
-  border-left-color: var(--success-color);
-  background-color: #f8f9fa;
-}
-
-/* Proposal Cards */
-.proposal-card {
-  border-left: 4px solid var(--info-color);
-  margin-bottom: 1rem;
-}
-
-/* Stats Cards */
-.stat-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  text-align: center;
-}
-
-.stat-card h3 {
-  font-size: 2.5rem;
-  font-weight: bold;
-  margin-bottom: 0.5rem;
-}
-
-/* Form Enhancements */
-.form-control:focus,
-.form-select:focus {
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-}
-
-/* Alert Animations */
-.alert {
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-/* Loading Spinner */
-.spinner-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-}
-
-/* Responsive Tables */
-.table-responsive {
-  border-radius: 0.5rem;
-  overflow: hidden;
-}
-
-/* Skill Tags */
-.skill-tag {
-  display: inline-block;
-  background-color: #e9ecef;
-  color: #495057;
-  padding: 0.25rem 0.75rem;
-  margin: 0.25rem;
-  border-radius: 1rem;
-  font-size: 0.875rem;
-}
-
-/* Portfolio Items */
-.portfolio-item {
-  border: 1px solid #dee2e6;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  transition: all 0.2s;
-}
-
-.portfolio-item:hover {
-  border-color: var(--primary-color);
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
-}
-
-/* Payment Status */
-.payment-status-pending {
-  color: var(--warning-color);
-}
-
-.payment-status-completed {
-  color: var(--success-color);
-}
-
-.payment-status-failed {
-  color: var(--danger-color);
-}
-
-/* Navbar Enhancements */
-.navbar-dark .navbar-nav .nav-link:hover {
-  color: rgba(255, 255, 255, 0.9);
-  text-decoration: underline;
-}
-
-/* Footer */
-footer {
-  margin-top: auto;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .stat-card h3 {
-    font-size: 2rem;
-  }
-  
-  .card-body {
-    padding: 1rem;
-  }
-  
-  .btn {
-    padding: 0.4rem 1rem;
-  }
-}
-
-// utils/constants.js
-// src/utils/constants.js
-// export const API_GATEWAY_URL = process.env.REACT_APP_API_GATEWAY_URL || 'http://localhost:8765';
-export const API_GATEWAY_URL = 'http://localhost:8081';
-// For debugging - you can temporarily add this to see what's being loaded
-console.log('API Gateway URL:', API_GATEWAY_URL);
-
-export const ROLES = {
-  ADMIN: 'ADMIN',
-  CLIENT: 'CLIENT',
-  FREELANCER: 'FREELANCER'
-};
-
-export const PROJECT_STATUS = {
-  OPEN: 'OPEN',
-  IN_PROGRESS: 'IN_PROGRESS',
-  COMPLETED: 'COMPLETED',
-  CANCELLED: 'CANCELLED'
-};
-
-export const PROPOSAL_STATUS = {
-  PENDING: 'PENDING',
-  ACCEPTED: 'ACCEPTED',
-  REJECTED: 'REJECTED',
-  WITHDRAWN: 'WITHDRAWN'
-};
-
-export const PAYMENT_STATUS = {
-  PENDING: 'PENDING',
-  COMPLETED: 'COMPLETED',
-  FAILED: 'FAILED',
-  REFUNDED: 'REFUNDED'
-};
-
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Header from './components/common/Header';
-import Footer from './components/common/Footer';
-import ProtectedRoute from './components/auth/ProtectedRoute';
-import Login from './components/auth/Login';
-import Register from './components/auth/Register';
-import Logout from './components/auth/Logout';
-import FreelancerDashboard from './components/freelancer/FreelancerDashboard';
-import FreelancerProfile from './components/freelancer/FreelancerProfile';
-import ProjectRecommendations from './components/freelancer/ProjectRecommendations';
-import SubmitProposal from './components/freelancer/SubmitProposal';
-import MyProposals from './components/freelancer/MyProposals';
-import ClientDashboard from './components/client/ClientDashboard';
-import PostProject from './components/client/PostProject';
-import MyProjects from './components/client/MyProjects';
-import ViewProposals from './components/client/ViewProposals';
-import AIProposalRanking from './components/client/AIProposalRanking';
-import ProjectList from './components/project/ProjectList';
-import ProjectDetails from './components/project/ProjectDetails';
-import PaymentForm from './components/payment/PaymentForm';
-import PaymentHistory from './components/payment/PaymentHistory';
-
-function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <div className="d-flex flex-column min-vh-100">
-          <Header />
-          <main className="flex-grow-1">
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/logout" element={<Logout />} />
-              <Route path="/" element={<Navigate to="/projects" replace />} />
-              
-              {/* Public Routes */}
-              <Route path="/projects" element={<ProjectList />} />
-              <Route path="/projects/:id" element={<ProjectDetails />} />
-              
-              {/* Freelancer Routes */}
-              <Route path="/freelancer/dashboard" element={
-                <ProtectedRoute roles={['FREELANCER']}>
-                  <FreelancerDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/freelancer/profile" element={
-                <ProtectedRoute roles={['FREELANCER']}>
-                  <FreelancerProfile />
-                </ProtectedRoute>
-              } />
-              <Route path="/freelancer/recommendations" element={
-                <ProtectedRoute roles={['FREELANCER']}>
-                  <ProjectRecommendations />
-                </ProtectedRoute>
-              } />
-              <Route path="/freelancer/proposals" element={
-                <ProtectedRoute roles={['FREELANCER']}>
-                  <MyProposals />
-                </ProtectedRoute>
-              } />
-              <Route path="/freelancer/submit-proposal/:projectId" element={
-                <ProtectedRoute roles={['FREELANCER']}>
-                  <SubmitProposal />
-                </ProtectedRoute>
-              } />
-              
-              {/* Client Routes */}
-              <Route path="/client/dashboard" element={
-                <ProtectedRoute roles={['CLIENT']}>
-                  <ClientDashboard />
-                </ProtectedRoute>
-              } />
-              <Route path="/client/post-project" element={
-                <ProtectedRoute roles={['CLIENT']}>
-                  <PostProject />
-                </ProtectedRoute>
-              } />
-              <Route path="/client/projects" element={
-                <ProtectedRoute roles={['CLIENT']}>
-                  <MyProjects />
-                </ProtectedRoute>
-              } />
-              <Route path="/client/proposals/:projectId" element={
-                <ProtectedRoute roles={['CLIENT']}>
-                  <ViewProposals />
-                </ProtectedRoute>
-              } />
-              <Route path="/client/ai-ranking/:projectId" element={
-                <ProtectedRoute roles={['CLIENT']}>
-                  <AIProposalRanking />
-                </ProtectedRoute>
-              } />
-              
-              {/* Payment Routes */}
-              <Route path="/payment/:proposalId" element={
-                <ProtectedRoute roles={['CLIENT']}>
-                  <PaymentForm />
-                </ProtectedRoute>
-              } />
-              <Route path="/payment-history" element={
-                <ProtectedRoute>
-                  <PaymentHistory />
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
-    </AuthProvider>
-  );
-}
-
-export default App;
