@@ -1,265 +1,60 @@
-package com.freelancenexus.userservice.dto;
-
-import jakarta.validation.constraints.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
-/**
- * ProjectCreateDTO
- *
- * <p>Data Transfer Object for creating a new project. Contains all required and optional
- * information needed to set up a project in the system. All fields are validated for
- * presence, format, and business logic constraints.</p>
- *
- * <p>Typically sent by clients via POST requests to create new projects.</p>
- *
- * @since 1.0
- */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProjectCreateDTO {
-
-    /**
-     * Unique identifier of the client creating the project.
-     * Must be provided and must reference a valid client.
-     *
-     * @validation NotNull
-     */
-    @NotNull(message = "Client ID is required")
-    private Long clientId;
-
-    /**
-     * Project title. Must be unique and descriptive.
-     * Cannot exceed 255 characters.
-     *
-     * @validation NotBlank, Size(max = 255)
-     */
-    @NotBlank(message = "Title is required")
-    @Size(max = 255, message = "Title must not exceed 255 characters")
-    private String title;
-
-    /**
-     * Detailed description of the project, requirements, and deliverables.
-     * Cannot be blank.
-     *
-     * @validation NotBlank
-     */
-    @NotBlank(message = "Description is required")
-    private String description;
-
-    /**
-     * Minimum budget amount for the project.
-     * Must be greater than 0.
-     *
-     * @validation NotNull, DecimalMin(0.0, exclusive)
-     */
-    @NotNull(message = "Minimum budget is required")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Minimum budget must be greater than 0")
-    private BigDecimal budgetMin;
-
-    /**
-     * Maximum budget amount for the project.
-     * Must be greater than 0.
-     *
-     * @validation NotNull, DecimalMin(0.0, exclusive)
-     */
-    @NotNull(message = "Maximum budget is required")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Maximum budget must be greater than 0")
-    private BigDecimal budgetMax;
-
-    /**
-     * Estimated project duration in days.
-     * Must be at least 1 day.
-     *
-     * @validation NotNull, Min(1)
-     */
-    @NotNull(message = "Duration is required")
-    @Min(value = 1, message = "Duration must be at least 1 day")
-    private Integer durationDays;
-
-    /**
-     * List of required skills for the project (e.g., "Java", "React", "AWS").
-     * At least one skill must be specified.
-     *
-     * @validation NotEmpty
-     */
-    @NotEmpty(message = "At least one skill is required")
-    private List<String> requiredSkills;
-
-    /**
-     * Project category (e.g., "Web Development", "Mobile App", "Design").
-     * Cannot be blank.
-     *
-     * @validation NotBlank
-     */
-    @NotBlank(message = "Category is required")
-    private String category;
-
-    /**
-     * Project deadline date. Must be in the future.
-     * Optional field.
-     *
-     * @validation Future
-     */
-    @Future(message = "Deadline must be in the future")
-    private LocalDate deadline;
-
-	public Long getClientId() {
-		return clientId;
-	}
-
-	public void setClientId(Long clientId) {
-		this.clientId = clientId;
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
-	public void setTitle(String title) {
-		this.title = title;
-	}
-
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(String description) {
-		this.description = description;
-	}
-
-	public BigDecimal getBudgetMin() {
-		return budgetMin;
-	}
-
-	public void setBudgetMin(BigDecimal budgetMin) {
-		this.budgetMin = budgetMin;
-	}
-
-	public BigDecimal getBudgetMax() {
-		return budgetMax;
-	}
-
-	public void setBudgetMax(BigDecimal budgetMax) {
-		this.budgetMax = budgetMax;
-	}
-
-	public Integer getDurationDays() {
-		return durationDays;
-	}
-
-	public void setDurationDays(Integer durationDays) {
-		this.durationDays = durationDays;
-	}
-
-	public List<String> getRequiredSkills() {
-		return requiredSkills;
-	}
-
-	public void setRequiredSkills(List<String> requiredSkills) {
-		this.requiredSkills = requiredSkills;
-	}
-
-	public String getCategory() {
-		return category;
-	}
-
-	public void setCategory(String category) {
-		this.category = category;
-	}
-
-	public LocalDate getDeadline() {
-		return deadline;
-	}
-
-	public void setDeadline(LocalDate deadline) {
-		this.deadline = deadline;
-	}
-
-	public ProjectCreateDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-
-	public ProjectCreateDTO(@NotNull(message = "Client ID is required") Long clientId,
-			@NotBlank(message = "Title is required") @Size(max = 255, message = "Title must not exceed 255 characters") String title,
-			@NotBlank(message = "Description is required") String description,
-			@NotNull(message = "Minimum budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Minimum budget must be greater than 0") BigDecimal budgetMin,
-			@NotNull(message = "Maximum budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Maximum budget must be greater than 0") BigDecimal budgetMax,
-			@NotNull(message = "Duration is required") @Min(value = 1, message = "Duration must be at least 1 day") Integer durationDays,
-			@NotEmpty(message = "At least one skill is required") List<String> requiredSkills,
-			@NotBlank(message = "Category is required") String category,
-			@Future(message = "Deadline must be in the future") LocalDate deadline) {
-		super();
-		this.clientId = clientId;
-		this.title = title;
-		this.description = description;
-		this.budgetMin = budgetMin;
-		this.budgetMax = budgetMax;
-		this.durationDays = durationDays;
-		this.requiredSkills = requiredSkills;
-		this.category = category;
-		this.deadline = deadline;
-	}
-    package com.freelancenexus.userservice.dto;
+package com.freelancenexus.userservice.model;
 
 import java.time.LocalDateTime;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
-/**
- * Data Transfer Object (DTO) for representing a rating.
- * Includes details such as client ID, project ID, rating value, and review.
- */
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 
-public class RatingDTO {
+@Entity
+@Table(name = "users", indexes = {
+    @Index(name = "idx_email", columnList = "email"),
+    @Index(name = "idx_role", columnList = "role")
+})
+public class User {
     
-    /**
-     * The unique identifier of the rating.
-     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    /**
-     * The ID of the client who provided the rating.
-     * Must not be null.
-     */
-    @NotNull(message = "Client ID is required")
-    private Long clientId;
+    @Column(name = "email", unique = true, nullable = false)
+    private String email;
     
-    /**
-     * The ID of the project associated with the rating.
-     */
-    private Long projectId;
+    @Column(name = "password")
+    private String password;
     
-    /**
-     * The rating value.
-     * Must be between 1 and 5.
-     */
-    @NotNull(message = "Rating is required")
-    @Min(value = 1, message = "Rating must be at least 1")
-    @Max(value = 5, message = "Rating must not exceed 5")
-    private Integer rating;
+    @Column(name = "full_name", nullable = false)
+    private String fullName;
     
-    /**
-     * The review text provided by the client.
-     * Cannot exceed 2000 characters.
-     */
-    @Size(max = 2000, message = "Review must not exceed 2000 characters")
-    private String review;
+    @Column(name = "phone", length = 20)
+    private String phone;
     
-    /**
-     * The timestamp when the rating was created.
-     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private UserRole role;
+    
+    @Column(name = "is_active", nullable = false)
+    private Boolean isActive = true;
+    
+    @Column(name = "profile_image_url", length = 500)
+    private String profileImageUrl;
+    
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+    
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
 	public Long getId() {
 		return id;
@@ -269,36 +64,60 @@ public class RatingDTO {
 		this.id = id;
 	}
 
-	public Long getClientId() {
-		return clientId;
+	public String getEmail() {
+		return email;
 	}
 
-	public void setClientId(Long clientId) {
-		this.clientId = clientId;
+	public void setEmail(String email) {
+		this.email = email;
 	}
 
-	public Long getProjectId() {
-		return projectId;
+	public String getPassword() {
+		return password;
 	}
 
-	public void setProjectId(Long projectId) {
-		this.projectId = projectId;
+	public void setPassword(String password) {
+		this.password = password;
 	}
 
-	public Integer getRating() {
-		return rating;
+	public String getFullName() {
+		return fullName;
 	}
 
-	public void setRating(Integer rating) {
-		this.rating = rating;
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
 	}
 
-	public String getReview() {
-		return review;
+	public String getPhone() {
+		return phone;
 	}
 
-	public void setReview(String review) {
-		this.review = review;
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public UserRole getRole() {
+		return role;
+	}
+
+	public void setRole(UserRole role) {
+		this.role = role;
+	}
+
+	public Boolean getIsActive() {
+		return isActive;
+	}
+
+	public void setIsActive(Boolean isActive) {
+		this.isActive = isActive;
+	}
+
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
 	}
 
 	public LocalDateTime getCreatedAt() {
@@ -309,206 +128,136 @@ public class RatingDTO {
 		this.createdAt = createdAt;
 	}
 
-	public RatingDTO(Long id, @NotNull(message = "Client ID is required") Long clientId, Long projectId,
-			@NotNull(message = "Rating is required") @Min(value = 1, message = "Rating must be at least 1") @Max(value = 5, message = "Rating must not exceed 5") Integer rating,
-			@Size(max = 2000, message = "Review must not exceed 2000 characters") String review,
-			LocalDateTime createdAt) {
-		super();
-		this.id = id;
-		this.clientId = clientId;
-		this.projectId = projectId;
-		this.rating = rating;
-		this.review = review;
-		this.createdAt = createdAt;
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
 	}
 
-	public RatingDTO() {
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public User(Long id, String email, String password, String fullName, String phone, UserRole role, Boolean isActive,
+			String profileImageUrl, LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.email = email;
+		this.password = password;
+		this.fullName = fullName;
+		this.phone = phone;
+		this.role = role;
+		this.isActive = isActive;
+		this.profileImageUrl = profileImageUrl;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+
+	public User() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	
+    
+    
+}
+package com.freelancenexus.userservice.dto;
+
+import com.freelancenexus.userservice.model.UserRole;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+public class UserRegistrationDTO {
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email should be valid")
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters")
+    private String password;
+    
+    @NotBlank(message = "Full name is required")
+    @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters")
+    private String fullName;
+    
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
+    private String phone;
+    
+    @NotNull(message = "Role is required")
+    private UserRole role;
+    
+    private String profileImageUrl;
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public UserRole getRole() {
+		return role;
+	}
+
+	public void setRole(UserRole role) {
+		this.role = role;
+	}
+
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserRegistrationDTO(
+			@NotBlank(message = "Email is required") @Email(message = "Email should be valid") String email,
+			@NotBlank(message = "Password is required") @Size(min = 8, message = "Password must be at least 8 characters") String password,
+			@NotBlank(message = "Full name is required") @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters") String fullName,
+			@Size(max = 20, message = "Phone number must not exceed 20 characters") String phone,
+			@NotNull(message = "Role is required") UserRole role, String profileImageUrl) {
+		super();
+		this.email = email;
+		this.password = password;
+		this.fullName = fullName;
+		this.phone = phone;
+		this.role = role;
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserRegistrationDTO() {
 		super();
 		// TODO Auto-generated constructor stub
 	}
     
     
-    
 }
 
-
-package com.freelancenexus.userservice.controller;
-
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.freelancenexus.userservice.dto.RatingDTO;
-import com.freelancenexus.userservice.service.RatingService;
-
-import jakarta.validation.Valid;
-/**
- * REST controller for managing freelancer ratings.
- * Provides endpoints for adding and retrieving ratings.
- */
-@RestController
-@RequestMapping("/api/freelancers")
-public class RatingController {
-	private final Logger log= LoggerFactory.getLogger(RatingController.class);
-    private final RatingService ratingService;
-
-    
-    public RatingController(RatingService ratingService) {
-		super();
-		this.ratingService = ratingService;
-	}
-
-	/**
-     * Adds a rating for a freelancer.
-     *
-     * @param id the ID of the freelancer
-     * @param ratingDTO the rating to be added
-     * @return the created rating
-     */
-    // Only clients can add ratings (after project completion)
-    @PostMapping("/{id}/ratings")
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<RatingDTO> addRating(
-            @PathVariable Long id,
-            @Valid @RequestBody RatingDTO ratingDTO) {
-        log.info("REST request to add rating for freelancer ID: {}", id);
-        RatingDTO created = ratingService.addRating(id, ratingDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
-
-    /**
-     * Retrieves all ratings for a freelancer.
-     *
-     * @param id the ID of the freelancer
-     * @return the list of ratings
-     */
-    // Anyone authenticated can view ratings
-    @GetMapping("/{id}/ratings")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<RatingDTO>> getFreelancerRatings(@PathVariable Long id) {
-        log.info("REST request to get ratings for freelancer ID: {}", id);
-        List<RatingDTO> ratings = ratingService.getFreelancerRatings(id);
-        return ResponseEntity.ok(ratings);
-    }
-}
-
-
-package com.freelancenexus.userservice.service;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.RatingDTO;
-import com.freelancenexus.userservice.exception.DuplicateRatingException;
-import com.freelancenexus.userservice.exception.ResourceNotFoundException;
-import com.freelancenexus.userservice.model.Freelancer;
-import com.freelancenexus.userservice.model.Rating;
-import com.freelancenexus.userservice.repository.FreelancerRepository;
-import com.freelancenexus.userservice.repository.RatingRepository;
-@Service
-public class RatingService {
-	private final Logger log= LoggerFactory.getLogger(RatingService.class);
-    private final RatingRepository ratingRepository;
-    private final FreelancerRepository freelancerRepository;
-    private final FreelancerService freelancerService;
-    
-    public RatingService(RatingRepository ratingRepository, FreelancerRepository freelancerRepository,
-			FreelancerService freelancerService) {
-		super();
-		this.ratingRepository = ratingRepository;
-		this.freelancerRepository = freelancerRepository;
-		this.freelancerService = freelancerService;
-	}
-
-	@Transactional
-    public RatingDTO addRating(Long freelancerId, RatingDTO ratingDTO) {
-        log.info("Adding rating for freelancer ID: {} by client ID: {}", freelancerId, ratingDTO.getClientId());
-        
-        Freelancer freelancer = freelancerRepository.findById(freelancerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
-        
-        // Check if rating already exists for this project
-        if (ratingDTO.getProjectId() != null && 
-            ratingRepository.existsByFreelancerIdAndClientIdAndProjectId(
-                freelancerId, ratingDTO.getClientId(), ratingDTO.getProjectId())) {
-            throw new DuplicateRatingException("Rating already exists for this project");
-        }
-        
-        Rating rating = mapToEntity(ratingDTO);
-        freelancer.addRating(rating);
-        
-        Rating saved = ratingRepository.save(rating);
-        log.info("Rating added with ID: {}", saved.getId());
-        
-        // Update freelancer's average rating
-        freelancerService.updateFreelancerStats(freelancerId);
-        
-        return mapToDTO(saved);
-    }
-    
-    @Transactional(readOnly = true)
-    public List<RatingDTO> getFreelancerRatings(Long freelancerId) {
-        log.info("Fetching ratings for freelancer ID: {}", freelancerId);
-        
-        if (!freelancerRepository.existsById(freelancerId)) {
-            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
-        }
-        
-        List<Rating> ratings = ratingRepository.findByFreelancerIdOrderByCreatedAtDesc(freelancerId);
-        
-        return ratings.stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-    
-    @Transactional(readOnly = true)
-    public BigDecimal getAverageRating(Long freelancerId) {
-        log.info("Calculating average rating for freelancer ID: {}", freelancerId);
-        
-        BigDecimal average = ratingRepository.calculateAverageRating(freelancerId);
-        return average != null ? average : BigDecimal.ZERO;
-    }
-    
-    @Transactional(readOnly = true)
-    public long getRatingCount(Long freelancerId) {
-        return ratingRepository.countByFreelancerId(freelancerId);
-    }
-    
-    private RatingDTO mapToDTO(Rating rating) {
-        RatingDTO dto = new RatingDTO();
-        dto.setId(rating.getId());
-        dto.setClientId(rating.getClientId());
-        dto.setProjectId(rating.getProjectId());
-        dto.setRating(rating.getRating());
-        dto.setReview(rating.getReview());
-        dto.setCreatedAt(rating.getCreatedAt());
-        return dto;
-    }
-    
-    private Rating mapToEntity(RatingDTO dto) {
-        Rating rating = new Rating();
-        rating.setClientId(dto.getClientId());
-        rating.setProjectId(dto.getProjectId());
-        rating.setRating(dto.getRating());
-        rating.setReview(dto.getReview());
-        return rating;
-    }
-}
-    
-}
