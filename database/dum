@@ -1,2191 +1,2892 @@
-package com.freelancenexus.userservice.service;
+package com.freelancenexus.userservice.dto;
 
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.freelancenexus.userservice.dto.AIRecommendationDTO;
-import com.freelancenexus.userservice.dto.ProjectSummaryDTO;
-import com.freelancenexus.userservice.dto.RankedProposalDTO;
-import com.freelancenexus.userservice.model.Project;
-import com.freelancenexus.userservice.model.Proposal;
-import com.freelancenexus.userservice.repository.ProjectRepository;
-import com.freelancenexus.userservice.repository.ProposalRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-/**
- * AIService
- *
- * <p>Service layer for AI-powered features in the Project Service. Integrates with the Gemini AI
- * to provide project recommendations for freelancers, proposal ranking for clients, and AI-generated
- * project summaries. Handles prompt construction, response parsing, and graceful fallback behavior
- * when AI operations fail.</p>
- *
- * <p>Key responsibilities:
- * <ul>
- *   <li>Generate AI-based project recommendations for freelancers</li>
- *   <li>Rank proposals using AI analysis and scoring</li>
- *   <li>Generate natural language project summaries</li>
- *   <li>Parse and transform AI responses into DTOs</li>
- *   <li>Persist AI scores and maintain data consistency</li>
- * </ul>
- * </p>
- *
- * @since 1.0
- */
-@Service
-public class AIService {
-	private final Logger log= LoggerFactory.getLogger(AIService.class);
-    private final GeminiIntegrationService geminiService;
-    private final ProjectRepository projectRepository;
-    private final ProposalRepository proposalRepository;
-    private final ObjectMapper objectMapper;
-    
-    
-
-    public AIService(GeminiIntegrationService geminiService,
-		ProjectRepository projectRepository,
-		ProposalRepository proposalRepository, ObjectMapper objectMapper) {
-		super();
-		this.geminiService = geminiService;
-		this.projectRepository = projectRepository;
-		this.proposalRepository = proposalRepository;
-		this.objectMapper = objectMapper;
-	}
-
-	/**
-     * Generate AI-recommended projects for a freelancer based on their skills and profile.
-     *
-     * <p>Analyzes the freelancer's skills and biography against all open projects and returns
-     * the top matches with match scores and reasons. Falls back gracefully to an empty list
-     * if AI processing fails.</p>
-     *
-     * @param freelancerId the unique identifier of the freelancer
-     * @param freelancerSkills list of skills the freelancer possesses
-     * @param freelancerBio optional biography or description of the freelancer
-     * @return a list of {@link AIRecommendationDTO} sorted by relevance
-     */
-    public List<AIRecommendationDTO> recommendProjectsForFreelancer(Long freelancerId, List<String> freelancerSkills, String freelancerBio) {
-        try {
-            log.info("Getting AI recommendations for freelancer: {}", freelancerId);
-
-            // Get all open projects
-            List<Project> openProjects = projectRepository.findAllOpenProjects();
-            
-            if (openProjects.isEmpty()) {
-                log.info("No open projects available");
-                return Collections.emptyList();
-            }
-
-            // Build prompt for AI
-            String prompt = buildRecommendationPrompt(freelancerSkills, freelancerBio, openProjects);
-            
-            // Call Gemini AI
-            JsonNode aiResponse = geminiService.callGeminiForJson(prompt);
-            
-            // Parse and return recommendations
-            return parseRecommendations(aiResponse, openProjects);
-
-        } catch (Exception e) {
-            log.error("Error getting AI recommendations", e);
-            return fallbackRecommendations(freelancerId, freelancerSkills);
-        }
-    }
-
-    /**
-     * Rank all proposals for a project using AI analysis.
-     *
-     * <p>Evaluates each proposal based on budget alignment, delivery time, cover letter quality,
-     * and professionalism. Updates proposal AI scores in the database and returns ranked results.
-     * Falls back to an empty list if AI processing fails.</p>
-     *
-     * @param projectId the unique identifier of the project
-     * @return a list of {@link RankedProposalDTO} sorted by rank (best first)
-     * @throws RuntimeException if the project is not found
-     */
-    public List<RankedProposalDTO> rankProposalsForProject(Long projectId) {
-        try {
-            log.info("Ranking proposals for project: {}", projectId);
-
-            Project project = projectRepository.findById(projectId)
-                    .orElseThrow(() -> new RuntimeException("Project not found"));
-
-            List<Proposal> proposals = proposalRepository.findByProjectId(projectId);
-            
-            if (proposals.isEmpty()) {
-                log.info("No proposals to rank");
-                return Collections.emptyList();
-            }
-
-            // Build prompt for AI
-            String prompt = buildRankingPrompt(project, proposals);
-            
-            // Call Gemini AI
-            JsonNode aiResponse = geminiService.callGeminiForJson(prompt);
-            
-            // Parse rankings and update proposal scores
-            List<RankedProposalDTO> rankedProposals = parseRankings(aiResponse, proposals);
-            
-            // Update AI scores in database
-            updateProposalScores(rankedProposals);
-            
-            return rankedProposals;
-
-        } catch (Exception e) {
-            log.error("Error ranking proposals", e);
-            return fallbackRanking(projectId);
-        }
-    }
-
-    /**
-     * Generate an AI-powered natural language summary of a project.
-     *
-     * <p>Creates a comprehensive summary including overview, key requirements, ideal candidate profile,
-     * complexity assessment, and suggested skills. Falls back to a placeholder summary if AI processing fails.</p>
-     *
-     * @param projectId the unique identifier of the project
-     * @return a {@link ProjectSummaryDTO} with AI-generated content
-     * @throws RuntimeException if the project is not found
-     */
-    public ProjectSummaryDTO generateProjectSummary(Long projectId) {
-        try {
-            log.info("Generating summary for project: {}", projectId);
-
-            Project project = projectRepository.findById(projectId)
-                    .orElseThrow(() -> new RuntimeException("Project not found"));
-
-            String prompt = buildSummaryPrompt(project);
-            
-            JsonNode aiResponse = geminiService.callGeminiForJson(prompt);
-            
-            return parseSummary(aiResponse, projectId);
-
-        } catch (Exception e) {
-            log.error("Error generating project summary", e);
-            return fallbackSummary(projectId);
-        }
-    }
-
-    // ==================== Private Helper Methods ====================
-
-    /**
-     * Build a structured prompt for the Gemini AI to recommend projects for a freelancer.
-     *
-     * @param skills the freelancer's skills
-     * @param bio optional freelancer biography
-     * @param projects available open projects to consider
-     * @return formatted prompt string for the AI
-     */
-    private String buildRecommendationPrompt(List<String> skills, String bio, List<Project> projects) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("You are an AI assistant helping match freelancers with projects.\n\n");
-        prompt.append("Freelancer Profile:\n");
-        prompt.append("Skills: ").append(String.join(", ", skills)).append("\n");
-        prompt.append("Bio: ").append(bio != null ? bio : "Not provided").append("\n\n");
-        prompt.append("Available Projects:\n");
-
-        for (int i = 0; i < Math.min(projects.size(), 20); i++) {
-            Project p = projects.get(i);
-            prompt.append(String.format("%d. %s (ID: %d)\n", i + 1, p.getTitle(), p.getId()));
-            prompt.append("   Category: ").append(p.getCategory()).append("\n");
-            prompt.append("   Budget: $").append(p.getBudgetMin()).append(" - $").append(p.getBudgetMax()).append("\n");
-            prompt.append("   Duration: ").append(p.getDurationDays()).append(" days\n");
-            prompt.append("   Required Skills: ").append(p.getRequiredSkills()).append("\n");
-            prompt.append("   Description: ").append(p.getDescription().substring(0, Math.min(200, p.getDescription().length()))).append("...\n\n");
-        }
-
-        prompt.append("\nAnalyze the freelancer's skills and recommend the top 5 best-matching projects. ");
-        prompt.append("For each recommendation, provide:\n");
-        prompt.append("1. projectId\n");
-        prompt.append("2. matchScore (0-100)\n");
-        prompt.append("3. matchReason (brief explanation)\n");
-        prompt.append("4. matchingSkills (array of skills that match)\n");
-        prompt.append("5. skillMatchPercentage\n\n");
-        prompt.append("Return your response as a JSON array with this structure:\n");
-        prompt.append("```json\n");
-        prompt.append("[{\"projectId\": 1, \"matchScore\": 95, \"matchReason\": \"...\", \"matchingSkills\": [...], \"skillMatchPercentage\": 80}]\n");
-        prompt.append("```");
-
-        return prompt.toString();
-    }
-
-    /**
-     * Build a structured prompt for the Gemini AI to rank proposals for a project.
-     *
-     * @param project the project for which proposals are being ranked
-     * @param proposals the proposals to rank
-     * @return formatted prompt string for the AI
-     */
-    private String buildRankingPrompt(Project project, List<Proposal> proposals) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("You are an AI assistant helping rank freelancer proposals for a project.\n\n");
-        prompt.append("Project Details:\n");
-        prompt.append("Title: ").append(project.getTitle()).append("\n");
-        prompt.append("Description: ").append(project.getDescription()).append("\n");
-        prompt.append("Budget Range: $").append(project.getBudgetMin()).append(" - $").append(project.getBudgetMax()).append("\n");
-        prompt.append("Duration: ").append(project.getDurationDays()).append(" days\n");
-        prompt.append("Required Skills: ").append(project.getRequiredSkills()).append("\n\n");
-
-        prompt.append("Proposals:\n");
-        for (int i = 0; i < proposals.size(); i++) {
-            Proposal prop = proposals.get(i);
-            prompt.append(String.format("%d. Proposal ID: %d\n", i + 1, prop.getId()));
-            prompt.append("   Freelancer ID: ").append(prop.getFreelancerId()).append("\n");
-            prompt.append("   Proposed Budget: $").append(prop.getProposedBudget()).append("\n");
-            prompt.append("   Delivery Days: ").append(prop.getDeliveryDays()).append("\n");
-            prompt.append("   Cover Letter: ").append(prop.getCoverLetter()).append("\n\n");
-        }
-
-        prompt.append("\nRank these proposals from best to worst. For each proposal, provide:\n");
-        prompt.append("1. proposalId\n");
-        prompt.append("2. aiScore (0-100, higher is better)\n");
-        prompt.append("3. rank (1 being best)\n");
-        prompt.append("4. aiAnalysis (brief analysis)\n");
-        prompt.append("5. strengths (array of positive points)\n");
-        prompt.append("6. concerns (array of potential issues)\n\n");
-        prompt.append("Consider: budget alignment, delivery time, cover letter quality, professionalism.\n\n");
-        prompt.append("Return your response as a JSON array:\n");
-        prompt.append("```json\n");
-        prompt.append("[{\"proposalId\": 1, \"aiScore\": 95, \"rank\": 1, \"aiAnalysis\": \"...\", \"strengths\": [...], \"concerns\": [...]}]\n");
-        prompt.append("```");
-
-        return prompt.toString();
-    }
-
-    /**
-     * Build a structured prompt for the Gemini AI to generate a project summary.
-     *
-     * @param project the project to summarize
-     * @return formatted prompt string for the AI
-     */
-    private String buildSummaryPrompt(Project project) {
-        return String.format("""
-            You are an AI assistant summarizing a freelance project.
-            
-            Project Details:
-            Title: %s
-            Description: %s
-            Category: %s
-            Budget: $%s - $%s
-            Duration: %d days
-            Required Skills: %s
-            
-            Provide a comprehensive summary with:
-            1. summary (2-3 sentence overview)
-            2. keyRequirements (main project requirements)
-            3. idealCandidate (description of ideal freelancer)
-            4. estimatedComplexity (Low/Medium/High with reasoning)
-            5. suggestedSkills (array of recommended skills)
-            
-            Return as JSON:
-            ```json
-            {
-              "summary": "...",
-              "keyRequirements": "...",
-              "idealCandidate": "...",
-              "estimatedComplexity": "...",
-              "suggestedSkills": [...]
-            }
-            ```
-            """,
-            project.getTitle(),
-            project.getDescription(),
-            project.getCategory(),
-            project.getBudgetMin(),
-            project.getBudgetMax(),
-            project.getDurationDays(),
-            project.getRequiredSkills()
-        );
-    }
-
-    /**
-     * Parse AI response JSON into a list of project recommendations.
-     *
-     * @param response the JSON response from the AI service
-     * @param projects the available projects for enrichment
-     * @return list of {@link AIRecommendationDTO}
-     */
-    private List<AIRecommendationDTO> parseRecommendations(JsonNode response, List<Project> projects) {
-        List<AIRecommendationDTO> recommendations = new ArrayList<>();
-        
-        try {
-            if (response.isArray()) {
-                Map<Long, Project> projectMap = projects.stream()
-                        .collect(Collectors.toMap(Project::getId, p -> p));
-
-                for (JsonNode node : response) {
-                    Long projectId = node.get("projectId").asLong();
-                    Project project = projectMap.get(projectId);
-                    
-                    if (project != null) {
-                        AIRecommendationDTO dto = new AIRecommendationDTO();
-                        dto.setProjectId(projectId);
-                        dto.setProjectTitle(project.getTitle());
-                        dto.setCategory(project.getCategory());
-                        dto.setBudgetMin(project.getBudgetMin());
-                        dto.setBudgetMax(project.getBudgetMax());
-                        dto.setDurationDays(project.getDurationDays());
-                        dto.setRequiredSkills(parseSkills(project.getRequiredSkills()));
-                        dto.setMatchScore(BigDecimal.valueOf(node.get("matchScore").asDouble()));
-                        dto.setMatchReason(node.get("matchReason").asText());
-                        dto.setMatchingSkills(parseJsonArray(node.get("matchingSkills")));
-                        dto.setSkillMatchPercentage(node.get("skillMatchPercentage").asInt());
-                        
-                        recommendations.add(dto);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error parsing recommendations", e);
-        }
-        
-        return recommendations;
-    }
-
-    /**
-     * Parse AI response JSON into ranked proposals and sort by rank.
-     *
-     * @param response the JSON response from the AI service
-     * @param proposals the proposals being ranked
-     * @return sorted list of {@link RankedProposalDTO}
-     */
-    private List<RankedProposalDTO> parseRankings(JsonNode response, List<Proposal> proposals) {
-        List<RankedProposalDTO> rankings = new ArrayList<>();
-        
-        try {
-            if (response.isArray()) {
-                Map<Long, Proposal> proposalMap = proposals.stream()
-                        .collect(Collectors.toMap(Proposal::getId, p -> p));
-
-                for (JsonNode node : response) {
-                    Long proposalId = node.get("proposalId").asLong();
-                    Proposal proposal = proposalMap.get(proposalId);
-                    
-                    if (proposal != null) {
-                        RankedProposalDTO dto = new RankedProposalDTO();
-                        dto.setId(proposalId);
-                        dto.setFreelancerId(proposal.getFreelancerId());
-                        dto.setCoverLetter(proposal.getCoverLetter());
-                        dto.setProposedBudget(proposal.getProposedBudget());
-                        dto.setDeliveryDays(proposal.getDeliveryDays());
-                        dto.setAiScore(BigDecimal.valueOf(node.get("aiScore").asDouble()));
-                        dto.setRank(node.get("rank").asInt());
-                        dto.setAiAnalysis(node.get("aiAnalysis").asText());
-                        dto.setStrengths(parseJsonArray(node.get("strengths")));
-                        dto.setConcerns(parseJsonArray(node.get("concerns")));
-                        dto.setSubmittedAt(proposal.getSubmittedAt());
-                        
-                        rankings.add(dto);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("Error parsing rankings", e);
-        }
-        
-        rankings.sort(Comparator.comparing(RankedProposalDTO::getRank));
-        return rankings;
-    }
-
-    /**
-     * Parse AI response JSON into a project summary.
-     *
-     * @param response the JSON response from the AI service
-     * @param projectId the id of the project being summarized
-     * @return {@link ProjectSummaryDTO}
-     */
-    private ProjectSummaryDTO parseSummary(JsonNode response, Long projectId) {
-        ProjectSummaryDTO dto = new ProjectSummaryDTO();
-        dto.setProjectId(projectId);
-        
-        try {
-            dto.setSummary(response.get("summary").asText());
-            dto.setKeyRequirements(response.get("keyRequirements").asText());
-            dto.setIdealCandidate(response.get("idealCandidate").asText());
-            dto.setEstimatedComplexity(response.get("estimatedComplexity").asText());
-            dto.setSuggestedSkills(parseJsonArray(response.get("suggestedSkills")));
-        } catch (Exception e) {
-            log.error("Error parsing summary", e);
-        }
-        
-        return dto;
-    }
-
-    /**
-     * Update proposal entities with AI scores from ranking results.
-     *
-     * @param rankings the ranked proposal results containing AI scores
-     */
-    private void updateProposalScores(List<RankedProposalDTO> rankings) {
-        for (RankedProposalDTO ranking : rankings) {
-            try {
-                Proposal proposal = proposalRepository.findById(ranking.getId()).orElse(null);
-                if (proposal != null) {
-                    proposal.setAiScore(ranking.getAiScore());
-                    proposalRepository.save(proposal);
-                }
-            } catch (Exception e) {
-                log.error("Error updating proposal score for ID: {}", ranking.getId(), e);
-            }
-        }
-    }
-
-    /**
-     * Parse a skill string (JSON or comma-separated) into a list.
-     *
-     * @param skillsJson the skills string to parse
-     * @return list of skill strings
-     */
-    private List<String> parseSkills(String skillsJson) {
-        try {
-            JsonNode node = objectMapper.readTree(skillsJson);
-            List<String> skills = new ArrayList<>();
-            node.forEach(skill -> skills.add(skill.asText()));
-            return skills;
-        } catch (Exception e) {
-            return Arrays.asList(skillsJson.split(","));
-        }
-    }
-
-    /**
-     * Parse a JSON array node into a list of strings.
-     *
-     * @param arrayNode the JSON array to parse
-     * @return list of string values
-     */
-    private List<String> parseJsonArray(JsonNode arrayNode) {
-        List<String> result = new ArrayList<>();
-        if (arrayNode != null && arrayNode.isArray()) {
-            arrayNode.forEach(node -> result.add(node.asText()));
-        }
-        return result;
-    }
-
-    /**
-     * Fallback method returning empty recommendations when AI processing fails.
-     *
-     * @param freelancerId the freelancer id
-     * @param skills the freelancer's skills
-     * @return empty list
-     */
-    private List<AIRecommendationDTO> fallbackRecommendations(Long freelancerId, List<String> skills) {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Fallback method returning empty rankings when AI processing fails.
-     *
-     * @param projectId the project id
-     * @return empty list
-     */
-    private List<RankedProposalDTO> fallbackRanking(Long projectId) {
-        return Collections.emptyList();
-    }
-
-    /**
-     * Fallback method returning a placeholder summary when AI processing fails.
-     *
-     * @param projectId the project id
-     * @return {@link ProjectSummaryDTO} with minimal content
-     */
-    private ProjectSummaryDTO fallbackSummary(Long projectId) {
-        ProjectSummaryDTO dto = new ProjectSummaryDTO();
-        dto.setProjectId(projectId);
-        dto.setSummary("Summary generation failed");
-        return dto;
-    }
-}package com.freelancenexus.userservice.service;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.FreelancerDTO;
-import com.freelancenexus.userservice.dto.FreelancerProfileDTO;
-import com.freelancenexus.userservice.dto.PortfolioDTO;
-import com.freelancenexus.userservice.dto.RatingDTO;
-import com.freelancenexus.userservice.dto.SkillDTO;
-import com.freelancenexus.userservice.exception.FreelancerAlreadyExistsException;
-import com.freelancenexus.userservice.exception.ResourceNotFoundException;
-import com.freelancenexus.userservice.model.Freelancer;
-import com.freelancenexus.userservice.model.Skill;
-import com.freelancenexus.userservice.model.User;
-import com.freelancenexus.userservice.repository.FreelancerRepository;
-import com.freelancenexus.userservice.repository.RatingRepository;
-import com.freelancenexus.userservice.repository.UserRepository;
-
 
 /**
- * Service class for managing freelancer profiles.
- * Provides operations to create, update, retrieve, and search freelancers.
+ * AIRecommendationDTO
  *
- * <p>This class interacts with {@link FreelancerRepository} and {@link RatingRepository}
- * to perform database operations and manage freelancer details including skills and ratings.</p>
+ * <p>Data Transfer Object representing an AI-recommended project for a freelancer.
+ * Contains project details, required skills, and AI-computed match scoring metrics
+ * that indicate how well the project aligns with the freelancer's profile.</p>
  *
- * @author YourName
- * @version 1.0
- */
-
-@Service
-public class FreelancerService {
-	private final Logger log= LoggerFactory.getLogger(FreelancerService.class);
-    private final FreelancerRepository freelancerRepository;
-    private final RatingRepository ratingRepository;
-
-    public FreelancerService(FreelancerRepository freelancerRepository, RatingRepository ratingRepository) {
-		super();
-		this.freelancerRepository = freelancerRepository;
-		this.ratingRepository = ratingRepository;
-	}
-
-    @Autowired
-    private UserRepository userRepository;
-	/**
-     * Creates a new freelancer profile.
-     *
-     * @param freelancerDTO the freelancer details to create
-     * @return the created freelancer as {@link FreelancerDTO}
-     * @throws FreelancerAlreadyExistsException if a freelancer profile already exists for the given user ID
-     */
-
-    @Transactional
-    public FreelancerDTO createFreelancer(FreelancerDTO freelancerDTO) {
-        log.info("Creating freelancer profile for user ID: {}", freelancerDTO.getUserId());
-        
-        if (freelancerRepository.existsByUserId(freelancerDTO.getUserId())) {
-            throw new FreelancerAlreadyExistsException("Freelancer profile already exists for user ID: " + freelancerDTO.getUserId());
-        }
-        
-        Freelancer freelancer = mapToEntity(freelancerDTO);
-        
-        // Add skills if provided
-        if (freelancerDTO.getSkills() != null) {
-            for (SkillDTO skillDTO : freelancerDTO.getSkills()) {
-                Skill skill = new Skill();
-                skill.setSkillName(skillDTO.getSkillName());
-                skill.setProficiencyLevel(skillDTO.getProficiencyLevel());
-                skill.setYearsExperience(skillDTO.getYearsExperience());
-                freelancer.addSkill(skill);
-            }
-        }
-        
-        Freelancer saved = freelancerRepository.save(freelancer);
-        log.info("Freelancer profile created with ID: {}", saved.getId());
-        
-        return mapToDTO(saved);
-    }
-
-    /**
-     * Retrieves a freelancer by ID along with their skills.
-     *
-     * @param id the freelancer ID
-     * @return the freelancer details as {@link FreelancerDTO}
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional(readOnly = true)
-    public FreelancerDTO getFreelancerById(Long id) {
-        log.info("Fetching freelancer by ID: {}", id);
-        Freelancer freelancer = freelancerRepository.findByIdWithSkills(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + id));
-        return mapToDTO(freelancer);
-    }
-
-    /**
-     * Retrieves a complete freelancer profile including details, skills, and ratings.
-     *
-     * @param id the freelancer ID
-     * @return the freelancer profile as {@link FreelancerProfileDTO}
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional(readOnly = true)
-    public FreelancerProfileDTO getFreelancerProfile(Long id) {
-        log.info("Fetching complete freelancer profile for ID: {}", id);
-        Freelancer freelancer = freelancerRepository.findByIdWithDetails(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + id));
-        
-        return mapToProfileDTO(freelancer);
-    }
-
-    /**
-     * Retrieves a freelancer by user ID.
-     *
-     * @param userId the user ID
-     * @return the freelancer details as {@link FreelancerDTO}
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional(readOnly = true)
-    public FreelancerDTO getFreelancerByUserId(Long userId) {
-        log.info("Fetching freelancer by user ID: {}", userId);
-        Freelancer freelancer = freelancerRepository.findByUserId(userId)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found for user ID: " + userId));
-        return mapToDTO(freelancer);
-    }
-
-    /**
-     * Updates an existing freelancer profile.
-     *
-     * @param id the freelancer ID
-     * @param freelancerDTO the updated freelancer details
-     * @return the updated freelancer as {@link FreelancerDTO}
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional
-    public FreelancerDTO updateFreelancer(Long id, FreelancerDTO freelancerDTO) {
-        log.info("Updating freelancer with ID: {}", id);
-        
-        Freelancer freelancer = freelancerRepository.findById(id)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + id));
-        
-        // Update basic fields
-        if (freelancerDTO.getTitle() != null) {
-            freelancer.setTitle(freelancerDTO.getTitle());
-        }
-        if (freelancerDTO.getBio() != null) {
-            freelancer.setBio(freelancerDTO.getBio());
-        }
-        if (freelancerDTO.getHourlyRate() != null) {
-            freelancer.setHourlyRate(freelancerDTO.getHourlyRate());
-        }
-        if (freelancerDTO.getAvailability() != null) {
-            freelancer.setAvailability(freelancerDTO.getAvailability());
-        }
-        
-        // Update skills if provided
-        if (freelancerDTO.getSkills() != null) {
-            freelancer.getSkills().clear();
-            for (SkillDTO skillDTO : freelancerDTO.getSkills()) {
-                Skill skill = new Skill();
-                skill.setSkillName(skillDTO.getSkillName());
-                skill.setProficiencyLevel(skillDTO.getProficiencyLevel());
-                skill.setYearsExperience(skillDTO.getYearsExperience());
-                freelancer.addSkill(skill);
-            }
-        }
-        
-        Freelancer updated = freelancerRepository.save(freelancer);
-        log.info("Freelancer updated successfully: {}", id);
-        
-        return mapToDTO(updated);
-    }
-
-    /**
-     * Searches freelancers based on filters like hourly rate, rating, and availability.
-     *
-     * @param minRate minimum hourly rate
-     * @param maxRate maximum hourly rate
-     * @param minRating minimum average rating
-     * @param availability availability status
-     * @return a list of matching freelancers as {@link FreelancerDTO}
-     */
-
-    @Transactional(readOnly = true)
-    public List<FreelancerDTO> searchFreelancers(BigDecimal minRate, BigDecimal maxRate, 
-                                                   BigDecimal minRating, String availability) {
-        log.info("Searching freelancers with filters - minRate: {}, maxRate: {}, minRating: {}, availability: {}", 
-                 minRate, maxRate, minRating, availability);
-        
-        List<Freelancer> freelancers = freelancerRepository.searchFreelancers(minRate, maxRate, minRating, availability);
-        
-        return freelancers.stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves freelancers who have specific skills.
-     *
-     * @param skills list of skill names
-     * @return a list of freelancers as {@link FreelancerDTO}
-     */
-
-    @Transactional(readOnly = true)
-    public List<FreelancerDTO> getFreelancersBySkills(List<String> skills) {
-        log.info("Finding freelancers with skills: {}", skills);
-        
-        List<String> lowerCaseSkills = skills.stream()
-            .map(String::toLowerCase)
-            .collect(Collectors.toList());
-        
-        List<Freelancer> freelancers = freelancerRepository.findBySkills(lowerCaseSkills);
-        
-        return freelancers.stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves all freelancers.
-     *
-     * @return a list of all freelancers as {@link FreelancerDTO}
-     */
-
-    @Transactional(readOnly = true)
-    public List<FreelancerDTO> getAllFreelancers() {
-        log.info("Fetching all freelancers");
-        return freelancerRepository.findAll().stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-
-    /**
-     * Updates freelancer statistics such as average rating.
-     *
-     * @param freelancerId the ID of the freelancer whose stats need to be updated
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional
-    public void updateFreelancerStats(Long freelancerId) {
-        log.info("Updating stats for freelancer: {}", freelancerId);
-        
-        Freelancer freelancer = freelancerRepository.findById(freelancerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
-        
-        // Recalculate average rating
-        BigDecimal avgRating = ratingRepository.calculateAverageRating(freelancerId);
-        freelancer.setAverageRating(avgRating != null ? avgRating : BigDecimal.ZERO);
-        
-        freelancerRepository.save(freelancer);
-        log.info("Stats updated for freelancer: {}", freelancerId);
-    }
-
-    /**
-     * Converts a {@link Freelancer} entity to a {@link FreelancerDTO}.
-     *
-     * @param freelancer the freelancer entity
-     * @return the corresponding {@link FreelancerDTO}
-     */
-
-    private FreelancerDTO mapToDTO(Freelancer freelancer) {
-    	
-    	
-
-    	
-        FreelancerDTO dto = new FreelancerDTO();
-        dto.setId(freelancer.getId());
-        dto.setUserId(freelancer.getUser().getId());
-        dto.setTitle(freelancer.getTitle());
-        dto.setBio(freelancer.getBio());
-        dto.setHourlyRate(freelancer.getHourlyRate());
-        dto.setAvailability(freelancer.getAvailability());
-        dto.setTotalEarnings(freelancer.getTotalEarnings());
-        dto.setCompletedProjects(freelancer.getCompletedProjects());
-        dto.setAverageRating(freelancer.getAverageRating());
-        dto.setCreatedAt(freelancer.getCreatedAt());
-        dto.setUpdatedAt(freelancer.getUpdatedAt());
-        
-        if (freelancer.getSkills() != null) {
-            List<SkillDTO> skillDTOs = freelancer.getSkills().stream()
-                .map(this::mapSkillToDTO)
-                .collect(Collectors.toList());
-            dto.setSkills(skillDTOs);
-        }
-        
-        return dto;
-    }
-
-    /**
-     * Converts a {@link Freelancer} entity to a detailed {@link FreelancerProfileDTO},
-     * including skills, portfolios, and recent ratings.
-     *
-     * @param freelancer the freelancer entity
-     * @return the corresponding {@link FreelancerProfileDTO}
-     */
-
-    private FreelancerProfileDTO mapToProfileDTO(Freelancer freelancer) {
-        FreelancerProfileDTO dto = new FreelancerProfileDTO();
-        dto.setId(freelancer.getId());
-        dto.setUserId(freelancer.getUser().getId());
-        dto.setTitle(freelancer.getTitle());
-        dto.setBio(freelancer.getBio());
-        dto.setHourlyRate(freelancer.getHourlyRate());
-        dto.setAvailability(freelancer.getAvailability());
-        dto.setTotalEarnings(freelancer.getTotalEarnings());
-        dto.setCompletedProjects(freelancer.getCompletedProjects());
-        dto.setAverageRating(freelancer.getAverageRating());
-        dto.setCreatedAt(freelancer.getCreatedAt());
-        dto.setUpdatedAt(freelancer.getUpdatedAt());
-        
-        if (freelancer.getSkills() != null) {
-            dto.setSkills(freelancer.getSkills().stream()
-                .map(this::mapSkillToDTO)
-                .collect(Collectors.toList()));
-        }
-        
-        if (freelancer.getPortfolios() != null) {
-            dto.setPortfolios(freelancer.getPortfolios().stream()
-                .map(portfolio -> {
-                    PortfolioDTO pDto = new PortfolioDTO();
-                    pDto.setId(portfolio.getId());
-                    pDto.setTitle(portfolio.getTitle());
-                    pDto.setDescription(portfolio.getDescription());
-                    pDto.setProjectUrl(portfolio.getProjectUrl());
-                    pDto.setImageUrl(portfolio.getImageUrl());
-                    pDto.setTechnologiesUsed(portfolio.getTechnologiesUsed());
-                    pDto.setCompletionDate(portfolio.getCompletionDate());
-                    pDto.setCreatedAt(portfolio.getCreatedAt());
-                    return pDto;
-                })
-                .collect(Collectors.toList()));
-        }
-        
-        if (freelancer.getRatings() != null) {
-            dto.setRecentRatings(freelancer.getRatings().stream()
-                .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
-                .limit(5)
-                .map(rating -> {
-                    RatingDTO rDto = new RatingDTO();
-                    rDto.setId(rating.getId());
-                    rDto.setClientId(rating.getClientId());
-                    rDto.setProjectId(rating.getProjectId());
-                    rDto.setRating(rating.getRating());
-                    rDto.setReview(rating.getReview());
-                    rDto.setCreatedAt(rating.getCreatedAt());
-                    return rDto;
-                })
-                .collect(Collectors.toList()));
-        }
-        
-        return dto;
-    }
-
-    /**
-     * Converts a {@link Skill} entity to a {@link SkillDTO}.
-     *
-     * @param skill the skill entity
-     * @return the corresponding {@link SkillDTO}
-     */
-
-    private SkillDTO mapSkillToDTO(Skill skill) {
-        SkillDTO dto = new SkillDTO();
-        dto.setId(skill.getId());
-        dto.setSkillName(skill.getSkillName());
-        dto.setProficiencyLevel(skill.getProficiencyLevel());
-        dto.setYearsExperience(skill.getYearsExperience());
-        return dto;
-    }
-
-    /**
-     * Converts a {@link FreelancerDTO} to a {@link Freelancer} entity.
-     *
-     * @param dto the freelancer DTO
-     * @return the corresponding {@link Freelancer} entity
-     */
-
-    private Freelancer mapToEntity(FreelancerDTO dto) {
-    	
-    	User user=userRepository.findById(dto.getUserId()).orElseThrow();
-    	
-        Freelancer freelancer = new Freelancer();
-        freelancer.setUser(user);
-        freelancer.setTitle(dto.getTitle());
-        freelancer.setBio(dto.getBio());
-        freelancer.setHourlyRate(dto.getHourlyRate());
-        freelancer.setAvailability(dto.getAvailability() != null ? dto.getAvailability() : "AVAILABLE");
-        return freelancer;
-    }
-}package com.freelancenexus.userservice.service;
-
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import reactor.util.retry.Retry;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.freelancenexus.userservice.config.GeminiConfig;
-
-import reactor.core.publisher.Mono;
-
-/**
- * GeminiIntegrationService
- *
- * <p>Integration layer responsible for communicating with the Google Gemini API.
- * Handles building request payloads, invoking the remote model via a configured
- * {@link WebClient}, extracting text responses, and parsing JSON content embedded
- * in markdown code blocks. Implements simple retry and timeout behavior and returns
- * structured results for higher-level AI services.</p>
- *
- * <p>All network errors are logged and returned as error payloads to allow callers
- * to implement graceful fallbacks.</p>
+ * <p>Returned by AI recommendation endpoints to help freelancers discover suitable projects.</p>
  *
  * @since 1.0
  */
-@Service
-public class GeminiIntegrationService {
-
-    /**
-     * WebClient configured for calling the Gemini API.
-     */
-    private final WebClient geminiWebClient;
-
-    /**
-     * Configuration properties (API key, model, timeouts, retries) for Gemini.
-     */
-    private final GeminiConfig geminiConfig;
-
-    /**
-     * Jackson ObjectMapper used to parse JSON responses and extract structured content.
-     */
-    private final ObjectMapper objectMapper;
-
-    private final Logger log= LoggerFactory.getLogger(GeminiIntegrationService.class);
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AIRecommendationDTO {
     
-    public GeminiIntegrationService(WebClient geminiWebClient, GeminiConfig geminiConfig, ObjectMapper objectMapper) {
-		super();
-		this.geminiWebClient = geminiWebClient;
-		this.geminiConfig = geminiConfig;
-		this.objectMapper = objectMapper;
+    /**
+     * Unique identifier of the recommended project.
+     */
+    private Long projectId;
+    
+    /**
+     * Title/name of the project.
+     */
+    private String projectTitle;
+    
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     */
+    private String category;
+    
+    /**
+     * Minimum budget amount for the project.
+     */
+    private BigDecimal budgetMin;
+    
+    /**
+     * Maximum budget amount for the project.
+     */
+    private BigDecimal budgetMax;
+    
+    /**
+     * Estimated duration of the project in days.
+     */
+    private Integer durationDays;
+    
+    /**
+     * List of skills required to complete the project.
+     */
+    private List<String> requiredSkills;
+    
+    /**
+     * AI-computed match score on a scale of 0-100 indicating overall project compatibility.
+     * Higher scores indicate better alignment with the freelancer's profile.
+     */
+    private BigDecimal matchScore;
+    
+    /**
+     * Human-readable explanation of why this project is recommended
+     * (e.g., reasons for the match score).
+     */
+    private String matchReason;
+    
+    /**
+     * List of freelancer skills that match the project's required skills.
+     */
+    private List<String> matchingSkills;
+    
+    /**
+     * Percentage of project-required skills that the freelancer possesses (0-100).
+     */
+    private Integer skillMatchPercentage;
+
+	public Long getProjectId() {
+		return projectId;
 	}
 
-	/**
-     * Call the Gemini API with a plain text prompt and return the raw response text.
-     *
-     * <p>This method constructs the request body, posts to the Gemini endpoint, applies
-     * timeout and retry policies, and extracts the generated text from the JSON response.
-     * Network or parsing errors are logged and returned as an error string.</p>
-     *
-     * @param prompt the prompt text to send to Gemini
-     * @return the extracted response text or an error description
-     */
-    public String callGemini(String prompt) {
-        try {
-            log.info("Calling Gemini API with prompt length: {}", prompt.length());
-
-            Map<String, Object> requestBody = buildGeminiRequest(prompt);
-            String url = String.format("/%s:generateContent?key=%s", 
-                    geminiConfig.getModel(), geminiConfig.getApiKey());
-
-            String response = geminiWebClient.post()
-                    .uri(url)
-                    .bodyValue(requestBody)
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .timeout(Duration.ofMillis(geminiConfig.getTimeout()))
-                    .retryWhen(Retry.backoff(geminiConfig.getMaxRetries(), Duration.ofSeconds(2))
-                            .filter(throwable -> throwable instanceof Exception))
-                    .onErrorResume(error -> {
-                        log.error("Gemini API call failed: {}", error.getMessage());
-                        return Mono.just("{\"error\": \"" + error.getMessage() + "\"}");
-                    })
-                    .block();
-
-            return extractTextFromResponse(response);
-
-        } catch (Exception e) {
-            log.error("Error calling Gemini API", e);
-            return "Error: " + e.getMessage();
-        }
-    }
-
-    /**
-     * Call the Gemini API with a prompt and return a parsed JSON tree.
-     *
-     * <p>If the model returns JSON wrapped in markdown code fences (```json ... ```),
-     * this method extracts the JSON block before parsing. On parsing failure an empty
-     * JSON object node is returned.</p>
-     *
-     * @param prompt the prompt text to send to Gemini
-     * @return {@link JsonNode} parsed from the Gemini response (may be empty on error)
-     */
-    public JsonNode callGeminiForJson(String prompt) {
-        try {
-            String response = callGemini(prompt);
-            // Extract JSON from markdown code blocks if present
-            String jsonStr = response;
-            if (response.contains("```json")) {
-                jsonStr = response.substring(response.indexOf("```json") + 7);
-                jsonStr = jsonStr.substring(0, jsonStr.indexOf("```"));
-            } else if (response.contains("```")) {
-                jsonStr = response.substring(response.indexOf("```") + 3);
-                jsonStr = jsonStr.substring(0, jsonStr.indexOf("```"));
-            }
-            return objectMapper.readTree(jsonStr.trim());
-        } catch (Exception e) {
-            log.error("Error parsing JSON from Gemini response", e);
-            return objectMapper.createObjectNode();
-        }
-    }
-
-    /**
-     * Build the request body map required by the Gemini generateContent API.
-     *
-     * <p>Includes the prompt content and a generationConfig map (temperature, topK, topP,
-     * maxOutputTokens). Callers may adjust configuration via {@link GeminiConfig} if needed.</p>
-     *
-     * @param prompt the prompt text to include in the request
-     * @return a map representing the JSON request body to send to Gemini
-     */
-    private Map<String, Object> buildGeminiRequest(String prompt) {
-        Map<String, Object> request = new HashMap<>();
-        
-        Map<String, Object> content = new HashMap<>();
-        Map<String, String> part = new HashMap<>();
-        part.put("text", prompt);
-        content.put("parts", new Object[]{part});
-        
-        request.put("contents", new Object[]{content});
-        
-        // Configuration for better responses
-        Map<String, Object> generationConfig = new HashMap<>();
-        generationConfig.put("temperature", 0.7);
-        generationConfig.put("topK", 40);
-        generationConfig.put("topP", 0.95);
-        generationConfig.put("maxOutputTokens", 2048);
-        request.put("generationConfig", generationConfig);
-        
-        return request;
-    }
-
-    /**
-     * Extract the textual content from the Gemini API JSON response.
-     *
-     * <p>Parses the API response, checks for an error field, and navigates the
-     * "candidates -> content -> parts" structure to return the generated text.
-     * Returns a descriptive message if no content is present or parsing fails.</p>
-     *
-     * @param jsonResponse the raw JSON string returned by the Gemini API
-     * @return extracted generated text or an error message
-     */
-    private String extractTextFromResponse(String jsonResponse) {
-        try {
-            JsonNode root = objectMapper.readTree(jsonResponse);
-            
-            if (root.has("error")) {
-                log.error("Gemini API error: {}", root.get("error"));
-                return "Error from API: " + root.get("error").asText();
-            }
-            
-            JsonNode candidates = root.path("candidates");
-            if (candidates.isArray() && candidates.size() > 0) {
-                JsonNode content = candidates.get(0).path("content");
-                JsonNode parts = content.path("parts");
-                if (parts.isArray() && parts.size() > 0) {
-                    return parts.get(0).path("text").asText();
-                }
-            }
-            
-            return "No response from Gemini API";
-        } catch (Exception e) {
-            log.error("Error extracting text from Gemini response", e);
-            return "Error parsing response: " + e.getMessage();
-        }
-    }
-}package com.freelancenexus.userservice.service;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.PortfolioDTO;
-import com.freelancenexus.userservice.exception.ResourceNotFoundException;
-import com.freelancenexus.userservice.model.Freelancer;
-import com.freelancenexus.userservice.model.Portfolio;
-import com.freelancenexus.userservice.repository.FreelancerRepository;
-import com.freelancenexus.userservice.repository.PortfolioRepository;
-
-
-
-/**
- * Service class for managing freelancer portfolios.
- * Provides operations to add, retrieve, update, and delete portfolios.
- *
- * <p>This class uses {@link PortfolioRepository} and {@link FreelancerRepository}
- * to interact with the database and perform CRUD operations on {@link Portfolio} entities.</p>
- *
- * @author YourName
- * @version 1.0
- */
-
-@Service
-public class PortfolioService {
-	private final Logger log= LoggerFactory.getLogger(PortfolioService.class);
-    private final PortfolioRepository portfolioRepository;
-    private final FreelancerRepository freelancerRepository;
-    
-    public PortfolioService(PortfolioRepository portfolioRepository, FreelancerRepository freelancerRepository) {
-		super();
-		this.portfolioRepository = portfolioRepository;
-		this.freelancerRepository = freelancerRepository;
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
 	}
 
-	/**
-     * Adds a new portfolio for a given freelancer.
-     *
-     * @param freelancerId the ID of the freelancer to associate the portfolio with
-     * @param portfolioDTO the portfolio details to be added
-     * @return the saved portfolio as a {@link PortfolioDTO}
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional
-    public PortfolioDTO addPortfolio(Long freelancerId, PortfolioDTO portfolioDTO) {
-        log.info("Adding portfolio for freelancer ID: {}", freelancerId);
-        
-        Freelancer freelancer = freelancerRepository.findById(freelancerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
-        
-        Portfolio portfolio = mapToEntity(portfolioDTO);
-        freelancer.addPortfolio(portfolio);
-        
-        Portfolio saved = portfolioRepository.save(portfolio);
-        log.info("Portfolio added with ID: {}", saved.getId());
-        
-        return mapToDTO(saved);
-    }
-
-    /**
-     * Retrieves all portfolios associated with a given freelancer.
-     *
-     * @param freelancerId the ID of the freelancer
-     * @return a list of {@link PortfolioDTO} objects
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional(readOnly = true)
-    public List<PortfolioDTO> getFreelancerPortfolios(Long freelancerId) {
-        log.info("Fetching portfolios for freelancer ID: {}", freelancerId);
-        
-        if (!freelancerRepository.existsById(freelancerId)) {
-            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
-        }
-        
-        List<Portfolio> portfolios = portfolioRepository.findByFreelancerId(freelancerId);
-        
-        return portfolios.stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves a portfolio by its ID.
-     *
-     * @param portfolioId the ID of the portfolio
-     * @return the portfolio as a {@link PortfolioDTO}
-     * @throws ResourceNotFoundException if the portfolio does not exist
-     */
-
-    @Transactional(readOnly = true)
-    public PortfolioDTO getPortfolioById(Long portfolioId) {
-        log.info("Fetching portfolio by ID: {}", portfolioId);
-        
-        Portfolio portfolio = portfolioRepository.findById(portfolioId)
-            .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId));
-        
-        return mapToDTO(portfolio);
-    }
-
-    /**
-     * Updates an existing portfolio with new details.
-     *
-     * @param portfolioId the ID of the portfolio to update
-     * @param portfolioDTO the updated portfolio details
-     * @return the updated portfolio as a {@link PortfolioDTO}
-     * @throws ResourceNotFoundException if the portfolio does not exist
-     */
-
-    @Transactional
-    public PortfolioDTO updatePortfolio(Long portfolioId, PortfolioDTO portfolioDTO) {
-        log.info("Updating portfolio with ID: {}", portfolioId);
-        
-        Portfolio portfolio = portfolioRepository.findById(portfolioId)
-            .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId));
-        
-        if (portfolioDTO.getTitle() != null) {
-            portfolio.setTitle(portfolioDTO.getTitle());
-        }
-        if (portfolioDTO.getDescription() != null) {
-            portfolio.setDescription(portfolioDTO.getDescription());
-        }
-        if (portfolioDTO.getProjectUrl() != null) {
-            portfolio.setProjectUrl(portfolioDTO.getProjectUrl());
-        }
-        if (portfolioDTO.getImageUrl() != null) {
-            portfolio.setImageUrl(portfolioDTO.getImageUrl());
-        }
-        if (portfolioDTO.getTechnologiesUsed() != null) {
-            portfolio.setTechnologiesUsed(portfolioDTO.getTechnologiesUsed());
-        }
-        if (portfolioDTO.getCompletionDate() != null) {
-            portfolio.setCompletionDate(portfolioDTO.getCompletionDate());
-        }
-        
-        Portfolio updated = portfolioRepository.save(portfolio);
-        log.info("Portfolio updated successfully: {}", portfolioId);
-        
-        return mapToDTO(updated);
-    }
-
-    /**
-     * Deletes a portfolio by its ID.
-     *
-     * @param portfolioId the ID of the portfolio to delete
-     * @throws ResourceNotFoundException if the portfolio does not exist
-     */
-
-    @Transactional
-    public void deletePortfolio(Long portfolioId) {
-        log.info("Deleting portfolio with ID: {}", portfolioId);
-        
-        if (!portfolioRepository.existsById(portfolioId)) {
-            throw new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId);
-        }
-        
-        portfolioRepository.deleteById(portfolioId);
-        log.info("Portfolio deleted successfully: {}", portfolioId);
-    }
-
-    /**
-     * Converts a {@link Portfolio} entity to a {@link PortfolioDTO}.
-     *
-     * @param portfolio the portfolio entity
-     * @return the corresponding {@link PortfolioDTO}
-     */
-
-    private PortfolioDTO mapToDTO(Portfolio portfolio) {
-        PortfolioDTO dto = new PortfolioDTO();
-        dto.setId(portfolio.getId());
-        dto.setTitle(portfolio.getTitle());
-        dto.setDescription(portfolio.getDescription());
-        dto.setProjectUrl(portfolio.getProjectUrl());
-        dto.setImageUrl(portfolio.getImageUrl());
-        dto.setTechnologiesUsed(portfolio.getTechnologiesUsed());
-        dto.setCompletionDate(portfolio.getCompletionDate());
-        dto.setCreatedAt(portfolio.getCreatedAt());
-        return dto;
-    }
-
-    /**
-     * Converts a {@link PortfolioDTO} to a {@link Portfolio} entity.
-     *
-     * @param dto the portfolio DTO
-     * @return the corresponding {@link Portfolio} entity
-     */
-
-    private Portfolio mapToEntity(PortfolioDTO dto) {
-        Portfolio portfolio = new Portfolio();
-        portfolio.setTitle(dto.getTitle());
-        portfolio.setDescription(dto.getDescription());
-        portfolio.setProjectUrl(dto.getProjectUrl());
-        portfolio.setImageUrl(dto.getImageUrl());
-        portfolio.setTechnologiesUsed(dto.getTechnologiesUsed());
-        portfolio.setCompletionDate(dto.getCompletionDate());
-        return portfolio;
-    }
-}package com.freelancenexus.userservice.service;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.freelancenexus.userservice.dto.ProjectCreateDTO;
-import com.freelancenexus.userservice.dto.ProjectDTO;
-import com.freelancenexus.userservice.model.Project;
-import com.freelancenexus.userservice.model.ProjectStatus;
-import com.freelancenexus.userservice.repository.ProjectRepository;
-import com.freelancenexus.userservice.repository.ProposalRepository;
-
-/**
- * ProjectService
- *
- * <p>Core service layer for project management. Handles creation, retrieval, update,
- * assignment and soft-deletion (cancellation) of projects. Coordinates persistence
- * via {@link ProjectRepository}, proposal counting via {@link ProposalRepository},
- * and event publication to RabbitMQ. Methods that modify state are annotated with
- * {@link Transactional} to ensure data consistency.</p>
- *
- * <p>Typical responsibilities:
- * <ul>
- *   <li>Persist new projects</li>
- *   <li>Update existing projects</li>
- *   <li>Soft-delete (cancel) projects</li>
- *   <li>Assign freelancers to projects</li>
- *   <li>Convert between entity and DTO representations</li>
- *   <li>Publish domain events for downstream consumers</li>
- * </ul>
- * </p>
- *
- * @since 1.0
- */
-@Service
-public class ProjectService {
-	private final Logger log= LoggerFactory.getLogger(ProjectService.class);
-    /**
-     * Repository for project CRUD operations.
-     */
-	@Autowired
-    private ProjectRepository projectRepository;
-
-    /**
-     * Repository for proposal access used to compute proposal counts and queries.
-     */
-	@Autowired
-    private ProposalRepository proposalRepository;
-
-    /**
-     * RabbitTemplate used to publish project-related events to RabbitMQ.
-     */
-	@Autowired
-    private RabbitTemplate rabbitTemplate;
-
-    /**
-     * Jackson ObjectMapper used to serialize/deserialize skill lists.
-     */
-	@Autowired
-    private ObjectMapper objectMapper;
-
-    /**
-     * Exchange name for publishing project events (injected from configuration).
-     */
-    @Value("${rabbitmq.exchange.project}")
-    private String projectExchange;
-
-    /**
-     * Routing key used for project.created events (injected from configuration).
-     */
-    @Value("${rabbitmq.routing.project.created}")
-    private String projectCreatedRoutingKey;
-
-   
-
-	/**
-     * Create a new project.
-     *
-     * <p>Persists the project entity, publishes a project.created event, and returns
-     * a {@link ProjectDTO} representing the persisted project.</p>
-     *
-     * @param createDTO validated DTO containing project creation details
-     * @return the created project's {@link ProjectDTO}
-     */
-    @Transactional
-    public ProjectDTO createProject(ProjectCreateDTO createDTO) {
-        log.info("Creating new project: {}", createDTO.getTitle());
-
-        Project project = new Project();
-        project.setClientId(createDTO.getClientId());
-        project.setTitle(createDTO.getTitle());
-        project.setDescription(createDTO.getDescription());
-        project.setBudgetMin(createDTO.getBudgetMin());
-        project.setBudgetMax(createDTO.getBudgetMax());
-        project.setDurationDays(createDTO.getDurationDays());
-        project.setRequiredSkills(convertSkillsToJson(createDTO.getRequiredSkills()));
-        project.setCategory(createDTO.getCategory());
-        project.setStatus(ProjectStatus.OPEN);
-        project.setDeadline(createDTO.getDeadline());
-
-        Project savedProject = projectRepository.save(project);
-        log.info("Project created with ID: {}", savedProject.getId());
-
-        // Publish event to RabbitMQ
-        publishProjectCreatedEvent(savedProject);
-
-        return convertToDTO(savedProject);
-    }
-
-    /**
-     * Retrieve a project by its id.
-     *
-     * @param id unique identifier of the project
-     * @return the project's {@link ProjectDTO}
-     * @throws RuntimeException if the project is not found
-     */
-    public ProjectDTO getProjectById(Long id) {
-        log.info("Fetching project by ID: {}", id);
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
-        return convertToDTO(project);
-    }
-
-    /**
-     * Update an existing project.
-     *
-     * <p>Only fields present in {@link ProjectCreateDTO} are updated. The method
-     * validates existence and persists changes within a transaction.</p>
-     *
-     * @param id unique identifier of the project to update
-     * @param updateDTO DTO containing updated project fields
-     * @return the updated project's {@link ProjectDTO}
-     * @throws RuntimeException if the project is not found
-     */
-    @Transactional
-    public ProjectDTO updateProject(Long id, ProjectCreateDTO updateDTO) {
-        log.info("Updating project ID: {}", id);
-
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
-
-        project.setTitle(updateDTO.getTitle());
-        project.setDescription(updateDTO.getDescription());
-        project.setBudgetMin(updateDTO.getBudgetMin());
-        project.setBudgetMax(updateDTO.getBudgetMax());
-        project.setDurationDays(updateDTO.getDurationDays());
-        project.setRequiredSkills(convertSkillsToJson(updateDTO.getRequiredSkills()));
-        project.setCategory(updateDTO.getCategory());
-        project.setDeadline(updateDTO.getDeadline());
-
-        Project updatedProject = projectRepository.save(project);
-        return convertToDTO(updatedProject);
-    }
-
-    /**
-     * Soft-delete (cancel) a project.
-     *
-     * <p>Marks the project's status as {@link ProjectStatus#CANCELLED} rather than
-     * removing it from the database, allowing historical data and associated proposals
-     * to remain for audit and reporting.</p>
-     *
-     * @param id unique identifier of the project to cancel
-     * @throws RuntimeException if the project is not found
-     */
-    @Transactional
-    public void deleteProject(Long id) {
-        log.info("Deleting project ID: {}", id);
-        
-        Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
-        
-        project.setStatus(ProjectStatus.CANCELLED);
-        projectRepository.save(project);
-    }
-
-    /**
-     * Retrieve all projects.
-     *
-     * @return list of {@link ProjectDTO} for all projects
-     */
-    public List<ProjectDTO> getAllProjects() {
-        log.info("Fetching all projects");
-        return projectRepository.findAll().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieve projects created by a specific client.
-     *
-     * @param clientId unique identifier of the client
-     * @return list of {@link ProjectDTO} for that client
-     */
-    public List<ProjectDTO> getProjectsByClientId(Long clientId) {
-        log.info("Fetching projects for client ID: {}", clientId);
-        return projectRepository.findByClientId(clientId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieve all open projects available for bidding.
-     *
-     * @return list of open {@link ProjectDTO}
-     */
-    public List<ProjectDTO> getOpenProjects() {
-        log.info("Fetching all open projects");
-        return projectRepository.findAllOpenProjects().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Search projects by keyword and optional status.
-     *
-     * <p>Performs a case-insensitive keyword search against title and description,
-     * filtering by provided status (defaults to OPEN when status is null).</p>
-     *
-     * @param keyword search keyword
-     * @param status optional status string (e.g., "OPEN")
-     * @return list of matching {@link ProjectDTO}
-     * @throws IllegalArgumentException if provided status is invalid
-     */
-    public List<ProjectDTO> searchProjects(String keyword, String status) {
-        log.info("Searching projects with keyword: {} and status: {}", keyword, status);
-        
-        ProjectStatus projectStatus = status != null ? ProjectStatus.valueOf(status.toUpperCase()) : ProjectStatus.OPEN;
-        
-        return projectRepository.searchByKeywordAndStatus(keyword, projectStatus).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieve projects by category.
-     *
-     * @param category the project category
-     * @return list of {@link ProjectDTO} in the specified category
-     */
-    public List<ProjectDTO> getProjectsByCategory(String category) {
-        log.info("Fetching projects by category: {}", category);
-        return projectRepository.findByCategory(category).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Assign a freelancer to a project and transition the project to IN_PROGRESS.
-     *
-     * @param projectId the project id
-     * @param freelancerId the freelancer id to assign
-     * @return the updated project's {@link ProjectDTO}
-     * @throws RuntimeException if the project is not found
-     */
-    @Transactional
-    public ProjectDTO assignFreelancer(Long projectId, Long freelancerId) {
-        log.info("Assigning freelancer {} to project {}", freelancerId, projectId);
-        
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
-        
-        project.setAssignedFreelancer(freelancerId);
-        project.setStatus(ProjectStatus.IN_PROGRESS);
-        
-        Project updatedProject = projectRepository.save(project);
-        return convertToDTO(updatedProject);
-    }
-
-    /**
-     * Convert a {@link Project} entity to a {@link ProjectDTO}.
-     *
-     * <p>Maps entity fields to the DTO and computes the current proposal count.</p>
-     *
-     * @param project the entity to convert
-     * @return the mapped {@link ProjectDTO}
-     */
-    private ProjectDTO convertToDTO(Project project) {
-        ProjectDTO dto = new ProjectDTO();
-        dto.setId(project.getId());
-        dto.setClientId(project.getClientId());
-        dto.setTitle(project.getTitle());
-        dto.setDescription(project.getDescription());
-        dto.setBudgetMin(project.getBudgetMin());
-        dto.setBudgetMax(project.getBudgetMax());
-        dto.setDurationDays(project.getDurationDays());
-        dto.setRequiredSkills(parseSkillsFromJson(project.getRequiredSkills()));
-        dto.setCategory(project.getCategory());
-        dto.setStatus(project.getStatus());
-        dto.setDeadline(project.getDeadline());
-        dto.setAssignedFreelancer(project.getAssignedFreelancer());
-        dto.setCreatedAt(project.getCreatedAt());
-        dto.setUpdatedAt(project.getUpdatedAt());
-        dto.setProposalCount((int) proposalRepository.countByProjectId(project.getId()));
-        return dto;
-    }
-
-    /**
-     * Serialize a list of skills to a JSON string for storage.
-     *
-     * @param skills list of skill strings
-     * @return JSON string representation of skills, or "[]" on error
-     */
-    private String convertSkillsToJson(List<String> skills) {
-        try {
-            return objectMapper.writeValueAsString(skills);
-        } catch (Exception e) {
-            log.error("Error converting skills to JSON", e);
-            return "[]";
-        }
-    }
-
-    /**
-     * Parse a stored skills JSON string back into a list of skills.
-     *
-     * <p>Attempts JSON parsing and falls back to comma-splitting on error.</p>
-     *
-     * @param skillsJson the stored skills string
-     * @return list of skill strings
-     */
-    private List<String> parseSkillsFromJson(String skillsJson) {
-        try {
-            return objectMapper.readValue(skillsJson, List.class);
-        } catch (Exception e) {
-            log.error("Error parsing skills from JSON", e);
-            return Arrays.asList(skillsJson.split(","));
-        }
-    }
-
-    /**
-     * Publish a project.created event to RabbitMQ.
-     *
-     * <p>Converts the project to {@link ProjectDTO} and sends it to the configured exchange
-     * with the configured routing key. Exceptions are logged but do not prevent the caller
-     * from continuing.</p>
-     *
-     * @param project the project that was created
-     */
-    private void publishProjectCreatedEvent(Project project) {
-        try {
-            ProjectDTO dto = convertToDTO(project);
-            rabbitTemplate.convertAndSend(projectExchange, projectCreatedRoutingKey, dto);
-            log.info("Published project.created event for project ID: {}", project.getId());
-        } catch (Exception e) {
-            log.error("Error publishing project.created event", e);
-        }
-    }
-}package com.freelancenexus.userservice.service;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.ProposalDTO;
-import com.freelancenexus.userservice.dto.ProposalSubmitDTO;
-import com.freelancenexus.userservice.model.Project;
-import com.freelancenexus.userservice.model.ProjectStatus;
-import com.freelancenexus.userservice.model.Proposal;
-import com.freelancenexus.userservice.model.ProposalStatus;
-import com.freelancenexus.userservice.repository.ProjectRepository;
-import com.freelancenexus.userservice.repository.ProposalRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-/**
- * Service class for managing proposals in the project service.
- * Handles operations such as submitting, accepting, rejecting, and retrieving proposals.
- */
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class ProposalService {
-	@Autowired
-    private ProposalRepository proposalRepository;
-	@Autowired
-    private ProjectRepository projectRepository;
-	@Autowired
-    private RabbitTemplate rabbitTemplate;
-    private final Logger log= LoggerFactory.getLogger(ProposalService.class);
-
-	@Value("${rabbitmq.exchange.project}")
-    private String projectExchange;
-
-    @Value("${rabbitmq.routing.proposal.submitted}")
-    private String proposalSubmittedRoutingKey;
-
-    /**
-     * Submits a proposal for a given project.
-     *
-     * @param projectId the ID of the project for which the proposal is submitted
-     * @param submitDTO the data transfer object containing proposal details
-     * @return the submitted proposal as a DTO
-     * @throws RuntimeException if the project does not exist, is not open, or if the freelancer has already submitted a proposal
-     */
-    @Transactional
-    public ProposalDTO submitProposal(Long projectId, ProposalSubmitDTO submitDTO) {
-        log.info("Submitting proposal for project ID: {} by freelancer: {}", projectId, submitDTO.getFreelancerId());
-
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
-
-        if (project.getStatus() != ProjectStatus.OPEN) {
-            throw new RuntimeException("Project is not accepting proposals");
-        }
-
-        if (proposalRepository.existsByProjectIdAndFreelancerId(projectId, submitDTO.getFreelancerId())) {
-            throw new RuntimeException("Freelancer already submitted a proposal for this project");
-        }
-
-        Proposal proposal = new Proposal();
-        proposal.setProject(project);
-        proposal.setFreelancerId(submitDTO.getFreelancerId());
-        proposal.setCoverLetter(submitDTO.getCoverLetter());
-        proposal.setProposedBudget(submitDTO.getProposedBudget());
-        proposal.setDeliveryDays(submitDTO.getDeliveryDays());
-        proposal.setStatus(ProposalStatus.PENDING);
-
-        Proposal savedProposal = proposalRepository.save(proposal);
-        log.info("Proposal created with ID: {}", savedProposal.getId());
-
-        publishProposalSubmittedEvent(savedProposal);
-
-        return convertToDTO(savedProposal);
-    }
-
-    /**
-     * Retrieves all proposals for a specific project.
-     *
-     * @param projectId the ID of the project
-     * @return a list of proposals as DTOs
-     */
-    public List<ProposalDTO> getProposalsByProjectId(Long projectId) {
-        log.info("Fetching proposals for project ID: {}", projectId);
-        return proposalRepository.findByProjectId(projectId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves all proposals submitted by a specific freelancer.
-     *
-     * @param freelancerId the ID of the freelancer
-     * @return a list of proposals as DTOs
-     */
-    public List<ProposalDTO> getProposalsByFreelancerId(Long freelancerId) {
-        log.info("Fetching proposals for freelancer ID: {}", freelancerId);
-        return proposalRepository.findByFreelancerId(freelancerId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves a proposal by its ID.
-     *
-     * @param id the ID of the proposal
-     * @return the proposal as a DTO
-     * @throws RuntimeException if the proposal does not exist
-     */
-    public ProposalDTO getProposalById(Long id) {
-        log.info("Fetching proposal by ID: {}", id);
-        Proposal proposal = proposalRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + id));
-        return convertToDTO(proposal);
-    }
-
-    /**
-     * Accepts a proposal and updates the project and other proposals accordingly.
-     *
-     * @param proposalId the ID of the proposal to accept
-     * @return the accepted proposal as a DTO
-     * @throws RuntimeException if the proposal does not exist or is not in pending status
-     */
-    @Transactional
-    public ProposalDTO acceptProposal(Long proposalId) {
-        log.info("Accepting proposal ID: {}", proposalId);
-
-        Proposal proposal = proposalRepository.findById(proposalId)
-                .orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + proposalId));
-
-        if (proposal.getStatus() != ProposalStatus.PENDING) {
-            throw new RuntimeException("Proposal is not in pending status");
-        }
-
-        proposal.setStatus(ProposalStatus.ACCEPTED);
-
-        List<Proposal> otherProposals = proposalRepository.findByProjectIdAndStatus(
-                proposal.getProject().getId(), ProposalStatus.PENDING);
-
-        otherProposals.stream()
-                .filter(p -> !p.getId().equals(proposalId))
-                .forEach(p -> {
-                    p.setStatus(ProposalStatus.REJECTED);
-                    proposalRepository.save(p);
-                });
-
-        Proposal acceptedProposal = proposalRepository.save(proposal);
-
-        Project project = proposal.getProject();
-        project.setAssignedFreelancer(proposal.getFreelancerId());
-        project.setStatus(ProjectStatus.IN_PROGRESS);
-        projectRepository.save(project);
-
-        return convertToDTO(acceptedProposal);
-    }
-
-    /**
-     * Rejects a proposal.
-     *
-     * @param proposalId the ID of the proposal to reject
-     * @return the rejected proposal as a DTO
-     * @throws RuntimeException if the proposal does not exist or is not in pending status
-     */
-    @Transactional
-    public ProposalDTO rejectProposal(Long proposalId) {
-        log.info("Rejecting proposal ID: {}", proposalId);
-
-        Proposal proposal = proposalRepository.findById(proposalId)
-                .orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + proposalId));
-
-        if (proposal.getStatus() != ProposalStatus.PENDING) {
-            throw new RuntimeException("Proposal is not in pending status");
-        }
-
-        proposal.setStatus(ProposalStatus.REJECTED);
-        Proposal rejectedProposal = proposalRepository.save(proposal);
-
-        return convertToDTO(rejectedProposal);
-    }
-
-    /**
-     * Retrieves ranked proposals for a specific project, ordered by AI score in descending order.
-     *
-     * @param projectId the ID of the project
-     * @return a list of ranked proposals as DTOs
-     */
-    public List<ProposalDTO> getRankedProposalsByProjectId(Long projectId) {
-        log.info("Fetching ranked proposals for project ID: {}", projectId);
-        return proposalRepository.findByProjectIdOrderByAiScoreDesc(projectId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Converts a Proposal entity to a ProposalDTO.
-     *
-     * @param proposal the Proposal entity
-     * @return the ProposalDTO
-     */
-    private ProposalDTO convertToDTO(Proposal proposal) {
-        ProposalDTO dto = new ProposalDTO();
-        dto.setId(proposal.getId());
-        dto.setProjectId(proposal.getProject().getId());
-        dto.setProjectTitle(proposal.getProject().getTitle());
-        dto.setFreelancerId(proposal.getFreelancerId());
-        dto.setCoverLetter(proposal.getCoverLetter());
-        dto.setProposedBudget(proposal.getProposedBudget());
-        dto.setDeliveryDays(proposal.getDeliveryDays());
-        dto.setAiScore(proposal.getAiScore());
-        dto.setStatus(proposal.getStatus());
-        dto.setSubmittedAt(proposal.getSubmittedAt());
-        dto.setUpdatedAt(proposal.getUpdatedAt());
-        return dto;
-    }
-
-    /**
-     * Publishes a proposal submitted event to RabbitMQ.
-     *
-     * @param proposal the Proposal entity
-     */
-    private void publishProposalSubmittedEvent(Proposal proposal) {
-        try {
-            ProposalDTO dto = convertToDTO(proposal);
-            rabbitTemplate.convertAndSend(projectExchange, proposalSubmittedRoutingKey, dto);
-            log.info("Published proposal.submitted event for proposal ID: {}", proposal.getId());
-        } catch (Exception e) {
-            log.error("Error publishing proposal.submitted event", e);
-        }
-    }
-}package com.freelancenexus.userservice.service;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.RatingDTO;
-import com.freelancenexus.userservice.exception.DuplicateRatingException;
-import com.freelancenexus.userservice.exception.ResourceNotFoundException;
-import com.freelancenexus.userservice.model.Freelancer;
-import com.freelancenexus.userservice.model.Rating;
-import com.freelancenexus.userservice.repository.FreelancerRepository;
-import com.freelancenexus.userservice.repository.RatingRepository;
-@Service
-public class RatingService {
-	private final Logger log= LoggerFactory.getLogger(RatingService.class);
-    private final RatingRepository ratingRepository;
-    private final FreelancerRepository freelancerRepository;
-    private final FreelancerService freelancerService;
-    
-    public RatingService(RatingRepository ratingRepository, FreelancerRepository freelancerRepository,
-			FreelancerService freelancerService) {
-		super();
-		this.ratingRepository = ratingRepository;
-		this.freelancerRepository = freelancerRepository;
-		this.freelancerService = freelancerService;
+	public String getProjectTitle() {
+		return projectTitle;
 	}
 
-	@Transactional
-    public RatingDTO addRating(Long freelancerId, RatingDTO ratingDTO) {
-        log.info("Adding rating for freelancer ID: {} by client ID: {}", freelancerId, ratingDTO.getClientId());
-        
-        Freelancer freelancer = freelancerRepository.findById(freelancerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
-        
-        // Check if rating already exists for this project
-        if (ratingDTO.getProjectId() != null && 
-            ratingRepository.existsByFreelancerIdAndClientIdAndProjectId(
-                freelancerId, ratingDTO.getClientId(), ratingDTO.getProjectId())) {
-            throw new DuplicateRatingException("Rating already exists for this project");
-        }
-        
-        Rating rating = mapToEntity(ratingDTO);
-        freelancer.addRating(rating);
-        
-        Rating saved = ratingRepository.save(rating);
-        log.info("Rating added with ID: {}", saved.getId());
-        
-        // Update freelancer's average rating
-        freelancerService.updateFreelancerStats(freelancerId);
-        
-        return mapToDTO(saved);
-    }
-    
-    @Transactional(readOnly = true)
-    public List<RatingDTO> getFreelancerRatings(Long freelancerId) {
-        log.info("Fetching ratings for freelancer ID: {}", freelancerId);
-        
-        if (!freelancerRepository.existsById(freelancerId)) {
-            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
-        }
-        
-        List<Rating> ratings = ratingRepository.findByFreelancerIdOrderByCreatedAtDesc(freelancerId);
-        
-        return ratings.stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-    
-    @Transactional(readOnly = true)
-    public BigDecimal getAverageRating(Long freelancerId) {
-        log.info("Calculating average rating for freelancer ID: {}", freelancerId);
-        
-        BigDecimal average = ratingRepository.calculateAverageRating(freelancerId);
-        return average != null ? average : BigDecimal.ZERO;
-    }
-    
-    @Transactional(readOnly = true)
-    public long getRatingCount(Long freelancerId) {
-        return ratingRepository.countByFreelancerId(freelancerId);
-    }
-    
-    private RatingDTO mapToDTO(Rating rating) {
-        RatingDTO dto = new RatingDTO();
-        dto.setId(rating.getId());
-        dto.setClientId(rating.getClientId());
-        dto.setProjectId(rating.getProjectId());
-        dto.setRating(rating.getRating());
-        dto.setReview(rating.getReview());
-        dto.setCreatedAt(rating.getCreatedAt());
-        return dto;
-    }
-    
-    private Rating mapToEntity(RatingDTO dto) {
-        Rating rating = new Rating();
-        rating.setClientId(dto.getClientId());
-        rating.setProjectId(dto.getProjectId());
-        rating.setRating(dto.getRating());
-        rating.setReview(dto.getReview());
-        return rating;
-    }
-}package com.freelancenexus.userservice.service;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.LoginResponseDTO;
-import com.freelancenexus.userservice.dto.UserLoginDTO;
-import com.freelancenexus.userservice.dto.UserRegistrationDTO;
-import com.freelancenexus.userservice.dto.UserResponseDTO;
-import com.freelancenexus.userservice.dto.UserUpdateDTO;
-import com.freelancenexus.userservice.exception.DuplicateResourceException;
-import com.freelancenexus.userservice.exception.UnauthorizedException;
-import com.freelancenexus.userservice.exception.UserNotFoundException;
-import com.freelancenexus.userservice.model.User;
-import com.freelancenexus.userservice.repository.UserRepository;
-import com.freelancenexus.userservice.security.JwtTokenProvider;
-
-@Service
-public class UserService {
-	private final Logger log= LoggerFactory.getLogger(UserService.class);
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
-    
-    @Autowired
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
-			JwtTokenProvider jwtTokenProvider) {
-		super();
-		this.userRepository = userRepository;
-		this.passwordEncoder = passwordEncoder;
-		this.jwtTokenProvider = jwtTokenProvider;
+	public void setProjectTitle(String projectTitle) {
+		this.projectTitle = projectTitle;
 	}
 
-	@Transactional
-    public UserResponseDTO registerUser(UserRegistrationDTO registrationDTO) {
-        log.info("Registering new user with email: {}", registrationDTO.getEmail());
-        
-        // Check if user already exists
-        if (userRepository.existsByEmail(registrationDTO.getEmail())) {
-            throw new DuplicateResourceException("User with email " + registrationDTO.getEmail() + " already exists");
-        }
-        
-        // Create user in database
-        User user = new User();
-        user.setEmail(registrationDTO.getEmail());
-        user.setPassword(passwordEncoder.encode(registrationDTO.getPassword()));
-        user.setFullName(registrationDTO.getFullName());
-        user.setPhone(registrationDTO.getPhone());
-        user.setRole(registrationDTO.getRole());
-        user.setIsActive(true);
-        user.setProfileImageUrl(registrationDTO.getProfileImageUrl());
-        
-        User savedUser = userRepository.save(user);
-        log.info("User registered successfully with ID: {}", savedUser.getId());
-        
-        return mapToResponseDTO(savedUser);
-    }
-    
-    @Transactional(readOnly = true)
-    public LoginResponseDTO loginUser(UserLoginDTO loginDTO) {
-        log.info("Authenticating user with email: {}", loginDTO.getEmail());
-        
-        // Find user by email
-        User user = userRepository.findByEmail(loginDTO.getEmail())
-            .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
-        
-        // Check if user is active
-        if (!user.getIsActive()) {
-            throw new UnauthorizedException("Account is inactive");
-        }
-        
-        // Verify password
-        if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
-            throw new UnauthorizedException("Invalid email or password");
-        }
-        
-        // Generate JWT token
-        String token = jwtTokenProvider.generateToken(
-            user.getEmail(), 
-            user.getId(), 
-            user.getRole().name()
-        );
-        
-        // Create response
-        LoginResponseDTO loginResponse = new LoginResponseDTO();
-        loginResponse.setAccessToken(token);
-        loginResponse.setTokenType("Bearer");
-        loginResponse.setExpiresIn(86400L); // 24 hours in seconds
-        loginResponse.setUser(mapToResponseDTO(user));
-        
-        log.info("User authenticated successfully: {}", loginDTO.getEmail());
-        return loginResponse;
-    }
-    
-    @Transactional(readOnly = true)
-    public UserResponseDTO getCurrentUserProfile() {
-        Long userId = getCurrentUserId();
-        
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new UserNotFoundException("User not found"));
-        
-        return mapToResponseDTO(user);
-    }
-    
-    @Transactional
-    public UserResponseDTO updateCurrentUserProfile(UserUpdateDTO updateDTO) {
-        Long userId = getCurrentUserId();
-        
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new UserNotFoundException("User not found"));
-        
-        // Update fields if provided
-        if (updateDTO.getFullName() != null) {
-            user.setFullName(updateDTO.getFullName());
-        }
-        if (updateDTO.getPhone() != null) {
-            user.setPhone(updateDTO.getPhone());
-        }
-        if (updateDTO.getProfileImageUrl() != null) {
-            user.setProfileImageUrl(updateDTO.getProfileImageUrl());
-        }
-        
-        User updatedUser = userRepository.save(user);
-        log.info("User profile updated successfully: {}", user.getId());
-        
-        return mapToResponseDTO(updatedUser);
-    }
-    
-    @Transactional(readOnly = true)
-    public UserResponseDTO getUserById(Long id) {
-        User user = userRepository.findById(id)
-            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-        
-        return mapToResponseDTO(user);
-    }
-    
-    @Transactional(readOnly = true)
-    public List<UserResponseDTO> getAllUsers() {
-        return userRepository.findAll().stream()
-            .map(this::mapToResponseDTO)
-            .collect(Collectors.toList());
-    }
-    
-    @Transactional
-    public void deleteUser(Long id) {
-        User user = userRepository.findById(id)
-            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
-        
-        userRepository.delete(user);
-        log.info("User deleted successfully: {}", id);
-    }
-    
-private Long getCurrentUserId() {
-    var auth = SecurityContextHolder.getContext().getAuthentication();
+	public String getCategory() {
+		return category;
+	}
 
-    if (auth != null && auth.getPrincipal() instanceof Long principal) {
-        return principal;
-    }
+	public void setCategory(String category) {
+		this.category = category;
+	}
 
-    throw new UnauthorizedException("User not authenticated");
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public BigDecimal getMatchScore() {
+		return matchScore;
+	}
+
+	public void setMatchScore(BigDecimal matchScore) {
+		this.matchScore = matchScore;
+	}
+
+	public String getMatchReason() {
+		return matchReason;
+	}
+
+	public void setMatchReason(String matchReason) {
+		this.matchReason = matchReason;
+	}
+
+	public List<String> getMatchingSkills() {
+		return matchingSkills;
+	}
+
+	public void setMatchingSkills(List<String> matchingSkills) {
+		this.matchingSkills = matchingSkills;
+	}
+
+	public Integer getSkillMatchPercentage() {
+		return skillMatchPercentage;
+	}
+
+	public void setSkillMatchPercentage(Integer skillMatchPercentage) {
+		this.skillMatchPercentage = skillMatchPercentage;
+	}
+
+	public AIRecommendationDTO(Long projectId, String projectTitle, String category, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, BigDecimal matchScore,
+			String matchReason, List<String> matchingSkills, Integer skillMatchPercentage) {
+		super();
+		this.projectId = projectId;
+		this.projectTitle = projectTitle;
+		this.category = category;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.matchScore = matchScore;
+		this.matchReason = matchReason;
+		this.matchingSkills = matchingSkills;
+		this.skillMatchPercentage = skillMatchPercentage;
+	}
+
+	public AIRecommendationDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
 }
 
-    private UserResponseDTO mapToResponseDTO(User user) {
-        UserResponseDTO dto = new UserResponseDTO();
-        dto.setId(user.getId());
-        dto.setEmail(user.getEmail());
-        dto.setFullName(user.getFullName());
-        dto.setPhone(user.getPhone());
-        dto.setRole(user.getRole());
-        dto.setIsActive(user.getIsActive());
-        dto.setProfileImageUrl(user.getProfileImageUrl());
-        dto.setCreatedAt(user.getCreatedAt());
-        dto.setUpdatedAt(user.getUpdatedAt());
-        return dto;
-    }
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a freelancer.
+ * Includes details such as title, bio, hourly rate, and skills.
+ */
+public class FreelancerDTO {
+    
+    /**
+     * The unique identifier of the freelancer.
+     */
+    private Long id;
+    
+    /**
+     * The user ID associated with the freelancer.
+     * Must not be null.
+     */
+    @NotNull(message = "User ID is required")
+    private Long userId;
+    
+    /**
+     * The title or headline of the freelancer profile.
+     * Must not be blank and cannot exceed 255 characters.
+     */
+    @NotBlank(message = "Title is required")
+    @Size(max = 255, message = "Title must not exceed 255 characters")
+    private String title;
+    
+    /**
+     * The biography or description of the freelancer.
+     * Cannot exceed 5000 characters.
+     */
+    @Size(max = 5000, message = "Bio must not exceed 5000 characters")
+    private String bio;
+    
+    /**
+     * The hourly rate of the freelancer.
+     * Must be positive and follow a valid format.
+     */
+    @DecimalMin(value = "0.0", inclusive = false, message = "Hourly rate must be positive")
+    @Digits(integer = 8, fraction = 2, message = "Invalid hourly rate format")
+    private BigDecimal hourlyRate;
+    
+    /**
+     * The availability status of the freelancer.
+     * Must match one of the predefined statuses.
+     */
+    @Pattern(regexp = "AVAILABLE|BUSY|UNAVAILABLE", message = "Invalid availability status")
+    private String availability;
+    
+    /**
+     * The total earnings of the freelancer.
+     */
+    private BigDecimal totalEarnings;
+
+    /**
+     * The number of completed projects by the freelancer.
+     */
+    private Integer completedProjects;
+
+    /**
+     * The average rating of the freelancer.
+     */
+    private BigDecimal averageRating;
+    
+    /**
+     * The list of skills associated with the freelancer.
+     */
+    private List<SkillDTO> skills;
+    
+    /**
+     * The timestamp when the freelancer profile was created.
+     */
+    private LocalDateTime createdAt;
+
+    /**
+     * The timestamp when the freelancer profile was last updated.
+     */
+    private LocalDateTime updatedAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getUserId() {
+		return userId;
+	}
+
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
+
+	public BigDecimal getHourlyRate() {
+		return hourlyRate;
+	}
+
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate;
+	}
+
+	public String getAvailability() {
+		return availability;
+	}
+
+	public void setAvailability(String availability) {
+		this.availability = availability;
+	}
+
+	public BigDecimal getTotalEarnings() {
+		return totalEarnings;
+	}
+
+	public void setTotalEarnings(BigDecimal totalEarnings) {
+		this.totalEarnings = totalEarnings;
+	}
+
+	public Integer getCompletedProjects() {
+		return completedProjects;
+	}
+
+	public void setCompletedProjects(Integer completedProjects) {
+		this.completedProjects = completedProjects;
+	}
+
+	public BigDecimal getAverageRating() {
+		return averageRating;
+	}
+
+	public void setAverageRating(BigDecimal averageRating) {
+		this.averageRating = averageRating;
+	}
+
+	public List<SkillDTO> getSkills() {
+		return skills;
+	}
+
+	public void setSkills(List<SkillDTO> skills) {
+		this.skills = skills;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public FreelancerDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Data Transfer Object (DTO) for representing a freelancer's complete profile.
+ * Includes details such as skills, portfolios, ratings, and earnings.
+ */
+
+public class FreelancerProfileDTO {
+    
+    /**
+     * The unique identifier of the freelancer profile.
+     */
+    private Long id;
+
+    /**
+     * The user ID associated with the freelancer.
+     */
+    private Long userId;
+
+    /**
+     * The title or headline of the freelancer profile.
+     */
+    private String title;
+
+    /**
+     * The biography or description of the freelancer.
+     */
+    private String bio;
+
+    /**
+     * The hourly rate of the freelancer.
+     */
+    private BigDecimal hourlyRate;
+
+    /**
+     * The availability status of the freelancer.
+     */
+    private String availability;
+
+    /**
+     * The total earnings of the freelancer.
+     */
+    private BigDecimal totalEarnings;
+
+    /**
+     * The number of completed projects by the freelancer.
+     */
+    private Integer completedProjects;
+
+    /**
+     * The average rating of the freelancer.
+     */
+    private BigDecimal averageRating;
+    
+    /**
+     * The list of skills associated with the freelancer.
+     */
+    private List<SkillDTO> skills;
+
+    /**
+     * The list of portfolio items associated with the freelancer.
+     */
+    private List<PortfolioDTO> portfolios;
+
+    /**
+     * The list of recent ratings received by the freelancer.
+     */
+    private List<RatingDTO> recentRatings;
+    
+    /**
+     * The timestamp when the freelancer profile was created.
+     */
+    private LocalDateTime createdAt;
+
+    /**
+     * The timestamp when the freelancer profile was last updated.
+     */
+    private LocalDateTime updatedAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getUserId() {
+		return userId;
+	}
+
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
+
+	public BigDecimal getHourlyRate() {
+		return hourlyRate;
+	}
+
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate;
+	}
+
+	public String getAvailability() {
+		return availability;
+	}
+
+	public void setAvailability(String availability) {
+		this.availability = availability;
+	}
+
+	public BigDecimal getTotalEarnings() {
+		return totalEarnings;
+	}
+
+	public void setTotalEarnings(BigDecimal totalEarnings) {
+		this.totalEarnings = totalEarnings;
+	}
+
+	public Integer getCompletedProjects() {
+		return completedProjects;
+	}
+
+	public void setCompletedProjects(Integer completedProjects) {
+		this.completedProjects = completedProjects;
+	}
+
+	public BigDecimal getAverageRating() {
+		return averageRating;
+	}
+
+	public void setAverageRating(BigDecimal averageRating) {
+		this.averageRating = averageRating;
+	}
+
+	public List<SkillDTO> getSkills() {
+		return skills;
+	}
+
+	public void setSkills(List<SkillDTO> skills) {
+		this.skills = skills;
+	}
+
+	public List<PortfolioDTO> getPortfolios() {
+		return portfolios;
+	}
+
+	public void setPortfolios(List<PortfolioDTO> portfolios) {
+		this.portfolios = portfolios;
+	}
+
+	public List<RatingDTO> getRecentRatings() {
+		return recentRatings;
+	}
+
+	public void setRecentRatings(List<RatingDTO> recentRatings) {
+		this.recentRatings = recentRatings;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public FreelancerProfileDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public FreelancerProfileDTO(Long id, Long userId, String title, String bio, BigDecimal hourlyRate,
+			String availability, BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating,
+			List<SkillDTO> skills, List<PortfolioDTO> portfolios, List<RatingDTO> recentRatings,
+			LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.userId = userId;
+		this.title = title;
+		this.bio = bio;
+		this.hourlyRate = hourlyRate;
+		this.availability = availability;
+		this.totalEarnings = totalEarnings;
+		this.completedProjects = completedProjects;
+		this.averageRating = averageRating;
+		this.skills = skills;
+		this.portfolios = portfolios;
+		this.recentRatings = recentRatings;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+    
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+public class LoginResponseDTO {
+    
+    private String accessToken;
+    private String refreshToken;
+    private Long expiresIn;
+    private String tokenType = "Bearer";
+    private UserResponseDTO user;
+	public LoginResponseDTO(String accessToken, String refreshToken, Long expiresIn, String tokenType,
+			UserResponseDTO user) {
+		super();
+		this.accessToken = accessToken;
+		this.refreshToken = refreshToken;
+		this.expiresIn = expiresIn;
+		this.tokenType = tokenType;
+		this.user = user;
+	}
+	public LoginResponseDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public String getAccessToken() {
+		return accessToken;
+	}
+	public void setAccessToken(String accessToken) {
+		this.accessToken = accessToken;
+	}
+	public String getRefreshToken() {
+		return refreshToken;
+	}
+	public void setRefreshToken(String refreshToken) {
+		this.refreshToken = refreshToken;
+	}
+	public Long getExpiresIn() {
+		return expiresIn;
+	}
+	public void setExpiresIn(Long expiresIn) {
+		this.expiresIn = expiresIn;
+	}
+	public String getTokenType() {
+		return tokenType;
+	}
+	public void setTokenType(String tokenType) {
+		this.tokenType = tokenType;
+	}
+	public UserResponseDTO getUser() {
+		return user;
+	}
+	public void setUser(UserResponseDTO user) {
+		this.user = user;
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDateTime;
+
+public class PaymentHistoryDTO {
+    
+    private Long id;
+    private Long paymentId;
+    private String statusChange;
+    private String notes;
+    private LocalDateTime changedAt;
+	public PaymentHistoryDTO(Long id, Long paymentId, String statusChange, String notes, LocalDateTime changedAt) {
+		super();
+		this.id = id;
+		this.paymentId = paymentId;
+		this.statusChange = statusChange;
+		this.notes = notes;
+		this.changedAt = changedAt;
+	}
+	public PaymentHistoryDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public Long getPaymentId() {
+		return paymentId;
+	}
+	public void setPaymentId(Long paymentId) {
+		this.paymentId = paymentId;
+	}
+	public String getStatusChange() {
+		return statusChange;
+	}
+	public void setStatusChange(String statusChange) {
+		this.statusChange = statusChange;
+	}
+	public String getNotes() {
+		return notes;
+	}
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+	public LocalDateTime getChangedAt() {
+		return changedAt;
+	}
+	public void setChangedAt(LocalDateTime changedAt) {
+		this.changedAt = changedAt;
+	}
+    
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+public class PaymentRequestDTO {
+    
+    @NotNull(message = "Project ID is required")
+    private Long projectId;
+    
+    @NotNull(message = "Payer ID is required")
+    private Long payerId;
+    
+    @NotNull(message = "Payee ID is required")
+    private Long payeeId;
+    
+    @NotNull(message = "Amount is required")
+    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+    private BigDecimal amount;
+    
+    @NotBlank(message = "Currency is required")
+    @Size(max = 10)
+    private String currency;
+    
+    @NotBlank(message = "Payment method is required")
+    private String paymentMethod;
+    
+    @NotBlank(message = "UPI ID is required")
+    @Pattern(regexp = "^[\\w.-]+@[\\w.-]+$", message = "Invalid UPI ID format")
+    private String upiId;
+    
+    private String description;
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public Long getPayerId() {
+		return payerId;
+	}
+
+	public void setPayerId(Long payerId) {
+		this.payerId = payerId;
+	}
+
+	public Long getPayeeId() {
+		return payeeId;
+	}
+
+	public void setPayeeId(Long payeeId) {
+		this.payeeId = payeeId;
+	}
+
+	public BigDecimal getAmount() {
+		return amount;
+	}
+
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+
+	public String getCurrency() {
+		return currency;
+	}
+
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+
+	public String getPaymentMethod() {
+		return paymentMethod;
+	}
+
+	public void setPaymentMethod(String paymentMethod) {
+		this.paymentMethod = paymentMethod;
+	}
+
+	public String getUpiId() {
+		return upiId;
+	}
+
+	public void setUpiId(String upiId) {
+		this.upiId = upiId;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public PaymentRequestDTO(@NotNull(message = "Project ID is required") Long projectId,
+			@NotNull(message = "Payer ID is required") Long payerId,
+			@NotNull(message = "Payee ID is required") Long payeeId,
+			@NotNull(message = "Amount is required") @DecimalMin(value = "0.01", message = "Amount must be greater than 0") BigDecimal amount,
+			@NotBlank(message = "Currency is required") @Size(max = 10) String currency,
+			@NotBlank(message = "Payment method is required") String paymentMethod,
+			@NotBlank(message = "UPI ID is required") @Pattern(regexp = "^[\\w.-]+@[\\w.-]+$", message = "Invalid UPI ID format") String upiId,
+			String description) {
+		super();
+		this.projectId = projectId;
+		this.payerId = payerId;
+		this.payeeId = payeeId;
+		this.amount = amount;
+		this.currency = currency;
+		this.paymentMethod = paymentMethod;
+		this.upiId = upiId;
+		this.description = description;
+	}
+
+	public PaymentRequestDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import com.freelancenexus.userservice.model.PaymentStatus;
+
+public class PaymentResponseDTO {
+    
+    private Long id;
+    private String transactionId;
+    private Long projectId;
+    private Long payerId;
+    private Long payeeId;
+    private BigDecimal amount;
+    private String currency;
+    private String paymentMethod;
+    private String upiId;
+    private PaymentStatus status;
+    private LocalDateTime paymentDate;
+    private String description;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public String getTransactionId() {
+		return transactionId;
+	}
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
+	}
+	public Long getProjectId() {
+		return projectId;
+	}
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+	public Long getPayerId() {
+		return payerId;
+	}
+	public void setPayerId(Long payerId) {
+		this.payerId = payerId;
+	}
+	public Long getPayeeId() {
+		return payeeId;
+	}
+	public void setPayeeId(Long payeeId) {
+		this.payeeId = payeeId;
+	}
+	public BigDecimal getAmount() {
+		return amount;
+	}
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+	public String getCurrency() {
+		return currency;
+	}
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+	public String getPaymentMethod() {
+		return paymentMethod;
+	}
+	public void setPaymentMethod(String paymentMethod) {
+		this.paymentMethod = paymentMethod;
+	}
+	public String getUpiId() {
+		return upiId;
+	}
+	public void setUpiId(String upiId) {
+		this.upiId = upiId;
+	}
+	public PaymentStatus getStatus() {
+		return status;
+	}
+	public void setStatus(PaymentStatus status) {
+		this.status = status;
+	}
+	public LocalDateTime getPaymentDate() {
+		return paymentDate;
+	}
+	public void setPaymentDate(LocalDateTime paymentDate) {
+		this.paymentDate = paymentDate;
+	}
+	public String getDescription() {
+		return description;
+	}
+	public void setDescription(String description) {
+		this.description = description;
+	}
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+	public PaymentResponseDTO(Long id, String transactionId, Long projectId, Long payerId, Long payeeId,
+			BigDecimal amount, String currency, String paymentMethod, String upiId, PaymentStatus status,
+			LocalDateTime paymentDate, String description, LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.transactionId = transactionId;
+		this.projectId = projectId;
+		this.payerId = payerId;
+		this.payeeId = payeeId;
+		this.amount = amount;
+		this.currency = currency;
+		this.paymentMethod = paymentMethod;
+		this.upiId = upiId;
+		this.status = status;
+		this.paymentDate = paymentDate;
+		this.description = description;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+	public PaymentResponseDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a portfolio item.
+ * Includes details such as title, description, URLs, and completion date.
+ */
+
+public class PortfolioDTO {
+    
+    /**
+     * The unique identifier of the portfolio item.
+     */
+    private Long id;
+    
+    /**
+     * The title of the portfolio item.
+     * Must not be blank and cannot exceed 255 characters.
+     */
+    @NotBlank(message = "Portfolio title is required")
+    @Size(max = 255, message = "Title must not exceed 255 characters")
+    private String title;
+    
+    /**
+     * A description of the portfolio item.
+     * Cannot exceed 5000 characters.
+     */
+    @Size(max = 5000, message = "Description must not exceed 5000 characters")
+    private String description;
+    
+    /**
+     * The URL of the project associated with the portfolio item.
+     * Cannot exceed 500 characters.
+     */
+    @Size(max = 500, message = "Project URL must not exceed 500 characters")
+    private String projectUrl;
+    
+    /**
+     * The URL of the image associated with the portfolio item.
+     * Cannot exceed 500 characters.
+     */
+    @Size(max = 500, message = "Image URL must not exceed 500 characters")
+    private String imageUrl;
+    
+    /**
+     * A description of the technologies used in the portfolio item.
+     * Cannot exceed 1000 characters.
+     */
+    @Size(max = 1000, message = "Technologies used must not exceed 1000 characters")
+    private String technologiesUsed;
+    
+    /**
+     * The completion date of the portfolio item.
+     * Must be in the past or present.
+     */
+    @PastOrPresent(message = "Completion date cannot be in the future")
+    private LocalDate completionDate;
+    
+    /**
+     * The timestamp when the portfolio item was created.
+     */
+    private LocalDateTime createdAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public String getProjectUrl() {
+		return projectUrl;
+	}
+
+	public void setProjectUrl(String projectUrl) {
+		this.projectUrl = projectUrl;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
+
+	public String getTechnologiesUsed() {
+		return technologiesUsed;
+	}
+
+	public void setTechnologiesUsed(String technologiesUsed) {
+		this.technologiesUsed = technologiesUsed;
+	}
+
+	public LocalDate getCompletionDate() {
+		return completionDate;
+	}
+
+	public void setCompletionDate(LocalDate completionDate) {
+		this.completionDate = completionDate;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public PortfolioDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public PortfolioDTO(Long id,
+			@NotBlank(message = "Portfolio title is required") @Size(max = 255, message = "Title must not exceed 255 characters") String title,
+			@Size(max = 5000, message = "Description must not exceed 5000 characters") String description,
+			@Size(max = 500, message = "Project URL must not exceed 500 characters") String projectUrl,
+			@Size(max = 500, message = "Image URL must not exceed 500 characters") String imageUrl,
+			@Size(max = 1000, message = "Technologies used must not exceed 1000 characters") String technologiesUsed,
+			@PastOrPresent(message = "Completion date cannot be in the future") LocalDate completionDate,
+			LocalDateTime createdAt) {
+		super();
+		this.id = id;
+		this.title = title;
+		this.description = description;
+		this.projectUrl = projectUrl;
+		this.imageUrl = imageUrl;
+		this.technologiesUsed = technologiesUsed;
+		this.completionDate = completionDate;
+		this.createdAt = createdAt;
+	}
+    
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * ProjectCreateDTO
+ *
+ * <p>Data Transfer Object for creating a new project. Contains all required and optional
+ * information needed to set up a project in the system. All fields are validated for
+ * presence, format, and business logic constraints.</p>
+ *
+ * <p>Typically sent by clients via POST requests to create new projects.</p>
+ *
+ * @since 1.0
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProjectCreateDTO {
+
+    /**
+     * Unique identifier of the client creating the project.
+     * Must be provided and must reference a valid client.
+     *
+     * @validation NotNull
+     */
+    @NotNull(message = "Client ID is required")
+    private Long clientId;
+
+    /**
+     * Project title. Must be unique and descriptive.
+     * Cannot exceed 255 characters.
+     *
+     * @validation NotBlank, Size(max = 255)
+     */
+    @NotBlank(message = "Title is required")
+    @Size(max = 255, message = "Title must not exceed 255 characters")
+    private String title;
+
+    /**
+     * Detailed description of the project, requirements, and deliverables.
+     * Cannot be blank.
+     *
+     * @validation NotBlank
+     */
+    @NotBlank(message = "Description is required")
+    private String description;
+
+    /**
+     * Minimum budget amount for the project.
+     * Must be greater than 0.
+     *
+     * @validation NotNull, DecimalMin(0.0, exclusive)
+     */
+    @NotNull(message = "Minimum budget is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Minimum budget must be greater than 0")
+    private BigDecimal budgetMin;
+
+    /**
+     * Maximum budget amount for the project.
+     * Must be greater than 0.
+     *
+     * @validation NotNull, DecimalMin(0.0, exclusive)
+     */
+    @NotNull(message = "Maximum budget is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Maximum budget must be greater than 0")
+    private BigDecimal budgetMax;
+
+    /**
+     * Estimated project duration in days.
+     * Must be at least 1 day.
+     *
+     * @validation NotNull, Min(1)
+     */
+    @NotNull(message = "Duration is required")
+    @Min(value = 1, message = "Duration must be at least 1 day")
+    private Integer durationDays;
+
+    /**
+     * List of required skills for the project (e.g., "Java", "React", "AWS").
+     * At least one skill must be specified.
+     *
+     * @validation NotEmpty
+     */
+    @NotEmpty(message = "At least one skill is required")
+    private List<String> requiredSkills;
+
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     * Cannot be blank.
+     *
+     * @validation NotBlank
+     */
+    @NotBlank(message = "Category is required")
+    private String category;
+
+    /**
+     * Project deadline date. Must be in the future.
+     * Optional field.
+     *
+     * @validation Future
+     */
+    @Future(message = "Deadline must be in the future")
+    private LocalDate deadline;
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+
+	public ProjectCreateDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProjectCreateDTO(@NotNull(message = "Client ID is required") Long clientId,
+			@NotBlank(message = "Title is required") @Size(max = 255, message = "Title must not exceed 255 characters") String title,
+			@NotBlank(message = "Description is required") String description,
+			@NotNull(message = "Minimum budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Minimum budget must be greater than 0") BigDecimal budgetMin,
+			@NotNull(message = "Maximum budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Maximum budget must be greater than 0") BigDecimal budgetMax,
+			@NotNull(message = "Duration is required") @Min(value = 1, message = "Duration must be at least 1 day") Integer durationDays,
+			@NotEmpty(message = "At least one skill is required") List<String> requiredSkills,
+			@NotBlank(message = "Category is required") String category,
+			@Future(message = "Deadline must be in the future") LocalDate deadline) {
+		super();
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.deadline = deadline;
+	}
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.freelancenexus.userservice.model.ProjectStatus;
+
+/**
+ * ProjectDTO
+ *
+ * <p>Data Transfer Object representing project information returned by API endpoints.
+ * Contains project details, status, budget information, required skills, and metadata.
+ * Excludes sensitive information and is used for transferring project data to clients.</p>
+ *
+ * <p>Typically returned by project retrieval, creation, and update endpoints.</p>
+ *
+ * @since 1.0
+ */
+public class ProjectDTO {
+    
+    /**
+     * Unique identifier of the project.
+     */
+    private Long id;
+    
+    /**
+     * Unique identifier of the client who created the project.
+     */
+    private Long clientId;
+    
+    /**
+     * Project title.
+     */
+    private String title;
+    
+    /**
+     * Detailed description of the project and its requirements.
+     */
+    private String description;
+    
+    /**
+     * Minimum budget amount for the project.
+     */
+    private BigDecimal budgetMin;
+    
+    /**
+     * Maximum budget amount for the project.
+     */
+    private BigDecimal budgetMax;
+    
+    /**
+     * Estimated project duration in days.
+     */
+    private Integer durationDays;
+    
+    /**
+     * List of required skills to complete the project.
+     */
+    private List<String> requiredSkills;
+    
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     */
+    private String category;
+    
+    /**
+     * Current status of the project (e.g., OPEN, IN_PROGRESS, COMPLETED).
+     *
+     * @see ProjectStatus
+     */
+    private ProjectStatus status;
+    
+    /**
+     * Project deadline date.
+     */
+    private LocalDate deadline;
+    
+    /**
+     * Unique identifier of the freelancer assigned to the project (if any).
+     * {@code null} if no freelancer is assigned.
+     */
+    private Long assignedFreelancer;
+    
+    /**
+     * Timestamp when the project was created.
+     */
+    private LocalDateTime createdAt;
+    
+    /**
+     * Timestamp when the project was last updated.
+     */
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Number of proposals submitted for this project.
+     */
+    private Integer proposalCount;
+
+	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
+			ProjectStatus status, LocalDate deadline, Long assignedFreelancer,
+			LocalDateTime createdAt, LocalDateTime updatedAt, Integer proposalCount) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposalCount = proposalCount;
+	}
+
+	public ProjectDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public ProjectStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ProjectStatus status) {
+		this.status = status;
+	}
+
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+
+	public Long getAssignedFreelancer() {
+		return assignedFreelancer;
+	}
+
+	public void setAssignedFreelancer(Long assignedFreelancer) {
+		this.assignedFreelancer = assignedFreelancer;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Integer getProposalCount() {
+		return proposalCount;
+	}
+
+	public void setProposalCount(Integer proposalCount) {
+		this.proposalCount = proposalCount;
+	}
+	
+	
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * ProjectSummaryDTO
+ *
+ * <p>Data Transfer Object representing an AI-generated summary of a project.
+ * Contains concise summaries, key requirements, ideal candidate profile, and
+ * complexity assessment produced by the AI service.</p>
+ *
+ * <p>Returned by AI summary endpoints to provide clients and freelancers with
+ * quick, AI-generated insights about a project.</p>
+ *
+ * @since 1.0
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProjectSummaryDTO {
+    
+    /**
+     * Unique identifier of the project being summarized.
+     */
+    private Long projectId;
+    
+    /**
+     * AI-generated concise summary of the project's objectives and scope.
+     */
+    private String summary;
+    
+    /**
+     * AI-extracted key requirements and deliverables for the project.
+     */
+    private String keyRequirements;
+    
+    /**
+     * AI-generated description of the ideal candidate profile
+     * (experience level, skill set, background).
+     */
+    private String idealCandidate;
+    
+    /**
+     * AI-assessed complexity level of the project
+     * (e.g., "Low", "Medium", "High", "Very High").
+     */
+    private String estimatedComplexity;
+    
+    /**
+     * List of suggested skills recommended by AI for the project,
+     * based on analysis of the project description and requirements.
+     */
+    private java.util.List<String> suggestedSkills;
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public String getSummary() {
+		return summary;
+	}
+
+	public void setSummary(String summary) {
+		this.summary = summary;
+	}
+
+	public String getKeyRequirements() {
+		return keyRequirements;
+	}
+
+	public void setKeyRequirements(String keyRequirements) {
+		this.keyRequirements = keyRequirements;
+	}
+
+	public String getIdealCandidate() {
+		return idealCandidate;
+	}
+
+	public void setIdealCandidate(String idealCandidate) {
+		this.idealCandidate = idealCandidate;
+	}
+
+	public String getEstimatedComplexity() {
+		return estimatedComplexity;
+	}
+
+	public void setEstimatedComplexity(String estimatedComplexity) {
+		this.estimatedComplexity = estimatedComplexity;
+	}
+
+	public java.util.List<String> getSuggestedSkills() {
+		return suggestedSkills;
+	}
+
+	public void setSuggestedSkills(java.util.List<String> suggestedSkills) {
+		this.suggestedSkills = suggestedSkills;
+	}
+
+	public ProjectSummaryDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProjectSummaryDTO(Long projectId, String summary, String keyRequirements, String idealCandidate,
+			String estimatedComplexity, List<String> suggestedSkills) {
+		super();
+		this.projectId = projectId;
+		this.summary = summary;
+		this.keyRequirements = keyRequirements;
+		this.idealCandidate = idealCandidate;
+		this.estimatedComplexity = estimatedComplexity;
+		this.suggestedSkills = suggestedSkills;
+	}
+    
+    
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import com.freelancenexus.userservice.model.ProposalStatus;
+
+/**
+ * Data Transfer Object (DTO) for transferring proposal data.
+ * Contains all the fields required for representing a proposal.
+ */
+
+public class ProposalDTO {
+
+    /**
+     * The unique identifier of the proposal.
+     */
+    private Long id;
+
+    /**
+     * The ID of the project associated with the proposal.
+     */
+    private Long projectId;
+
+    /**
+     * The title of the project associated with the proposal.
+     */
+    private String projectTitle;
+
+    /**
+     * The ID of the freelancer who submitted the proposal.
+     */
+    private Long freelancerId;
+
+    /**
+     * The cover letter submitted with the proposal.
+     */
+    private String coverLetter;
+
+    /**
+     * The budget proposed by the freelancer.
+     */
+    private BigDecimal proposedBudget;
+
+    /**
+     * The number of days proposed for delivery.
+     */
+    private Integer deliveryDays;
+
+    /**
+     * The AI-generated score for the proposal (0-100).
+     */
+    private BigDecimal aiScore;
+
+    /**
+     * The current status of the proposal.
+     */
+    private ProposalStatus status;
+
+    /**
+     * The timestamp when the proposal was submitted.
+     */
+    private LocalDateTime submittedAt;
+
+    /**
+     * The timestamp when the proposal was last updated.
+     */
+    private LocalDateTime updatedAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public String getProjectTitle() {
+		return projectTitle;
+	}
+
+	public void setProjectTitle(String projectTitle) {
+		this.projectTitle = projectTitle;
+	}
+
+	public Long getFreelancerId() {
+		return freelancerId;
+	}
+
+	public void setFreelancerId(Long freelancerId) {
+		this.freelancerId = freelancerId;
+	}
+
+	public String getCoverLetter() {
+		return coverLetter;
+	}
+
+	public void setCoverLetter(String coverLetter) {
+		this.coverLetter = coverLetter;
+	}
+
+	public BigDecimal getProposedBudget() {
+		return proposedBudget;
+	}
+
+	public void setProposedBudget(BigDecimal proposedBudget) {
+		this.proposedBudget = proposedBudget;
+	}
+
+	public Integer getDeliveryDays() {
+		return deliveryDays;
+	}
+
+	public void setDeliveryDays(Integer deliveryDays) {
+		this.deliveryDays = deliveryDays;
+	}
+
+	public BigDecimal getAiScore() {
+		return aiScore;
+	}
+
+	public void setAiScore(BigDecimal aiScore) {
+		this.aiScore = aiScore;
+	}
+
+	public ProposalStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ProposalStatus status) {
+		this.status = status;
+	}
+
+	public LocalDateTime getSubmittedAt() {
+		return submittedAt;
+	}
+
+	public void setSubmittedAt(LocalDateTime submittedAt) {
+		this.submittedAt = submittedAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
+			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
+			LocalDateTime submittedAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.projectId = projectId;
+		this.projectTitle = projectTitle;
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+		this.aiScore = aiScore;
+		this.status = status;
+		this.submittedAt = submittedAt;
+		this.updatedAt = updatedAt;
+	}
+
+	public ProposalDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+
+/**
+ * Data Transfer Object (DTO) for submitting a proposal.
+ * Contains all the necessary fields and validation constraints for proposal submission.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProposalSubmitDTO {
+
+    /**
+     * The ID of the freelancer submitting the proposal.
+     */
+    @NotNull(message = "Freelancer ID is required")
+    private Long freelancerId;
+
+    /**
+     * The cover letter submitted with the proposal.
+     */
+    @NotBlank(message = "Cover letter is required")
+    @Size(min = 50, message = "Cover letter must be at least 50 characters")
+    private String coverLetter;
+
+    /**
+     * The budget proposed by the freelancer.
+     */
+    @NotNull(message = "Proposed budget is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Proposed budget must be greater than 0")
+    private BigDecimal proposedBudget;
+
+    /**
+     * The number of days proposed for delivery.
+     */
+    @NotNull(message = "Delivery days is required")
+    @Min(value = 1, message = "Delivery days must be at least 1")
+    private Integer deliveryDays;
+
+	public Long getFreelancerId() {
+		return freelancerId;
+	}
+
+	public void setFreelancerId(Long freelancerId) {
+		this.freelancerId = freelancerId;
+	}
+
+	public String getCoverLetter() {
+		return coverLetter;
+	}
+
+	public void setCoverLetter(String coverLetter) {
+		this.coverLetter = coverLetter;
+	}
+
+	public BigDecimal getProposedBudget() {
+		return proposedBudget;
+	}
+
+	public void setProposedBudget(BigDecimal proposedBudget) {
+		this.proposedBudget = proposedBudget;
+	}
+
+	public Integer getDeliveryDays() {
+		return deliveryDays;
+	}
+
+	public void setDeliveryDays(Integer deliveryDays) {
+		this.deliveryDays = deliveryDays;
+	}
+
+	public ProposalSubmitDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProposalSubmitDTO(@NotNull(message = "Freelancer ID is required") Long freelancerId,
+			@NotBlank(message = "Cover letter is required") @Size(min = 50, message = "Cover letter must be at least 50 characters") String coverLetter,
+			@NotNull(message = "Proposed budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Proposed budget must be greater than 0") BigDecimal proposedBudget,
+			@NotNull(message = "Delivery days is required") @Min(value = 1, message = "Delivery days must be at least 1") Integer deliveryDays) {
+		super();
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+/**
+ * Data Transfer Object (DTO) for transferring ranked proposal data.
+ * Contains details about the proposal, its ranking, and AI analysis.
+ */
+
+
+public class RankedProposalDTO {
+
+    /**
+     * The unique identifier of the proposal.
+     */
+    private Long id;
+
+    /**
+     * The ID of the freelancer who submitted the proposal.
+     */
+    private Long freelancerId;
+
+    /**
+     * The cover letter submitted with the proposal.
+     */
+    private String coverLetter;
+
+    /**
+     * The budget proposed by the freelancer.
+     */
+    private BigDecimal proposedBudget;
+
+    /**
+     * The number of days proposed for delivery.
+     */
+    private Integer deliveryDays;
+
+    /**
+     * The AI-generated score for the proposal (0-100).
+     */
+    private BigDecimal aiScore;
+
+    /**
+     * The rank of the proposal based on AI analysis.
+     */
+    private Integer rank;
+
+    /**
+     * The AI-generated analysis of the proposal.
+     */
+    private String aiAnalysis;
+
+    /**
+     * The list of strengths identified in the proposal.
+     */
+    private java.util.List<String> strengths;
+
+    /**
+     * The list of concerns identified in the proposal.
+     */
+    private java.util.List<String> concerns;
+
+    /**
+     * The timestamp when the proposal was submitted.
+     */
+    private LocalDateTime submittedAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getFreelancerId() {
+		return freelancerId;
+	}
+
+	public void setFreelancerId(Long freelancerId) {
+		this.freelancerId = freelancerId;
+	}
+
+	public String getCoverLetter() {
+		return coverLetter;
+	}
+
+	public void setCoverLetter(String coverLetter) {
+		this.coverLetter = coverLetter;
+	}
+
+	public BigDecimal getProposedBudget() {
+		return proposedBudget;
+	}
+
+	public void setProposedBudget(BigDecimal proposedBudget) {
+		this.proposedBudget = proposedBudget;
+	}
+
+	public Integer getDeliveryDays() {
+		return deliveryDays;
+	}
+
+	public void setDeliveryDays(Integer deliveryDays) {
+		this.deliveryDays = deliveryDays;
+	}
+
+	public BigDecimal getAiScore() {
+		return aiScore;
+	}
+
+	public void setAiScore(BigDecimal aiScore) {
+		this.aiScore = aiScore;
+	}
+
+	public Integer getRank() {
+		return rank;
+	}
+
+	public void setRank(Integer rank) {
+		this.rank = rank;
+	}
+
+	public String getAiAnalysis() {
+		return aiAnalysis;
+	}
+
+	public void setAiAnalysis(String aiAnalysis) {
+		this.aiAnalysis = aiAnalysis;
+	}
+
+	public java.util.List<String> getStrengths() {
+		return strengths;
+	}
+
+	public void setStrengths(java.util.List<String> strengths) {
+		this.strengths = strengths;
+	}
+
+	public java.util.List<String> getConcerns() {
+		return concerns;
+	}
+
+	public void setConcerns(java.util.List<String> concerns) {
+		this.concerns = concerns;
+	}
+
+	public LocalDateTime getSubmittedAt() {
+		return submittedAt;
+	}
+
+	public void setSubmittedAt(LocalDateTime submittedAt) {
+		this.submittedAt = submittedAt;
+	}
+
+	public RankedProposalDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public RankedProposalDTO(Long id, Long freelancerId, String coverLetter, BigDecimal proposedBudget,
+			Integer deliveryDays, BigDecimal aiScore, Integer rank, String aiAnalysis, List<String> strengths,
+			List<String> concerns, LocalDateTime submittedAt) {
+		super();
+		this.id = id;
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+		this.aiScore = aiScore;
+		this.rank = rank;
+		this.aiAnalysis = aiAnalysis;
+		this.strengths = strengths;
+		this.concerns = concerns;
+		this.submittedAt = submittedAt;
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDateTime;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a rating.
+ * Includes details such as client ID, project ID, rating value, and review.
+ */
+
+public class RatingDTO {
+    
+    /**
+     * The unique identifier of the rating.
+     */
+    private Long id;
+    
+    /**
+     * The ID of the client who provided the rating.
+     * Must not be null.
+     */
+    @NotNull(message = "Client ID is required")
+    private Long clientId;
+    
+    /**
+     * The ID of the project associated with the rating.
+     */
+    private Long projectId;
+    
+    /**
+     * The rating value.
+     * Must be between 1 and 5.
+     */
+    @NotNull(message = "Rating is required")
+    @Min(value = 1, message = "Rating must be at least 1")
+    @Max(value = 5, message = "Rating must not exceed 5")
+    private Integer rating;
+    
+    /**
+     * The review text provided by the client.
+     * Cannot exceed 2000 characters.
+     */
+    @Size(max = 2000, message = "Review must not exceed 2000 characters")
+    private String review;
+    
+    /**
+     * The timestamp when the rating was created.
+     */
+    private LocalDateTime createdAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public Integer getRating() {
+		return rating;
+	}
+
+	public void setRating(Integer rating) {
+		this.rating = rating;
+	}
+
+	public String getReview() {
+		return review;
+	}
+
+	public void setReview(String review) {
+		this.review = review;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public RatingDTO(Long id, @NotNull(message = "Client ID is required") Long clientId, Long projectId,
+			@NotNull(message = "Rating is required") @Min(value = 1, message = "Rating must be at least 1") @Max(value = 5, message = "Rating must not exceed 5") Integer rating,
+			@Size(max = 2000, message = "Review must not exceed 2000 characters") String review,
+			LocalDateTime createdAt) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.projectId = projectId;
+		this.rating = rating;
+		this.review = review;
+		this.createdAt = createdAt;
+	}
+
+	public RatingDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+
+
+import com.freelancenexus.userservice.model.Skill.ProficiencyLevel;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a skill.
+ * Includes details such as skill name, proficiency level, and years of experience.
+ */
+public class SkillDTO {
+    
+    /**
+     * The unique identifier of the skill.
+     */
+    private Long id;
+    
+    /**
+     * The name of the skill.
+     * Must not be blank and cannot exceed 100 characters.
+     */
+    @NotBlank(message = "Skill name is required")
+    @Size(max = 100, message = "Skill name must not exceed 100 characters")
+    private String skillName;
+    
+    /**
+     * The proficiency level of the skill.
+     * Must not be null.
+     */
+    @NotNull(message = "Proficiency level is required")
+    private ProficiencyLevel proficiencyLevel;
+    
+    /**
+     * The number of years of experience with the skill.
+     * Must be a non-negative value and cannot exceed 50 years.
+     */
+    @Min(value = 0, message = "Years of experience cannot be negative")
+    @Max(value = 50, message = "Years of experience seems too high")
+    private Integer yearsExperience;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getSkillName() {
+		return skillName;
+	}
+
+	public void setSkillName(String skillName) {
+		this.skillName = skillName;
+	}
+
+	public ProficiencyLevel getProficiencyLevel() {
+		return proficiencyLevel;
+	}
+
+	public void setProficiencyLevel(ProficiencyLevel proficiencyLevel) {
+		this.proficiencyLevel = proficiencyLevel;
+	}
+
+	public Integer getYearsExperience() {
+		return yearsExperience;
+	}
+
+	public void setYearsExperience(Integer yearsExperience) {
+		this.yearsExperience = yearsExperience;
+	}
+
+	public SkillDTO(Long id,
+			@NotBlank(message = "Skill name is required") @Size(max = 100, message = "Skill name must not exceed 100 characters") String skillName,
+			@NotNull(message = "Proficiency level is required") ProficiencyLevel proficiencyLevel,
+			@Min(value = 0, message = "Years of experience cannot be negative") @Max(value = 50, message = "Years of experience seems too high") Integer yearsExperience) {
+		super();
+		this.id = id;
+		this.skillName = skillName;
+		this.proficiencyLevel = proficiencyLevel;
+		this.yearsExperience = yearsExperience;
+	}
+
+	public SkillDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	public String toString() {
+		return "SkillDTO [id=" + id + ", skillName=" + skillName + ", proficiencyLevel=" + proficiencyLevel
+				+ ", yearsExperience=" + yearsExperience + "]";
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import com.freelancenexus.userservice.model.PaymentStatus;
+
+public class TransactionStatusDTO {
+    
+    private String transactionId;
+    private PaymentStatus status;
+    private BigDecimal amount;
+    private String currency;
+    private LocalDateTime timestamp;
+    private String message;
+	public String getTransactionId() {
+		return transactionId;
+	}
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
+	}
+	public PaymentStatus getStatus() {
+		return status;
+	}
+	public void setStatus(PaymentStatus status) {
+		this.status = status;
+	}
+	public BigDecimal getAmount() {
+		return amount;
+	}
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+	public String getCurrency() {
+		return currency;
+	}
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+	public LocalDateTime getTimestamp() {
+		return timestamp;
+	}
+	public void setTimestamp(LocalDateTime timestamp) {
+		this.timestamp = timestamp;
+	}
+	public String getMessage() {
+		return message;
+	}
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	public TransactionStatusDTO(String transactionId, PaymentStatus status, BigDecimal amount, String currency,
+			LocalDateTime timestamp, String message) {
+		super();
+		this.transactionId = transactionId;
+		this.status = status;
+		this.amount = amount;
+		this.currency = currency;
+		this.timestamp = timestamp;
+		this.message = message;
+	}
+	public TransactionStatusDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+
+public class UPIPaymentDTO {
+    
+    private String transactionId;
+    private String upiId;
+    private BigDecimal amount;
+    private String currency;
+    private String paymentLink;
+    private String qrCode;
+    private Long expiresIn; // seconds
+    private String status;
+    private String message;
+	public String getTransactionId() {
+		return transactionId;
+	}
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
+	}
+	public String getUpiId() {
+		return upiId;
+	}
+	public void setUpiId(String upiId) {
+		this.upiId = upiId;
+	}
+	public BigDecimal getAmount() {
+		return amount;
+	}
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+	public String getCurrency() {
+		return currency;
+	}
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+	public String getPaymentLink() {
+		return paymentLink;
+	}
+	public void setPaymentLink(String paymentLink) {
+		this.paymentLink = paymentLink;
+	}
+	public String getQrCode() {
+		return qrCode;
+	}
+	public void setQrCode(String qrCode) {
+		this.qrCode = qrCode;
+	}
+	public Long getExpiresIn() {
+		return expiresIn;
+	}
+	public void setExpiresIn(Long expiresIn) {
+		this.expiresIn = expiresIn;
+	}
+	public String getStatus() {
+		return status;
+	}
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	public String getMessage() {
+		return message;
+	}
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	public UPIPaymentDTO(String transactionId, String upiId, BigDecimal amount, String currency, String paymentLink,
+			String qrCode, Long expiresIn, String status, String message) {
+		super();
+		this.transactionId = transactionId;
+		this.upiId = upiId;
+		this.amount = amount;
+		this.currency = currency;
+		this.paymentLink = paymentLink;
+		this.qrCode = qrCode;
+		this.expiresIn = expiresIn;
+		this.status = status;
+		this.message = message;
+	}
+	public UPIPaymentDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public class UserLoginDTO {
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email should be valid")
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    private String password;
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public UserLoginDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public UserLoginDTO(@NotBlank(message = "Email is required") @Email(message = "Email should be valid") String email,
+			@NotBlank(message = "Password is required") String password) {
+		super();
+		this.email = email;
+		this.password = password;
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import com.freelancenexus.userservice.model.UserRole;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+public class UserRegistrationDTO {
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email should be valid")
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters")
+    private String password;
+    
+    @NotBlank(message = "Full name is required")
+    @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters")
+    private String fullName;
+    
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
+    private String phone;
+    
+    @NotNull(message = "Role is required")
+    private UserRole role;
+    
+    private String profileImageUrl;
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public UserRole getRole() {
+		return role;
+	}
+
+	public void setRole(UserRole role) {
+		this.role = role;
+	}
+
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserRegistrationDTO(
+			@NotBlank(message = "Email is required") @Email(message = "Email should be valid") String email,
+			@NotBlank(message = "Password is required") @Size(min = 8, message = "Password must be at least 8 characters") String password,
+			@NotBlank(message = "Full name is required") @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters") String fullName,
+			@Size(max = 20, message = "Phone number must not exceed 20 characters") String phone,
+			@NotNull(message = "Role is required") UserRole role, String profileImageUrl) {
+		super();
+		this.email = email;
+		this.password = password;
+		this.fullName = fullName;
+		this.phone = phone;
+		this.role = role;
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserRegistrationDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDateTime;
+
+import com.freelancenexus.userservice.model.UserRole;
+
+public class UserResponseDTO {
+    
+    private Long id;
+    private String email;
+    private String fullName;
+    private String phone;
+    private UserRole role;
+    private Boolean isActive;
+    private String profileImageUrl;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public String getEmail() {
+		return email;
+	}
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	public String getFullName() {
+		return fullName;
+	}
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+	public String getPhone() {
+		return phone;
+	}
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+	public UserRole getRole() {
+		return role;
+	}
+	public void setRole(UserRole role) {
+		this.role = role;
+	}
+	public Boolean getIsActive() {
+		return isActive;
+	}
+	public void setIsActive(Boolean isActive) {
+		this.isActive = isActive;
+	}
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
+	}
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+	public UserResponseDTO(Long id, String email, String fullName, String phone, UserRole role, Boolean isActive,
+			String profileImageUrl, LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.email = email;
+		this.fullName = fullName;
+		this.phone = phone;
+		this.role = role;
+		this.isActive = isActive;
+		this.profileImageUrl = profileImageUrl;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+	public UserResponseDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import jakarta.validation.constraints.Size;
+
+public class UserUpdateDTO {
+    
+    @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters")
+    private String fullName;
+    
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
+    private String phone;
+    
+    private String profileImageUrl;
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserUpdateDTO(
+			@Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters") String fullName,
+			@Size(max = 20, message = "Phone number must not exceed 20 characters") String phone,
+			String profileImageUrl) {
+		super();
+		this.fullName = fullName;
+		this.phone = phone;
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserUpdateDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+    
 }
