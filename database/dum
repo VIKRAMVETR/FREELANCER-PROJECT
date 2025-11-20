@@ -1,349 +1,1126 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../../context/AuthContext";
-import freelancerService from "../../services/freelancerService";
-import Loader from "../common/Loader";
+package com.freelancenexus.userservice.controller;
 
-const FreelancerProfile = () => {
-  const { user } = useAuth();
+import java.math.BigDecimal;
+import java.util.List;
 
-  const [profile, setProfile] = useState({
-    bio: "",
-    hourlyRate: "",
-    skills: [],        // NOW SkillDTO[]
-    portfolio: []
-  });
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-  const [newSkill, setNewSkill] = useState({
-    skillName: "",
-    proficiencyLevel: "BEGINNER",
-    yearsExperience: 1
-  });
+import com.freelancenexus.userservice.dto.FreelancerDTO;
+import com.freelancenexus.userservice.dto.FreelancerProfileDTO;
+import com.freelancenexus.userservice.service.FreelancerService;
 
-  const [newPortfolio, setNewPortfolio] = useState({
-    title: "",
-    description: "",
-    url: ""
-  });
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancers.
+ * Provides endpoints for creating, retrieving, updating, and searching freelancer profiles.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+@CrossOrigin("http://localhost:3000")
+public class FreelancerController {
+	private final Logger log= LoggerFactory.getLogger(FreelancerController.class);
+    private final FreelancerService freelancerService;
+    
+    public FreelancerController(FreelancerService freelancerService) {
+		super();
+		this.freelancerService = freelancerService;
+	}
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
-
-  // Fetch profile
-  const fetchProfile = useCallback(async () => {
-    try {
-      const data = await freelancerService.getFreelancerProfile(user.id);
-      setProfile(data);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
+	/**
+     * Creates a freelancer profile.
+     *
+     * @param freelancerDTO the freelancer profile to be created
+     * @return the created freelancer profile
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> createFreelancer(@Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to create freelancer for user ID: {}", freelancerDTO.getUserId());
+        FreelancerDTO created = freelancerService.createFreelancer(freelancerDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchProfile();
+    
+    /**
+     * Retrieves a freelancer profile by its ID.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerById(@PathVariable Long id) {
+        log.info("REST request to get freelancer by ID: {}", id);
+        FreelancerDTO freelancer = freelancerService.getFreelancerById(id);
+        return ResponseEntity.ok(freelancer);
     }
-  }, [fetchProfile, user?.id]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-
-    try {
-      await freelancerService.updateFreelancerProfile(user.id, profile);
-      setMessage({ type: "success", text: "Profile updated successfully!" });
-    } catch (error) {
-      setMessage({ type: "danger", text: "Failed to update profile" });
-    } finally {
-      setSaving(false);
+    
+    /**
+     * Retrieves the complete profile of a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer's complete profile
+     */
+    @GetMapping("/{id}/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerProfileDTO> getFreelancerProfile(@PathVariable Long id) {
+        log.info("REST request to get complete freelancer profile for ID: {}", id);
+        FreelancerProfileDTO profile = freelancerService.getFreelancerProfile(id);
+        return ResponseEntity.ok(profile);
     }
-  };
-
-  // Add SkillDTO
-  const addSkill = () => {
-    if (!newSkill.skillName.trim()) return;
-
-    setProfile((prev) => ({
-      ...prev,
-      skills: [...prev.skills, { ...newSkill, id: Date.now() }]
-    }));
-
-    setNewSkill({
-      skillName: "",
-      proficiencyLevel: "BEGINNER",
-      yearsExperience: 1
-    });
-  };
-
-  const removeSkill = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s.id !== id)
-    }));
-  };
-
-  // Portfolio
-  const addPortfolioItem = () => {
-    if (newPortfolio.title && newPortfolio.description) {
-      setProfile((prev) => ({
-        ...prev,
-        portfolio: [...prev.portfolio, { ...newPortfolio, id: Date.now() }]
-      }));
-
-      setNewPortfolio({ title: "", description: "", url: "" });
+    
+    /**
+     * Retrieves a freelancer profile by the user ID.
+     *
+     * @param userId the user ID associated with the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerByUserId(@PathVariable Long userId) {
+        log.info("REST request to get freelancer by user ID: {}", userId);
+        FreelancerDTO freelancer = freelancerService.getFreelancerByUserId(userId);
+        return ResponseEntity.ok(freelancer);
     }
-  };
+    
+    /**
+     * Updates a freelancer profile.
+     *
+     * @param id the ID of the freelancer
+     * @param freelancerDTO the updated freelancer profile
+     * @return the updated freelancer profile
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> updateFreelancer(
+            @PathVariable Long id,
+            @Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to update freelancer with ID: {}", id);
+        FreelancerDTO updated = freelancerService.updateFreelancer(id, freelancerDTO);
+        return ResponseEntity.ok(updated);
+    }
+    
+    /**
+     * Searches for freelancers based on various criteria.
+     *
+     * @param minRate the minimum hourly rate
+     * @param maxRate the maximum hourly rate
+     * @param minRating the minimum rating
+     * @param availability the availability status
+     * @param skills the list of skills
+     * @return the list of freelancers matching the criteria
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<FreelancerDTO>> searchFreelancers(
+            @RequestParam(required = false) BigDecimal minRate,
+            @RequestParam(required = false) BigDecimal maxRate,
+            @RequestParam(required = false) BigDecimal minRating,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) List<String> skills) {
+        log.info("REST request to search freelancers");
+        
+        List<FreelancerDTO> freelancers;
+        
+        if (skills != null && !skills.isEmpty()) {
+            freelancers = freelancerService.getFreelancersBySkills(skills);
+        } else if (minRate != null || maxRate != null || minRating != null || availability != null) {
+            freelancers = freelancerService.searchFreelancers(minRate, maxRate, minRating, availability);
+        } else {
+            freelancers = freelancerService.getAllFreelancers();
+        }
+        
+        return ResponseEntity.ok(freelancers);
+    }
+}
 
-  const removePortfolioItem = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      portfolio: prev.portfolio.filter((item) => item.id !== id)
-    }));
-  };
 
-  if (loading) return <Loader />;
+package com.freelancenexus.userservice.controller;
 
-  return (
-    <div className="container mt-4">
-      <div className="row">
-        <div className="col-lg-8 mx-auto">
-          <h2 className="mb-4">My Profile</h2>
+import java.util.List;
 
-          {message.text && (
-            <div className={`alert alert-${message.type}`}>{message.text}</div>
-          )}
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-          <form onSubmit={handleSubmit}>
-            {/* Basic Info */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">Basic Information</h5>
-              </div>
-              <div className="card-body">
-                <div className="mb-3">
-                  <label className="form-label">Bio</label>
-                  <textarea
-                    className="form-control"
-                    rows="4"
-                    value={profile.bio}
-                    onChange={(e) =>
-                      setProfile({ ...profile, bio: e.target.value })
-                    }
-                    placeholder="Tell us about your expertise..."
-                  />
-                </div>
+import com.freelancenexus.userservice.dto.AIRecommendationDTO;
+import com.freelancenexus.userservice.dto.ProjectSummaryDTO;
+import com.freelancenexus.userservice.dto.RankedProposalDTO;
+import com.freelancenexus.userservice.service.AIService;
 
-                <div className="mb-3">
-                  <label className="form-label">Hourly Rate (₹)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={profile.hourlyRate}
-                    onChange={(e) =>
-                      setProfile({ ...profile, hourlyRate: e.target.value })
-                    }
-                    placeholder="Enter your hourly rate"
-                  />
-                </div>
-              </div>
-            </div>
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
-            {/* Skills */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">Skills</h5>
-              </div>
-              <div className="card-body">
-                <div className="row g-2 align-items-end">
-                  <div className="col-md-4">
-                    <label>Skill Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={newSkill.skillName}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          skillName: e.target.value
-                        })
-                      }
-                    />
-                  </div>
+/**
+ * AIRecommendationController
+ *
+ * <p>REST API controller for AI-powered recommendation and analysis features in the Project Service.
+ * Provides endpoints for freelancers to get project recommendations, clients to rank proposals,
+ * and both roles to view AI-generated project summaries.</p>
+ *
+ * <p>All endpoints implement role-based access control using {@code @PreAuthorize} annotations.</p>
+ *
+ * @since 1.0
+ */
+@RestController
+@RequestMapping("/api/ai")
+@RequiredArgsConstructor
+@Slf4j
+public class AIRecommendationController {
+	private final Logger log= LoggerFactory.getLogger(AIRecommendationController.class);
+    private final AIService aiService;
+    
+    public AIRecommendationController(AIService aiService) {
+		super();
+		this.aiService = aiService;
+	}
 
-                  <div className="col-md-4">
-                    <label>Proficiency</label>
-                    <select
-                      className="form-select"
-                      value={newSkill.proficiencyLevel}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          proficiencyLevel: e.target.value
-                        })
-                      }
-                    >
-                      <option value="BEGINNER">Beginner</option>
-                      <option value="INTERMEDIATE">Intermediate</option>
-                      <option value="ADVANCED">Advanced</option>
-                      <option value="EXPERT">Expert</option>
-                    </select>
-                  </div>
+	/**
+     * Get AI-recommended projects for a specific freelancer.
+     *
+     * <p>Requires FREELANCER role. Uses the freelancer's skills and optional bio to
+     * generate personalized project recommendations via the AI service.</p>
+     *
+     * @param freelancerId the unique identifier of the freelancer
+     * @param skills list of skills to match against projects
+     * @param bio optional biography/description of the freelancer
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link AIRecommendationDTO}
+     */
+    @GetMapping("/recommendations/freelancer/{freelancerId}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<List<AIRecommendationDTO>> getRecommendations(
+            @PathVariable Long freelancerId,
+            @RequestParam List<String> skills,
+            @RequestParam(required = false) String bio) {
+        log.info("GET /api/ai/recommendations/freelancer/{} - Getting AI recommendations", freelancerId);
+        
+        List<AIRecommendationDTO> recommendations = aiService.recommendProjectsForFreelancer(
+                freelancerId, skills, bio);
+        
+        return ResponseEntity.ok(recommendations);
+    }
 
-                  <div className="col-md-3">
-                    <label>Years</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      min="0"
-                      max="50"
-                      value={newSkill.yearsExperience}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          yearsExperience: Number(e.target.value)
-                        })
-                      }
-                    />
-                  </div>
+    /**
+     * Get AI-ranked proposals for a specific project.
+     *
+     * <p>Requires CLIENT role. Analyzes all proposals submitted for a project and
+     * returns them ranked by AI-determined compatibility and quality.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link RankedProposalDTO}
+     *         sorted by AI ranking score
+     */
+    @GetMapping("/proposals/rank/{projectId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<RankedProposalDTO>> rankProposals(@PathVariable Long projectId) {
+        log.info("GET /api/ai/proposals/rank/{} - Ranking proposals with AI", projectId);
+        
+        List<RankedProposalDTO> rankedProposals = aiService.rankProposalsForProject(projectId);
+        
+        return ResponseEntity.ok(rankedProposals);
+    }
 
-                  <div className="col-md-1">
-                    <button
-                      type="button"
-                      className="btn btn-success w-100"
-                      onClick={addSkill}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
+    /**
+     * Get an AI-generated summary of a project.
+     *
+     * <p>Requires CLIENT or FREELANCER role. Generates a concise AI-powered summary
+     * of the project's description, requirements, and other key details.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProjectSummaryDTO}
+     */
+    @GetMapping("/summary/project/{projectId}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<ProjectSummaryDTO> getProjectSummary(@PathVariable Long projectId) {
+        log.info("GET /api/ai/summary/project/{} - Generating AI summary", projectId);
+        
+        ProjectSummaryDTO summary = aiService.generateProjectSummary(projectId);
+        
+        return ResponseEntity.ok(summary);
+    }
 
-                {/* Skill List */}
-                <div className="mt-3">
-                  {profile.skills.map((skill) => (
-                    <div
-                      key={skill.id}
-                      className="d-flex justify-content-between p-2 border rounded mb-2"
-                    >
-                      <div>
-                        <strong>{skill.skillName}</strong> —{" "}
-                        {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => removeSkill(skill.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 500 (Internal Server Error) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in AIRecommendationController", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("AI service error: " + ex.getMessage());
+    }
+}
 
-            {/* Portfolio */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-info text-white">
-                <h5 className="mb-0">Portfolio</h5>
-              </div>
-              <div className="card-body">
-                <div className="row mb-3">
-                  <div className="col-md-6">
-                    <input
-                      type="text"
-                      className="form-control mb-2"
-                      value={newPortfolio.title}
-                      onChange={(e) =>
-                        setNewPortfolio({
-                          ...newPortfolio,
-                          title: e.target.value
-                        })
-                      }
-                      placeholder="Project Title"
-                    />
-                  </div>
+package com.freelancenexus.userservice.controller;
 
-                  <div className="col-md-6">
-                    <input
-                      type="url"
-                      className="form-control mb-2"
-                      value={newPortfolio.url}
-                      onChange={(e) =>
-                        setNewPortfolio({
-                          ...newPortfolio,
-                          url: e.target.value
-                        })
-                      }
-                      placeholder="Project URL (optional)"
-                    />
-                  </div>
+import java.util.List;
+import java.util.Map;
 
-                  <div className="col-12">
-                    <textarea
-                      className="form-control mb-2"
-                      rows="2"
-                      value={newPortfolio.description}
-                      onChange={(e) =>
-                        setNewPortfolio({
-                          ...newPortfolio,
-                          description: e.target.value
-                        })
-                      }
-                      placeholder="Project Description"
-                    />
-                  </div>
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-                  <div className="col-12">
-                    <button
-                      type="button"
-                      className="btn btn-info"
-                      onClick={addPortfolioItem}
-                    >
-                      Add Portfolio Item
-                    </button>
-                  </div>
-                </div>
+import com.freelancenexus.userservice.dto.PaymentHistoryDTO;
+import com.freelancenexus.userservice.dto.PaymentRequestDTO;
+import com.freelancenexus.userservice.dto.PaymentResponseDTO;
+import com.freelancenexus.userservice.dto.TransactionStatusDTO;
+import com.freelancenexus.userservice.service.PaymentService;
 
-                {profile.portfolio.map((item) => (
-                  <div
-                    key={item.id}
-                    className="portfolio-item d-flex justify-content-between"
-                  >
-                    <div>
-                      <h6>{item.title}</h6>
-                      <p className="text-muted mb-1">{item.description}</p>
-                      {item.url && (
-                        <a href={item.url} target="_blank" rel="noreferrer">
-                          View Project →
-                        </a>
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removePortfolioItem(item.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+import jakarta.validation.Valid;
+@RestController
+@RequestMapping("/api/payments")
+public class PaymentController {
+    @Autowired
+    private PaymentService paymentService;
+	private final Logger log= LoggerFactory.getLogger(PaymentController.class);
 
-            <button
-              type="submit"
-              className="btn btn-primary w-100"
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Profile"}
-            </button>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
+    // Only clients can initiate payments
+    @PostMapping("/initiate")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<PaymentResponseDTO> initiatePayment(
+            @Valid @RequestBody PaymentRequestDTO request) {
+        log.info("POST /api/payments/initiate - Initiating payment for project: {}", request.getProjectId());
+        
+        try {
+            PaymentResponseDTO response = paymentService.initiatePayment(request);
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid payment request: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Error initiating payment: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to initiate payment: " + e.getMessage());
+        }
+    }
+    
+    // Both client and freelancer can verify payments
+    @PostMapping("/verify")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<TransactionStatusDTO> verifyPayment(
+            @RequestParam String transactionId) {
+        log.info("POST /api/payments/verify - Verifying transaction: {}", transactionId);
+        
+        try {
+            TransactionStatusDTO status = paymentService.verifyPayment(transactionId);
+            return ResponseEntity.ok(status);
+        } catch (Exception e) {
+            log.error("Error verifying payment: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to verify payment: " + e.getMessage());
+        }
+    }
+    
+    // Both can view payment details
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<PaymentResponseDTO> getPaymentById(@PathVariable Long id) {
+        log.info("GET /api/payments/{} - Fetching payment", id);
+        
+        try {
+            PaymentResponseDTO payment = paymentService.getPaymentById(id);
+            return ResponseEntity.ok(payment);
+        } catch (RuntimeException e) {
+            log.error("Payment not found: {}", id);
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
+    @GetMapping("/transaction/{transactionId}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<PaymentResponseDTO> getPaymentByTransactionId(
+            @PathVariable String transactionId) {
+        log.info("GET /api/payments/transaction/{} - Fetching payment", transactionId);
+        
+        try {
+            PaymentResponseDTO payment = paymentService.getPaymentByTransactionId(transactionId);
+            return ResponseEntity.ok(payment);
+        } catch (RuntimeException e) {
+            log.error("Payment not found: {}", transactionId);
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
+    // Both can view project payments
+    @GetMapping("/project/{projectId}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<List<PaymentResponseDTO>> getPaymentsByProject(
+            @PathVariable Long projectId) {
+        log.info("GET /api/payments/project/{} - Fetching project payments", projectId);
+        
+        List<PaymentResponseDTO> payments = paymentService.getPaymentsByProject(projectId);
+        return ResponseEntity.ok(payments);
+    }
+    
+    // Users can view their own payment history
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<List<PaymentResponseDTO>> getUserPaymentHistory(
+            @PathVariable Long userId) {
+        log.info("GET /api/payments/user/{} - Fetching user payment history", userId);
+        
+        List<PaymentResponseDTO> payments = paymentService.getUserPaymentHistory(userId);
+        return ResponseEntity.ok(payments);
+    }
+    
+    // Only clients can refund payments
+    @PostMapping("/{id}/refund")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<PaymentResponseDTO> refundPayment(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request) {
+        log.info("POST /api/payments/{}/refund - Initiating refund", id);
+        
+        String reason = request.getOrDefault("reason", "Customer request");
+        
+        try {
+            PaymentResponseDTO payment = paymentService.refundPayment(id, reason);
+            return ResponseEntity.ok(payment);
+        } catch (IllegalStateException e) {
+            log.error("Cannot refund payment: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (RuntimeException e) {
+            log.error("Error refunding payment: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to refund payment: " + e.getMessage());
+        }
+    }
+    
+    @GetMapping("/{paymentId}/history")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<List<PaymentHistoryDTO>> getTransactionHistory(
+            @PathVariable Long paymentId) {
+        log.info("GET /api/payments/{}/history - Fetching transaction history", paymentId);
+        
+        List<PaymentHistoryDTO> history = paymentService.getTransactionHistory(paymentId);
+        return ResponseEntity.ok(history);
+    }
+    
+    @GetMapping("/history/{userId}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<List<PaymentHistoryDTO>> getUserTransactionHistory(
+            @PathVariable Long userId) {
+        log.info("GET /api/payments/history/{} - Fetching user transaction history", userId);
+        
+        List<PaymentHistoryDTO> history = paymentService.getUserTransactionHistory(userId);
+        return ResponseEntity.ok(history);
+    }
+    
+    // Public health check
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, String>> healthCheck() {
+        return ResponseEntity.ok(Map.of(
+                "status", "UP",
+                "service", "Payment Service",
+                "timestamp", String.valueOf(System.currentTimeMillis())
+        ));
+    }
+}
 
-export default FreelancerProfile;
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.PortfolioDTO;
+import com.freelancenexus.userservice.service.PortfolioService;
+
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancer portfolios.
+ * Provides endpoints for adding, retrieving, updating, and deleting portfolio items.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+public class PortfolioController {
+
+	private final Logger log= LoggerFactory.getLogger(PortfolioController.class);
+    private final PortfolioService portfolioService;
+    
+    public PortfolioController(PortfolioService portfolioService) {
+		super();
+		this.portfolioService = portfolioService;
+	}
+
+	/**
+     * Adds a portfolio item for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @param portfolioDTO the portfolio item to be added
+     * @return the created portfolio item
+     */
+    @PostMapping("/{id}/portfolio")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<PortfolioDTO> addPortfolio(
+            @PathVariable Long id,
+            @Valid @RequestBody PortfolioDTO portfolioDTO) {
+        log.info("REST request to add portfolio for freelancer ID: {}", id);
+        PortfolioDTO created = portfolioService.addPortfolio(id, portfolioDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Retrieves all portfolio items for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the list of portfolio items
+     */
+    @GetMapping("/{id}/portfolio")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<PortfolioDTO>> getFreelancerPortfolios(@PathVariable Long id) {
+        log.info("REST request to get portfolios for freelancer ID: {}", id);
+        List<PortfolioDTO> portfolios = portfolioService.getFreelancerPortfolios(id);
+        return ResponseEntity.ok(portfolios);
+    }
+
+    /**
+     * Retrieves a portfolio item by its ID.
+     *
+     * @param portfolioId the ID of the portfolio item
+     * @return the portfolio item
+     */
+    @GetMapping("/portfolio/{portfolioId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PortfolioDTO> getPortfolioById(@PathVariable Long portfolioId) {
+        log.info("REST request to get portfolio by ID: {}", portfolioId);
+        PortfolioDTO portfolio = portfolioService.getPortfolioById(portfolioId);
+        return ResponseEntity.ok(portfolio);
+    }
+
+    /**
+     * Updates a portfolio item.
+     *
+     * @param portfolioId the ID of the portfolio item to be updated
+     * @param portfolioDTO the updated portfolio item
+     * @return the updated portfolio item
+     */
+    @PutMapping("/portfolio/{portfolioId}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<PortfolioDTO> updatePortfolio(
+            @PathVariable Long portfolioId,
+            @Valid @RequestBody PortfolioDTO portfolioDTO) {
+        log.info("REST request to update portfolio with ID: {}", portfolioId);
+        PortfolioDTO updated = portfolioService.updatePortfolio(portfolioId, portfolioDTO);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Deletes a portfolio item.
+     *
+     * @param portfolioId the ID of the portfolio item to be deleted
+     * @return a response entity with no content
+     */
+    @DeleteMapping("/portfolio/{portfolioId}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<Void> deletePortfolio(@PathVariable Long portfolioId) {
+        log.info("REST request to delete portfolio with ID: {}", portfolioId);
+        portfolioService.deletePortfolio(portfolioId);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.service.ProjectService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * ProjectController
+ *
+ * <p>REST API controller for project management in the Project Service.
+ * Provides endpoints for creating, retrieving, updating, and deleting projects.
+ * Implements role-based access control to restrict operations by user role.</p>
+ *
+ * <p>Endpoints are categorized by operation type:
+ * <ul>
+ *   <li><strong>Creation</strong> — clients create new projects</li>
+ *   <li><strong>Retrieval</strong> — authenticated users view projects</li>
+ *   <li><strong>Updates</strong> — clients update their projects</li>
+ *   <li><strong>Deletion</strong> — clients and admins delete projects</li>
+ *   <li><strong>Search/Filter</strong> — keyword, category, and status filtering</li>
+ *   <li><strong>Assignment</strong> — clients assign freelancers to projects</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+@Slf4j
+public class ProjectController {
+	private final Logger log= LoggerFactory.getLogger(ProjectController.class);
+    private final ProjectService projectService;
+    
+    public ProjectController(ProjectService projectService) {
+		super();
+		this.projectService = projectService;
+	}
+
+	/**
+     * Create a new project.
+     *
+     * <p>Requires CLIENT role. Accepts validated project creation details and
+     * persists the new project to the database.</p>
+     *
+     * @param createDTO project creation details
+     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProjectDTO}
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> createProject(@Valid @RequestBody ProjectCreateDTO createDTO) {
+        log.info("POST /api/projects - Creating project: {}", createDTO.getTitle());
+        ProjectDTO createdProject = projectService.createProject(createDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
+    }
+
+    /**
+     * Retrieve a project by id.
+     *
+     * <p>Requires authentication. Any authenticated user can view project details.</p>
+     *
+     * @param id the unique identifier of the project
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProjectDTO}
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProjectDTO> getProject(@PathVariable Long id) {
+        log.info("GET /api/projects/{} - Fetching project", id);
+        ProjectDTO project = projectService.getProjectById(id);
+        return ResponseEntity.ok(project);
+    }
+
+    /**
+     * Update an existing project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can update it.</p>
+     *
+     * @param id the unique identifier of the project to update
+     * @param updateDTO updated project details
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> updateProject(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectCreateDTO updateDTO) {
+        log.info("PUT /api/projects/{} - Updating project", id);
+        ProjectDTO updatedProject = projectService.updateProject(id, updateDTO);
+        return ResponseEntity.ok(updatedProject);
+    }
+
+    /**
+     * Delete a project by id.
+     *
+     * <p>Requires CLIENT or ADMIN role. Only the project owner (client) or an admin can delete.</p>
+     *
+     * @param id the unique identifier of the project to delete
+     * @return ResponseEntity with HTTP 204 (No Content) status
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
+        log.info("DELETE /api/projects/{} - Deleting project", id);
+        projectService.deleteProject(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Retrieve all projects with optional filtering.
+     *
+     * <p>Requires authentication. Supports filtering by keyword, status, and category.
+     * Returns open projects by default if status="OPEN" is specified.</p>
+     *
+     * @param keyword optional keyword for searching project titles/descriptions
+     * @param status optional status filter (e.g., "OPEN", "IN_PROGRESS")
+     * @param category optional category filter
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProjectDTO>> getAllProjects(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category) {
+        log.info("GET /api/projects - Fetching projects with filters");
+        
+        List<ProjectDTO> projects;
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            projects = projectService.searchProjects(keyword, status);
+        } else if (category != null && !category.isEmpty()) {
+            projects = projectService.getProjectsByCategory(category);
+        } else if ("OPEN".equalsIgnoreCase(status)) {
+            projects = projectService.getOpenProjects();
+        } else {
+            projects = projectService.getAllProjects();
+        }
+        
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * Retrieve all projects created by a specific client.
+     *
+     * <p>Requires CLIENT role.</p>
+     *
+     * @param clientId the unique identifier of the client
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping("/client/{clientId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<ProjectDTO>> getClientProjects(@PathVariable Long clientId) {
+        log.info("GET /api/projects/client/{} - Fetching client projects", clientId);
+        List<ProjectDTO> projects = projectService.getProjectsByClientId(clientId);
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * Assign a freelancer to a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can assign a freelancer.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param freelancerId the unique identifier of the freelancer to assign
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{projectId}/assign/{freelancerId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> assignFreelancer(
+            @PathVariable Long projectId,
+            @PathVariable Long freelancerId) {
+        log.info("PUT /api/projects/{}/assign/{} - Assigning freelancer", projectId, freelancerId);
+        ProjectDTO project = projectService.assignFreelancer(projectId, freelancerId);
+        return ResponseEntity.ok(project);
+    }
+
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in ProjectController", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+}
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.ProposalDTO;
+import com.freelancenexus.userservice.dto.ProposalSubmitDTO;
+import com.freelancenexus.userservice.service.ProposalService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * ProposalController
+ *
+ * <p>REST API controller for proposal management in the Project Service.
+ * Provides endpoints for freelancers to submit proposals, clients to view and accept/reject proposals,
+ * and both roles to retrieve proposal information. Implements role-based access control for sensitive operations.</p>
+ *
+ * <p>Endpoints are categorized by operation type:
+ * <ul>
+ *   <li><strong>Submission</strong> — freelancers submit proposals for projects</li>
+ *   <li><strong>Retrieval</strong> — view proposals by project, freelancer, or id</li>
+ *   <li><strong>Ranking</strong> — clients can request AI-ranked proposals</li>
+ *   <li><strong>Decision</strong> — clients accept or reject proposals</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@RestController
+@RequestMapping("/api")
+public class ProposalController {
+
+    private final ProposalService proposalService;
+    private final Logger log= LoggerFactory.getLogger(ProposalController.class);
+    public ProposalController(ProposalService proposalService) {
+		super();
+		this.proposalService = proposalService;
+	}
+
+	/**
+     * Submit a new proposal for a project.
+     *
+     * <p>Requires FREELANCER role. Allows a freelancer to submit their proposal
+     * (including bid amount, cover letter, etc.) for a specific project.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param submitDTO proposal submission details
+     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProposalDTO}
+     */
+    @PostMapping("/projects/{projectId}/proposals")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<ProposalDTO> submitProposal(
+            @PathVariable Long projectId,
+            @Valid @RequestBody ProposalSubmitDTO submitDTO) {
+        log.info("POST /api/projects/{}/proposals - Submitting proposal", projectId);
+        ProposalDTO proposal = proposalService.submitProposal(projectId, submitDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(proposal);
+    }
+
+    /**
+     * Retrieve all proposals for a specific project.
+     *
+     * <p>Requires CLIENT role. Optionally returns AI-ranked proposals if the
+     * {@code ranked} query parameter is set to true.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param ranked if true, returns proposals ranked by AI; otherwise returns in submission order
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProposalDTO}
+     */
+    @GetMapping("/projects/{projectId}/proposals")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<ProposalDTO>> getProjectProposals(
+            @PathVariable Long projectId,
+            @RequestParam(defaultValue = "false") boolean ranked) {
+        log.info("GET /api/projects/{}/proposals - Fetching proposals", projectId);
+        
+        List<ProposalDTO> proposals;
+        if (ranked) {
+            proposals = proposalService.getRankedProposalsByProjectId(projectId);
+        } else {
+            proposals = proposalService.getProposalsByProjectId(projectId);
+        }
+        
+        return ResponseEntity.ok(proposals);
+    }
+
+    /**
+     * Retrieve a specific proposal by id.
+     *
+     * <p>Requires CLIENT or FREELANCER role. Returns detailed proposal information.</p>
+     *
+     * @param id the unique identifier of the proposal
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProposalDTO}
+     */
+    @GetMapping("/proposals/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<ProposalDTO> getProposal(@PathVariable Long id) {
+        log.info("GET /api/proposals/{} - Fetching proposal", id);
+        ProposalDTO proposal = proposalService.getProposalById(id);
+        return ResponseEntity.ok(proposal);
+    }
+
+    /**
+     * Retrieve all proposals submitted by a specific freelancer.
+     *
+     * <p>Requires FREELANCER role. Returns the freelancer's submission history.</p>
+     *
+     * @param freelancerId the unique identifier of the freelancer
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProposalDTO}
+     */
+    @GetMapping("/proposals/freelancer/{freelancerId}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<List<ProposalDTO>> getFreelancerProposals(@PathVariable Long freelancerId) {
+        log.info("GET /api/proposals/freelancer/{} - Fetching freelancer proposals", freelancerId);
+        List<ProposalDTO> proposals = proposalService.getProposalsByFreelancerId(freelancerId);
+        return ResponseEntity.ok(proposals);
+    }
+
+    /**
+     * Accept a proposal for a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can accept proposals.
+     * Accepting a proposal typically results in the freelancer being assigned to the project.</p>
+     *
+     * @param id the unique identifier of the proposal to accept
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProposalDTO}
+     */
+    @PutMapping("/proposals/{id}/accept")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProposalDTO> acceptProposal(@PathVariable Long id) {
+        log.info("PUT /api/proposals/{}/accept - Accepting proposal", id);
+        ProposalDTO proposal = proposalService.acceptProposal(id);
+        return ResponseEntity.ok(proposal);
+    }
+
+    /**
+     * Reject a proposal for a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can reject proposals.
+     * Rejected proposals will not be further considered for the project.</p>
+     *
+     * @param id the unique identifier of the proposal to reject
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProposalDTO}
+     */
+    @PutMapping("/proposals/{id}/reject")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProposalDTO> rejectProposal(@PathVariable Long id) {
+        log.info("PUT /api/proposals/{}/reject - Rejecting proposal", id);
+        ProposalDTO proposal = proposalService.rejectProposal(id);
+        return ResponseEntity.ok(proposal);
+    }
+
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in ProposalController", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+}
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.RatingDTO;
+import com.freelancenexus.userservice.service.RatingService;
+
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancer ratings.
+ * Provides endpoints for adding and retrieving ratings.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+public class RatingController {
+	private final Logger log= LoggerFactory.getLogger(RatingController.class);
+    private final RatingService ratingService;
+
+    
+    public RatingController(RatingService ratingService) {
+		super();
+		this.ratingService = ratingService;
+	}
+
+	/**
+     * Adds a rating for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @param ratingDTO the rating to be added
+     * @return the created rating
+     */
+    // Only clients can add ratings (after project completion)
+    @PostMapping("/{id}/ratings")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<RatingDTO> addRating(
+            @PathVariable Long id,
+            @Valid @RequestBody RatingDTO ratingDTO) {
+        log.info("REST request to add rating for freelancer ID: {}", id);
+        RatingDTO created = ratingService.addRating(id, ratingDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Retrieves all ratings for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the list of ratings
+     */
+    // Anyone authenticated can view ratings
+    @GetMapping("/{id}/ratings")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<RatingDTO>> getFreelancerRatings(@PathVariable Long id) {
+        log.info("REST request to get ratings for freelancer ID: {}", id);
+        List<RatingDTO> ratings = ratingService.getFreelancerRatings(id);
+        return ResponseEntity.ok(ratings);
+    }
+}
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.LoginResponseDTO;
+import com.freelancenexus.userservice.dto.UserLoginDTO;
+import com.freelancenexus.userservice.dto.UserRegistrationDTO;
+import com.freelancenexus.userservice.dto.UserResponseDTO;
+import com.freelancenexus.userservice.dto.UserUpdateDTO;
+import com.freelancenexus.userservice.service.UserService;
+
+import jakarta.validation.Valid;
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+	private final Logger log= LoggerFactory.getLogger(UserController.class);
+    private final UserService userService;
+
+	public UserController(UserService userService) {
+		super();
+		this.userService = userService;
+	}
+
+	// Public endpoints - No authentication required
+    @PostMapping("/register")
+    public ResponseEntity<UserResponseDTO> registerUser(@Valid @RequestBody UserRegistrationDTO registrationDTO) {
+        log.info("Received registration request for email: {}", registrationDTO.getEmail());
+        UserResponseDTO response = userService.registerUser(registrationDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+    
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponseDTO> loginUser(@Valid @RequestBody UserLoginDTO loginDTO) {
+        log.info("Received login request for email: {}", loginDTO.getEmail());
+        LoginResponseDTO response = userService.loginUser(loginDTO);
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .header(HttpHeaders.SET_COOKIE, response.getAccessToken().toString())
+                .body(response);
+    }
+    
+    // Authenticated user endpoints
+    @GetMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserResponseDTO> getCurrentUserProfile() {
+        log.info("Received request to get current user profile");
+        UserResponseDTO response = userService.getCurrentUserProfile();
+        return ResponseEntity.ok(response);
+    }
+    
+    @PutMapping("/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserResponseDTO> updateCurrentUserProfile(@Valid @RequestBody UserUpdateDTO updateDTO) {
+        log.info("Received request to update current user profile");
+        UserResponseDTO response = userService.updateCurrentUserProfile(updateDTO);
+        return ResponseEntity.ok(response);
+    }
+    
+    // Any authenticated user can view other users
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CLIENT', 'FREELANCER')")
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
+        log.info("Received request to get user by ID: {}", id);
+        UserResponseDTO response = userService.getUserById(id);
+        return ResponseEntity.ok(response);
+    }
+    
+    // Admin only endpoints
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
+        log.info("Received request to get all users");
+        List<UserResponseDTO> response = userService.getAllUsers();
+        return ResponseEntity.ok(response);
+    }
+    
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        log.info("Received request to delete user with ID: {}", id);
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
+}
