@@ -1,482 +1,215 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import freelancerService from '../../services/freelancerService';
-import proposalService from '../../services/proposalService';
-import Loader from '../common/Loader';
+package com.freelancenexus.userservice.controller;
 
-const FreelancerDashboard = () => {
-  const { user } = useAuth();
-  const [stats, setStats] = useState(null);
-  const [recentProposals, setRecentProposals] = useState([]);
-  const [loading, setLoading] = useState(true);
+import java.util.List;
 
-  const fetchDashboardData = useCallback(async () => {
-    if (!user?.id) return; // ✅ guard if user isn't ready yet
-    try {
-      const [statsData, proposalsData] = await Promise.all([
-        freelancerService.getFreelancerStats(user.id),
-        proposalService.getFreelancerProposals(user.id),
-      ]);
-      setStats(statsData);
-      setRecentProposals(proposalsData.slice(0, 5));
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.service.ProjectService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * ProjectController
+ *
+ * <p>REST API controller for project management in the Project Service.
+ * Provides endpoints for creating, retrieving, updating, and deleting projects.
+ * Implements role-based access control to restrict operations by user role.</p>
+ *
+ * <p>Endpoints are categorized by operation type:
+ * <ul>
+ *   <li><strong>Creation</strong> — clients create new projects</li>
+ *   <li><strong>Retrieval</strong> — authenticated users view projects</li>
+ *   <li><strong>Updates</strong> — clients update their projects</li>
+ *   <li><strong>Deletion</strong> — clients and admins delete projects</li>
+ *   <li><strong>Search/Filter</strong> — keyword, category, and status filtering</li>
+ *   <li><strong>Assignment</strong> — clients assign freelancers to projects</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+@Slf4j
+public class ProjectController {
+	private final Logger log= LoggerFactory.getLogger(ProjectController.class);
+    private final ProjectService projectService;
+    
+    public ProjectController(ProjectService projectService) {
+		super();
+		this.projectService = projectService;
+	}
+
+	/**
+     * Create a new project.
+     *
+     * <p>Requires CLIENT role. Accepts validated project creation details and
+     * persists the new project to the database.</p>
+     *
+     * @param createDTO project creation details
+     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProjectDTO}
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> createProject(@Valid @RequestBody ProjectCreateDTO createDTO) {
+        log.info("POST /api/projects - Creating project: {}", createDTO.getTitle());
+        ProjectDTO createdProject = projectService.createProject(createDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
     }
-  }, [user?.id]); // ✅ dependency properly declared
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, [fetchDashboardData]); // ✅ ESLint clean, no warnings
+    /**
+     * Retrieve a project by id.
+     *
+     * <p>Requires authentication. Any authenticated user can view project details.</p>
+     *
+     * @param id the unique identifier of the project
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProjectDTO}
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProjectDTO> getProject(@PathVariable Long id) {
+        log.info("GET /api/projects/{} - Fetching project", id);
+        ProjectDTO project = projectService.getProjectById(id);
+        return ResponseEntity.ok(project);
+    }
 
-  if (loading) return <Loader />;
+    /**
+     * Update an existing project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can update it.</p>
+     *
+     * @param id the unique identifier of the project to update
+     * @param updateDTO updated project details
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> updateProject(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectCreateDTO updateDTO) {
+        log.info("PUT /api/projects/{} - Updating project", id);
+        ProjectDTO updatedProject = projectService.updateProject(id, updateDTO);
+        return ResponseEntity.ok(updatedProject);
+    }
 
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>Welcome back, {user?.firstName || user?.username}! 👋</h2>
-          <p className="text-muted">Here's your freelance activity overview</p>
-        </div>
-      </div>
+    /**
+     * Delete a project by id.
+     *
+     * <p>Requires CLIENT or ADMIN role. Only the project owner (client) or an admin can delete.</p>
+     *
+     * @param id the unique identifier of the project to delete
+     * @return ResponseEntity with HTTP 204 (No Content) status
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
+        log.info("DELETE /api/projects/{} - Deleting project", id);
+        projectService.deleteProject(id);
+        return ResponseEntity.noContent().build();
+    }
 
-      {/* Stats Cards */}
-      <div className="row g-4 mb-4">
-        <div className="col-md-3">
-          <div className="card stat-card bg-primary text-white">
-            <div className="card-body text-center">
-              <h3>{stats?.totalProposals || 0}</h3>
-              <p className="mb-0">Total Proposals</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-success text-white">
-            <div className="card-body text-center">
-              <h3>{stats?.acceptedProposals || 0}</h3>
-              <p className="mb-0">Accepted</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-warning text-dark">
-            <div className="card-body text-center">
-              <h3>{stats?.pendingProposals || 0}</h3>
-              <p className="mb-0">Pending</p>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-3">
-          <div className="card stat-card bg-info text-white">
-            <div className="card-body text-center">
-              <h3>₹{stats?.totalEarnings || 0}</h3>
-              <p className="mb-0">Total Earnings</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    /**
+     * Retrieve all projects with optional filtering.
+     *
+     * <p>Requires authentication. Supports filtering by keyword, status, and category.
+     * Returns open projects by default if status="OPEN" is specified.</p>
+     *
+     * @param keyword optional keyword for searching project titles/descriptions
+     * @param status optional status filter (e.g., "OPEN", "IN_PROGRESS")
+     * @param category optional category filter
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProjectDTO>> getAllProjects(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category) {
+        log.info("GET /api/projects - Fetching projects with filters");
+        
+        List<ProjectDTO> projects;
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            projects = projectService.searchProjects(keyword, status);
+        } else if (category != null && !category.isEmpty()) {
+            projects = projectService.getProjectsByCategory(category);
+        } else if ("OPEN".equalsIgnoreCase(status)) {
+            projects = projectService.getOpenProjects();
+        } else {
+            projects = projectService.getAllProjects();
+        }
+        
+        return ResponseEntity.ok(projects);
+    }
 
-      {/* AI Recommendations */}
-      <div className="row mb-4">
-        <div className="col">
-          <div className="card shadow-sm ai-feature">
-            <div className="card-body">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <h5 className="mb-2">
-                    <span className="ai-badge">AI</span> Project Recommendations
-                  </h5>
-                  <p className="mb-0">
-                    We found projects matching your skills and experience
-                  </p>
-                </div>
-                <Link to="/freelancer/recommendations" className="btn btn-light">
-                  View Recommendations
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+    /**
+     * Retrieve all projects created by a specific client.
+     *
+     * <p>Requires CLIENT role.</p>
+     *
+     * @param clientId the unique identifier of the client
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping("/client/{clientId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<ProjectDTO>> getClientProjects(@PathVariable Long clientId) {
+        log.info("GET /api/projects/client/{} - Fetching client projects", clientId);
+        List<ProjectDTO> projects = projectService.getProjectsByClientId(clientId);
+        return ResponseEntity.ok(projects);
+    }
 
-      {/* Recent Proposals */}
-      <div className="row">
-        <div className="col-md-8">
-          <div className="card shadow-sm">
-            <div className="card-header bg-white">
-              <h5 className="mb-0">Recent Proposals</h5>
-            </div>
-            <div className="card-body">
-              {recentProposals.length === 0 ? (
-                <p className="text-muted text-center py-3">No proposals yet</p>
-              ) : (
-                <div className="list-group list-group-flush">
-                  {recentProposals.map((proposal) => (
-                    <div key={proposal.id} className="list-group-item">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div>
-                          <h6 className="mb-1">{proposal.projectTitle}</h6>
-                          <p className="mb-1 text-muted small">
-                            Bid: ₹{proposal.bidAmount} | Duration: {proposal.duration} days
-                          </p>
-                          <small className="text-muted">
-                            Submitted: {new Date(proposal.submittedAt).toLocaleDateString()}
-                          </small>
-                        </div>
-                        <span
-                          className={`badge bg-${
-                            proposal.status === 'ACCEPTED'
-                              ? 'success'
-                              : proposal.status === 'REJECTED'
-                              ? 'danger'
-                              : 'warning'
-                          }`}
-                        >
-                          {proposal.status}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="text-center mt-3">
-                <Link to="/freelancer/proposals" className="btn btn-outline-primary">
-                  View All Proposals
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
+    /**
+     * Assign a freelancer to a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can assign a freelancer.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param freelancerId the unique identifier of the freelancer to assign
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{projectId}/assign/{freelancerId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> assignFreelancer(
+            @PathVariable Long projectId,
+            @PathVariable Long freelancerId) {
+        log.info("PUT /api/projects/{}/assign/{} - Assigning freelancer", projectId, freelancerId);
+        ProjectDTO project = projectService.assignFreelancer(projectId, freelancerId);
+        return ResponseEntity.ok(project);
+    }
 
-        {/* Quick Actions */}
-        <div className="col-md-4">
-          <div className="card shadow-sm">
-            <div className="card-header bg-white">
-              <h5 className="mb-0">Quick Actions</h5>
-            </div>
-            <div className="card-body">
-              <div className="d-grid gap-2">
-                <Link to="/projects" className="btn btn-primary">
-                  Browse Projects
-                </Link>
-                <Link to="/freelancer/profile" className="btn btn-outline-primary">
-                  Edit Profile
-                </Link>
-                <Link to="/freelancer/proposals" className="btn btn-outline-secondary">
-                  My Proposals
-                </Link>
-                <Link to="/payment-history" className="btn btn-outline-info">
-                  Payment History
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Profile Completion */}
-          <div className="card shadow-sm mt-3">
-            <div className="card-body">
-              <h6 className="mb-3">Profile Completion</h6>
-              <div className="progress mb-2" style={{ height: '20px' }}>
-                <div
-                  className="progress-bar"
-                  role="progressbar"
-                  style={{ width: `${stats?.profileCompletion || 60}%` }}
-                >
-                  {stats?.profileCompletion || 60}%
-                </div>
-              </div>
-              <small className="text-muted">
-                Complete your profile to get better project matches
-              </small>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default FreelancerDashboard;
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in ProjectController", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+}
 
 
-import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import projectService from '../../services/projectService';
-import aiService from '../../services/aiService';
-import Loader from '../common/Loader';
-
-const ProjectDetails = () => {
-  const { id } = useParams();
-  const { user, authenticated } = useAuth();
-  const navigate = useNavigate();
-  const [project, setProject] = useState(null);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchProject = async () => {
-      try {
-        const data = await projectService.getProjectById(id);
-        setProject(data);
-      } catch (error) {
-        console.error('Error fetching project:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const fetchSummary = async () => {
-      try {
-        const data = await aiService.generateProjectSummary(id);
-        setSummary(data);
-      } catch (error) {
-        console.error('Error fetching AI summary:', error);
-      }
-    };
-
-    fetchProject();
-    fetchSummary();
-  }, [id]);
-
-  if (loading) return <Loader />;
-
-  if (!project) {
-    return (
-      <div className="container mt-4">
-        <div className="alert alert-danger">Project not found</div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <button 
-            className="btn btn-outline-secondary mb-3"
-            onClick={() => navigate(-1)}
-          >
-            ← Back
-          </button>
-          <h2>{project.title}</h2>
-          <p className="text-muted">
-            Posted by {project.clientName} on {new Date(project.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
-
-      <div className="row">
-        <div className="col-lg-8">
-          {/* AI Summary */}
-          {summary && (
-            <div className="card shadow-sm mb-4 ai-feature">
-              <div className="card-body">
-                <h5 className="mb-3">
-                  <span className="ai-badge">AI</span> Project Summary
-                </h5>
-                <p>{summary.summary}</p>
-                <div className="mt-3">
-                  <strong>Key Requirements:</strong>
-                  <ul className="mt-2">
-                    {summary.keyRequirements?.map((req, idx) => (
-                      <li key={idx}>{req}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Project Description */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-primary text-white">
-              <h5 className="mb-0">Project Description</h5>
-            </div>
-            <div className="card-body">
-              <p style={{ whiteSpace: 'pre-wrap' }}>{project.description}</p>
-            </div>
-          </div>
-
-          {/* Required Skills */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-success text-white">
-              <h5 className="mb-0">Required Skills</h5>
-            </div>
-            <div className="card-body">
-              {project.requiredSkills?.map((skill, idx) => (
-                <span key={idx} className="badge bg-secondary me-2 mb-2">
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="col-lg-4">
-          {/* Project Info */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-info text-white">
-              <h5 className="mb-0">Project Details</h5>
-            </div>
-            <div className="card-body">
-              <div className="mb-3">
-                <strong>Budget:</strong>
-                <div className="mt-1">₹{project.budgetMin} - ₹{project.budgetMax}</div>
-              </div>
-
-              <div className="mb-3">
-                <strong>Duration:</strong>
-                <div className="mt-1">{project.durationDays} days</div>
-              </div>
-
-              <div className="mb-3">
-                <strong>Category:</strong>
-                <div className="mt-1">
-                  <span className="badge bg-primary">{project.category}</span>
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <strong>Status:</strong>
-                <div className="mt-1">
-                  <span className={`badge bg-${
-                    project.status === 'OPEN' ? 'success' :
-                    project.status === 'IN_PROGRESS' ? 'warning' :
-                    project.status === 'COMPLETED' ? 'info' : 'secondary'
-                  }`}>
-                    {project.status}
-                  </span>
-                </div>
-              </div>
-
-              <div className="mb-3">
-                <strong>Proposals:</strong>
-                <div className="mt-1">{project.proposalCount || 0}</div>
-              </div>
-
-              {authenticated && user?.roles?.includes('FREELANCER') && project.status === 'OPEN' && (
-                <div className="d-grid gap-2 mt-4">
-                  <Link 
-                    to={`/freelancer/submit-proposal/${project.id}`}
-                    className="btn btn-primary"
-                  >
-                    Submit Proposal
-                  </Link>
-                </div>
-              )}
-
-              {authenticated && user?.roles?.includes('CLIENT') && user?.id === project.clientId && (
-                <div className="d-grid gap-2 mt-4">
-                  <Link 
-                    to={`/client/proposals/${project.id}`}
-                    className="btn btn-primary"
-                  >
-                    View Proposals
-                  </Link>
-                  <Link 
-                    to={`/client/ai-ranking/${project.id}`}
-                    className="btn btn-info"
-                  >
-                    <span className="ai-badge">AI</span> Rank Proposals
-                  </Link>
-                </div>
-              )}
-
-              {!authenticated && (
-                <div className="alert alert-info mt-4">
-                  <small>
-                    <Link to="/login">Login</Link> or <Link to="/register">Register</Link> to submit a proposal
-                  </small>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Client Info */}
-          <div className="card shadow-sm">
-            <div className="card-header bg-secondary text-white">
-              <h5 className="mb-0">About the Client</h5>
-            </div>
-            <div className="card-body">
-              <h6>{project.clientName}</h6>
-              <p className="text-muted mb-2">Member since {new Date(project.clientJoinDate).getFullYear()}</p>
-              <div className="mb-2">
-                <strong>Projects Posted:</strong> {project.clientProjectCount || 0}
-              </div>
-              <div className="mb-2">
-                <strong>Rating:</strong>  {project.clientRating || 'N/A'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default ProjectDetails;
-
-
-
-
-
-
-
-
-
-
-
-
-
-import api from './api';
-
-const projectService = {
-  getAllProjects: async (filters = {}) => {
-    const params = new URLSearchParams(filters);
-    const response = await api.get(`/api/projects?${params}`);
-    return response.data;
-  },
-
-  getProjectById: async (projectId) => {
-    const response = await api.get(`/api/projects/${projectId}`);
-    return response.data;
-  },
-
-  createProject: async (projectData) => {
-    const response = await api.post('/api/projects', projectData);
-    return response.data;
-  },
-
-  updateProject: async (projectId, projectData) => {
-    const response = await api.put(`/api/projects/${projectId}`, projectData);
-    return response.data;
-  },
-
-  deleteProject: async (projectId) => {
-    const response = await api.delete(`/api/projects/${projectId}`);
-    return response.data;
-  },
-
-  getClientProjects: async (clientId) => {
-    const response = await api.get(`/api/projects/client/${clientId}`);
-    return response.data;
-  },
-
-  getProjectsByStatus: async (status) => {
-    const response = await api.get(`/api/projects/status/${status}`);
-    return response.data;
-  },
-
-  searchProjects: async (query) => {
-    const response = await api.get(`/api/projects/search?q=${query}`);
-    return response.data;
-  }
-};
-
-export default projectService;
 
 package com.freelancenexus.userservice.service;
 
@@ -836,216 +569,6 @@ public class ProjectService {
     }
 }
 
-package com.freelancenexus.userservice.controller;
-
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.freelancenexus.userservice.dto.ProjectCreateDTO;
-import com.freelancenexus.userservice.dto.ProjectDTO;
-import com.freelancenexus.userservice.service.ProjectService;
-
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-/**
- * ProjectController
- *
- * <p>REST API controller for project management in the Project Service.
- * Provides endpoints for creating, retrieving, updating, and deleting projects.
- * Implements role-based access control to restrict operations by user role.</p>
- *
- * <p>Endpoints are categorized by operation type:
- * <ul>
- *   <li><strong>Creation</strong> — clients create new projects</li>
- *   <li><strong>Retrieval</strong> — authenticated users view projects</li>
- *   <li><strong>Updates</strong> — clients update their projects</li>
- *   <li><strong>Deletion</strong> — clients and admins delete projects</li>
- *   <li><strong>Search/Filter</strong> — keyword, category, and status filtering</li>
- *   <li><strong>Assignment</strong> — clients assign freelancers to projects</li>
- * </ul>
- * </p>
- *
- * @since 1.0
- */
-@RestController
-@RequestMapping("/api/projects")
-@RequiredArgsConstructor
-@Slf4j
-public class ProjectController {
-	private final Logger log= LoggerFactory.getLogger(ProjectController.class);
-    private final ProjectService projectService;
-    
-    public ProjectController(ProjectService projectService) {
-		super();
-		this.projectService = projectService;
-	}
-
-	/**
-     * Create a new project.
-     *
-     * <p>Requires CLIENT role. Accepts validated project creation details and
-     * persists the new project to the database.</p>
-     *
-     * @param createDTO project creation details
-     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProjectDTO}
-     */
-    @PostMapping
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<ProjectDTO> createProject(@Valid @RequestBody ProjectCreateDTO createDTO) {
-        log.info("POST /api/projects - Creating project: {}", createDTO.getTitle());
-        ProjectDTO createdProject = projectService.createProject(createDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
-    }
-
-    /**
-     * Retrieve a project by id.
-     *
-     * <p>Requires authentication. Any authenticated user can view project details.</p>
-     *
-     * @param id the unique identifier of the project
-     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProjectDTO}
-     */
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ProjectDTO> getProject(@PathVariable Long id) {
-        log.info("GET /api/projects/{} - Fetching project", id);
-        ProjectDTO project = projectService.getProjectById(id);
-        return ResponseEntity.ok(project);
-    }
-
-    /**
-     * Update an existing project.
-     *
-     * <p>Requires CLIENT role. Only the client who created the project can update it.</p>
-     *
-     * @param id the unique identifier of the project to update
-     * @param updateDTO updated project details
-     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
-     */
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<ProjectDTO> updateProject(
-            @PathVariable Long id,
-            @Valid @RequestBody ProjectCreateDTO updateDTO) {
-        log.info("PUT /api/projects/{} - Updating project", id);
-        ProjectDTO updatedProject = projectService.updateProject(id, updateDTO);
-        return ResponseEntity.ok(updatedProject);
-    }
-
-    /**
-     * Delete a project by id.
-     *
-     * <p>Requires CLIENT or ADMIN role. Only the project owner (client) or an admin can delete.</p>
-     *
-     * @param id the unique identifier of the project to delete
-     * @return ResponseEntity with HTTP 204 (No Content) status
-     */
-    @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
-    public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
-        log.info("DELETE /api/projects/{} - Deleting project", id);
-        projectService.deleteProject(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * Retrieve all projects with optional filtering.
-     *
-     * <p>Requires authentication. Supports filtering by keyword, status, and category.
-     * Returns open projects by default if status="OPEN" is specified.</p>
-     *
-     * @param keyword optional keyword for searching project titles/descriptions
-     * @param status optional status filter (e.g., "OPEN", "IN_PROGRESS")
-     * @param category optional category filter
-     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
-     */
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<ProjectDTO>> getAllProjects(
-            @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String category) {
-        log.info("GET /api/projects - Fetching projects with filters");
-        
-        List<ProjectDTO> projects;
-        
-        if (keyword != null && !keyword.isEmpty()) {
-            projects = projectService.searchProjects(keyword, status);
-        } else if (category != null && !category.isEmpty()) {
-            projects = projectService.getProjectsByCategory(category);
-        } else if ("OPEN".equalsIgnoreCase(status)) {
-            projects = projectService.getOpenProjects();
-        } else {
-            projects = projectService.getAllProjects();
-        }
-        
-        return ResponseEntity.ok(projects);
-    }
-
-    /**
-     * Retrieve all projects created by a specific client.
-     *
-     * <p>Requires CLIENT role.</p>
-     *
-     * @param clientId the unique identifier of the client
-     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
-     */
-    @GetMapping("/client/{clientId}")
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<List<ProjectDTO>> getClientProjects(@PathVariable Long clientId) {
-        log.info("GET /api/projects/client/{} - Fetching client projects", clientId);
-        List<ProjectDTO> projects = projectService.getProjectsByClientId(clientId);
-        return ResponseEntity.ok(projects);
-    }
-
-    /**
-     * Assign a freelancer to a project.
-     *
-     * <p>Requires CLIENT role. Only the client who created the project can assign a freelancer.</p>
-     *
-     * @param projectId the unique identifier of the project
-     * @param freelancerId the unique identifier of the freelancer to assign
-     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
-     */
-    @PutMapping("/{projectId}/assign/{freelancerId}")
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<ProjectDTO> assignFreelancer(
-            @PathVariable Long projectId,
-            @PathVariable Long freelancerId) {
-        log.info("PUT /api/projects/{}/assign/{} - Assigning freelancer", projectId, freelancerId);
-        ProjectDTO project = projectService.assignFreelancer(projectId, freelancerId);
-        return ResponseEntity.ok(project);
-    }
-
-    /**
-     * Global exception handler for RuntimeException in this controller.
-     *
-     * @param ex the thrown {@link RuntimeException}
-     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
-     */
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
-        log.error("Error in ProjectController", ex);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-    }
-}
 
 package com.freelancenexus.userservice.dto;
 
@@ -1298,130 +821,280 @@ public class ProjectDTO {
     
     
 }
+import api from './api';
 
-package com.freelancenexus.userservice.dto;
+const projectService = {
+ 
 
-import java.util.List;
+getAllProjects: async (filters = {}) => {
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+  const params = new URLSearchParams();
+ 
+  if (filters.keyword) params.append("keyword", filters.keyword);
 
-/**
- * ProjectSummaryDTO
- *
- * <p>Data Transfer Object representing an AI-generated summary of a project.
- * Contains concise summaries, key requirements, ideal candidate profile, and
- * complexity assessment produced by the AI service.</p>
- *
- * <p>Returned by AI summary endpoints to provide clients and freelancers with
- * quick, AI-generated insights about a project.</p>
- *
- * @since 1.0
- */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProjectSummaryDTO {
-    
-    /**
-     * Unique identifier of the project being summarized.
-     */
-    private Long projectId;
-    
-    /**
-     * AI-generated concise summary of the project's objectives and scope.
-     */
-    private String summary;
-    
-    /**
-     * AI-extracted key requirements and deliverables for the project.
-     */
-    private String keyRequirements;
-    
-    /**
-     * AI-generated description of the ideal candidate profile
-     * (experience level, skill set, background).
-     */
-    private String idealCandidate;
-    
-    /**
-     * AI-assessed complexity level of the project
-     * (e.g., "Low", "Medium", "High", "Very High").
-     */
-    private String estimatedComplexity;
-    
-    /**
-     * List of suggested skills recommended by AI for the project,
-     * based on analysis of the project description and requirements.
-     */
-    private java.util.List<String> suggestedSkills;
+  if (filters.category) params.append("category", filters.category);
 
-	public Long getProjectId() {
-		return projectId;
-	}
+  if (filters.status) params.append("status", filters.status);
+ 
+  const response = await api.get(`/api/projects?${params.toString()}`);
 
-	public void setProjectId(Long projectId) {
-		this.projectId = projectId;
-	}
+  return response.data;
 
-	public String getSummary() {
-		return summary;
-	}
+},
+ 
 
-	public void setSummary(String summary) {
-		this.summary = summary;
-	}
+  getProjectById: async (projectId) => {
+    const response = await api.get(`/api/projects/${projectId}`);
+    return response.data;
+  },
 
-	public String getKeyRequirements() {
-		return keyRequirements;
-	}
+  createProject: async (projectData) => {
+    const response = await api.post('/api/projects', projectData);
+    return response.data;
+  },
 
-	public void setKeyRequirements(String keyRequirements) {
-		this.keyRequirements = keyRequirements;
-	}
+  updateProject: async (projectId, projectData) => {
+    const response = await api.put(`/api/projects/${projectId}`, projectData);
+    return response.data;
+  },
 
-	public String getIdealCandidate() {
-		return idealCandidate;
-	}
+  deleteProject: async (projectId) => {
+    const response = await api.delete(`/api/projects/${projectId}`);
+    return response.data;
+  },
 
-	public void setIdealCandidate(String idealCandidate) {
-		this.idealCandidate = idealCandidate;
-	}
+  getClientProjects: async (clientId) => {
+    const response = await api.get(`/api/projects/client/${clientId}`);
+    return response.data;
+  },
 
-	public String getEstimatedComplexity() {
-		return estimatedComplexity;
-	}
+  getProjectsByStatus: async (status) => {
+    const response = await api.get(`/api/projects/status/${status}`);
+    return response.data;
+  },
 
-	public void setEstimatedComplexity(String estimatedComplexity) {
-		this.estimatedComplexity = estimatedComplexity;
-	}
-
-	public java.util.List<String> getSuggestedSkills() {
-		return suggestedSkills;
-	}
-
-	public void setSuggestedSkills(java.util.List<String> suggestedSkills) {
-		this.suggestedSkills = suggestedSkills;
-	}
-
-	public ProjectSummaryDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-
-	public ProjectSummaryDTO(Long projectId, String summary, String keyRequirements, String idealCandidate,
-			String estimatedComplexity, List<String> suggestedSkills) {
-		super();
-		this.projectId = projectId;
-		this.summary = summary;
-		this.keyRequirements = keyRequirements;
-		this.idealCandidate = idealCandidate;
-		this.estimatedComplexity = estimatedComplexity;
-		this.suggestedSkills = suggestedSkills;
-	}
-    
-    
-    
-    
+ searchProjects: async (query) => {
+  const response = await api.get(`/api/projects?keyword=${query}`);
+  return response.data;
 }
+};
+
+export default projectService;
+
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import projectService from '../../services/projectService';
+import aiService from '../../services/aiService';
+import Loader from '../common/Loader';
+
+const ProjectDetails = () => {
+  const { id } = useParams();
+  const { user, authenticated } = useAuth();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const data = await projectService.getProjectById(id);
+        setProject(data);
+      } catch (error) {
+        console.error('Error fetching project:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchSummary = async () => {
+      try {
+        const data = await aiService.generateProjectSummary(id);
+        setSummary(data);
+      } catch (error) {
+        console.error('Error fetching AI summary:', error);
+      }
+    };
+
+    fetchProject();
+    fetchSummary();
+  }, [id]);
+
+  if (loading) return <Loader />;
+
+  if (!project) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">Project not found</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <button 
+            className="btn btn-outline-secondary mb-3"
+            onClick={() => navigate(-1)}
+          >
+            ← Back
+          </button>
+          <h2>{project.title}</h2>
+          <p className="text-muted">
+            Posted by {project.clientName} on {new Date(project.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="col-lg-8">
+          {/* AI Summary */}
+          {summary && (
+            <div className="card shadow-sm mb-4 ai-feature">
+              <div className="card-body">
+                <h5 className="mb-3">
+                  <span className="ai-badge">AI</span> Project Summary
+                </h5>
+                <p>{summary.summary}</p>
+                <div className="mt-3">
+                  <strong>Key Requirements:</strong>
+                  <ul className="mt-2">
+                    {summary.keyRequirements?.map((req, idx) => (
+                      <li key={idx}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Project Description */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Project Description</h5>
+            </div>
+            <div className="card-body">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{project.description}</p>
+            </div>
+          </div>
+
+          {/* Required Skills */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0">Required Skills</h5>
+            </div>
+            <div className="card-body">
+              {project.requiredSkills?.map((skill, idx) => (
+                <span key={idx} className="badge bg-secondary me-2 mb-2">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-4">
+          {/* Project Info */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0">Project Details</h5>
+            </div>
+            <div className="card-body">
+              <div className="mb-3">
+                <strong>Budget:</strong>
+                <div className="mt-1">₹{project.budgetMin} - ₹{project.budgetMax}</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Duration:</strong>
+                <div className="mt-1">{project.durationDays} days</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Category:</strong>
+                <div className="mt-1">
+                  <span className="badge bg-primary">{project.category}</span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Status:</strong>
+                <div className="mt-1">
+                  <span className={`badge bg-${
+                    project.status === 'OPEN' ? 'success' :
+                    project.status === 'IN_PROGRESS' ? 'warning' :
+                    project.status === 'COMPLETED' ? 'info' : 'secondary'
+                  }`}>
+                    {project.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Proposals:</strong>
+                <div className="mt-1">{project.proposalCount || 0}</div>
+              </div>
+
+              {authenticated && user?.roles?.includes('FREELANCER') && project.status === 'OPEN' && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/freelancer/submit-proposal/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    Submit Proposal
+                  </Link>
+                </div>
+              )}
+
+              {authenticated && user?.roles?.includes('CLIENT') && user?.id === project.clientId && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/client/proposals/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    View Proposals
+                  </Link>
+                  <Link 
+                    to={`/client/ai-ranking/${project.id}`}
+                    className="btn btn-info"
+                  >
+                    <span className="ai-badge">AI</span> Rank Proposals
+                  </Link>
+                </div>
+              )}
+
+              {!authenticated && (
+                <div className="alert alert-info mt-4">
+                  <small>
+                    <Link to="/login">Login</Link> or <Link to="/register">Register</Link> to submit a proposal
+                  </small>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Client Info */}
+          <div className="card shadow-sm">
+            <div className="card-header bg-secondary text-white">
+              <h5 className="mb-0">About the Client</h5>
+            </div>
+            <div className="card-body">
+              <h6>{project.clientName}</h6>
+              <p className="text-muted mb-2">Member since {new Date(project.clientJoinDate).getFullYear()}</p>
+              <div className="mb-2">
+                <strong>Projects Posted:</strong> {project.clientProjectCount || 0}
+              </div>
+              <div className="mb-2">
+                <strong>Rating:</strong>  {project.clientRating || 'N/A'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProjectDetails;
