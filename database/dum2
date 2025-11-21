@@ -18,3 +18,10 @@ const addPortfolioItem = () => {
 
   setNewPortfolio({ title: "", description: "", url: "" });
 };
+
+const removePortfolioItem = (id) => {
+  setProfile((prev) => ({
+    ...prev,
+    portfolio: prev.portfolio.filter((item) => item.id !== id)
+  }));
+};
