@@ -7,7 +7,7 @@ const FreelancerProfile = () => {
   const { user } = useAuth();
 
   const [profile, setProfile] = useState({
-    title: "",
+    title: "",           // ✔ Added
     bio: "",
     hourlyRate: "",
     skills: [],
@@ -23,7 +23,7 @@ const FreelancerProfile = () => {
   const [newPortfolio, setNewPortfolio] = useState({
     title: "",
     description: "",
-    projectUrl: ""
+    url: ""
   });
 
   const [loading, setLoading] = useState(true);
@@ -31,53 +31,57 @@ const FreelancerProfile = () => {
   const [message, setMessage] = useState({ type: "", text: "" });
 
 
-  // ---------- FETCH PROFILE + PORTFOLIO ----------
   const fetchProfile = useCallback(async () => {
     try {
       const data = await freelancerService.getFreelancerProfile(user.id);
-      const portfolio = await freelancerService.getPortfolio(user.id);
 
+      // ✔ Ensure the frontend state matches backend fields
       setProfile({
         title: data.title || "",
         bio: data.bio || "",
         hourlyRate: data.hourlyRate || "",
         skills: data.skills || [],
-        portfolio: portfolio || []
+        portfolio: data.portfolios || []
       });
 
     } catch (error) {
-      console.error("Error loading profile:", error);
+      console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
     }
   }, [user?.id]);
 
   useEffect(() => {
-    if (user?.id) fetchProfile();
+    if (user?.id) {
+      fetchProfile();
+      console.log(profile)
+    }
   }, [fetchProfile, user?.id]);
 
-
-  // ---------- UPDATE BASIC PROFILE ----------
+  // ✔ Fix update - include userId + title
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
 
     try {
-      const payload = { ...profile, userId: user.id };
+      const payload = {
+        ...profile,
+        userId: user.id,
+        title: profile.title || "Freelancer" // fallback to avoid validation error
+      };
 
       await freelancerService.updateFreelancerProfile(user.id, payload);
 
       setMessage({ type: "success", text: "Profile updated successfully!" });
-
     } catch (error) {
-      setMessage({ type: "danger", text: "Profile update failed!" });
+      setMessage({ type: "danger", text: "Failed to update profile" });
     } finally {
       setSaving(false);
     }
   };
 
 
-  // ---------- SKILLS ----------
+  // Add Skill
   const addSkill = () => {
     if (!newSkill.skillName.trim()) return;
 
@@ -101,37 +105,23 @@ const FreelancerProfile = () => {
   };
 
 
-  // ---------- PORTFOLIO CRUD ----------
-  const addPortfolioItem = async () => {
-    if (!newPortfolio.title || !newPortfolio.description) return;
-
-    try {
-      const saved = await freelancerService.addPortfolio(user.id, newPortfolio);
-
+  // Portfolio
+  const addPortfolioItem = () => {
+    if (newPortfolio.title && newPortfolio.description) {
       setProfile((prev) => ({
         ...prev,
-        portfolio: [...prev.portfolio, saved]
+        portfolio: [...prev.portfolio, { ...newPortfolio, id: Date.now() }]
       }));
 
       setNewPortfolio({ title: "", description: "", projectUrl: "" });
-
-    } catch (e) {
-      console.error("Error adding portfolio", e);
     }
   };
 
-  const removePortfolioItem = async (id) => {
-    try {
-      await freelancerService.deletePortfolio(id);
-
-      setProfile((prev) => ({
-        ...prev,
-        portfolio: prev.portfolio.filter((item) => item.id !== id)
-      }));
-
-    } catch (e) {
-      console.error("Error deleting portfolio", e);
-    }
+  const removePortfolioItem = (id) => {
+    setProfile((prev) => ({
+      ...prev,
+      portfolio: prev.portfolio.filter((item) => item.id !== id)
+    }));
   };
 
 
@@ -155,11 +145,12 @@ const FreelancerProfile = () => {
               <div className="card-header bg-primary text-white">
                 <h5 className="mb-0">Basic Information</h5>
               </div>
+
               <div className="card-body">
 
-                {/* Title */}
+                {/* ✔ Title */}
                 <div className="mb-3">
-                  <label>Profile Title</label>
+                  <label className="form-label">Profile Title</label>
                   <input
                     type="text"
                     className="form-control"
@@ -167,12 +158,12 @@ const FreelancerProfile = () => {
                     onChange={(e) =>
                       setProfile({ ...profile, title: e.target.value })
                     }
+                    placeholder="Eg: Full Stack Developer, UI/UX Designer..."
                   />
                 </div>
 
-                {/* Bio */}
                 <div className="mb-3">
-                  <label>Bio</label>
+                  <label className="form-label">Bio</label>
                   <textarea
                     className="form-control"
                     rows="4"
@@ -180,12 +171,12 @@ const FreelancerProfile = () => {
                     onChange={(e) =>
                       setProfile({ ...profile, bio: e.target.value })
                     }
+                    placeholder="Tell us about your expertise..."
                   />
                 </div>
 
-                {/* Hourly Rate */}
                 <div className="mb-3">
-                  <label>Hourly Rate (₹)</label>
+                  <label className="form-label">Hourly Rate (₹)</label>
                   <input
                     type="number"
                     className="form-control"
@@ -193,9 +184,9 @@ const FreelancerProfile = () => {
                     onChange={(e) =>
                       setProfile({ ...profile, hourlyRate: e.target.value })
                     }
+                    placeholder="Enter your hourly rate"
                   />
                 </div>
-
               </div>
             </div>
 
@@ -205,9 +196,8 @@ const FreelancerProfile = () => {
               <div className="card-header bg-success text-white">
                 <h5 className="mb-0">Skills</h5>
               </div>
-              <div className="card-body">
 
-                {/* Skill Inputs */}
+              <div className="card-body">
                 <div className="row g-2 align-items-end">
                   <div className="col-md-4">
                     <label>Skill Name</label>
@@ -268,17 +258,16 @@ const FreelancerProfile = () => {
                   </div>
                 </div>
 
-                {/* Render Skills */}
                 <div className="mt-3">
                   {profile.skills.map((skill) => (
                     <div
                       key={skill.id}
                       className="d-flex justify-content-between p-2 border rounded mb-2"
                     >
-                      <strong>
-                        {skill.skillName} — {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
-                      </strong>
-
+                      <div>
+                        <strong>{skill.skillName}</strong> —{" "}
+                        {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
+                      </div>
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-danger"
@@ -289,7 +278,6 @@ const FreelancerProfile = () => {
                     </div>
                   ))}
                 </div>
-
               </div>
             </div>
 
@@ -299,10 +287,8 @@ const FreelancerProfile = () => {
               <div className="card-header bg-info text-white">
                 <h5 className="mb-0">Portfolio</h5>
               </div>
-
               <div className="card-body">
 
-                {/* Portfolio Inputs */}
                 <div className="row mb-3">
                   <div className="col-md-6">
                     <input
@@ -320,9 +306,9 @@ const FreelancerProfile = () => {
                     <input
                       type="url"
                       className="form-control mb-2"
-                      value={newPortfolio.projectUrl}
+                      value={newPortfolio.url}
                       onChange={(e) =>
-                        setNewPortfolio({ ...newPortfolio, projectUrl: e.target.value })
+                        setNewPortfolio({ ...newPortfolio, url: e.target.value })
                       }
                       placeholder="Project URL"
                     />
@@ -354,16 +340,14 @@ const FreelancerProfile = () => {
                   </div>
                 </div>
 
-                {/* Render Portfolio Items */}
                 {profile.portfolio.map((item) => (
                   <div
                     key={item.id}
-                    className="d-flex justify-content-between p-3 border rounded mb-2"
+                    className="portfolio-item d-flex justify-content-between"
                   >
                     <div>
                       <h6>{item.title}</h6>
                       <p className="text-muted mb-1">{item.description}</p>
-
                       {item.projectUrl && (
                         <a href={item.projectUrl} target="_blank" rel="noreferrer">
                           View Project →
@@ -380,7 +364,6 @@ const FreelancerProfile = () => {
                     </button>
                   </div>
                 ))}
-
               </div>
             </div>
 
@@ -401,3 +384,44 @@ const FreelancerProfile = () => {
 };
 
 export default FreelancerProfile;
+
+
+import api from "./api";
+
+const freelancerService = {
+  // Get full profile (skills + portfolio + ratings)
+  getFreelancerProfile: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}`);
+    return res.data;
+  },
+
+  // UPDATE freelancer profile - FIXED ✔
+  updateFreelancerProfile: async (freelancerId, profileData) => {
+    const payload = {
+      ...profileData,
+      userId: freelancerId,                        // backend requires userId
+      title: profileData.title || "Freelancer"     // backend requires title
+    };
+
+    const res = await api.put(`/api/freelancers/${freelancerId}`, payload);
+    return res.data;
+  },
+
+  // Portfolio functions (these match your backend)
+  getFreelancerPortfolio: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}/portfolio`);
+    return res.data;
+  },
+
+  addPortfolioItem: async (freelancerId, item) => {
+    const res = await api.post(`/api/freelancers/${freelancerId}/portfolio`, item);
+    return res.data;
+  },
+
+  deletePortfolioItem: async (itemId) => {
+    const res = await api.delete(`/api/freelancers/portfolio/${itemId}`);
+    return res.data;
+  },
+};
+
+export default freelancerService;
