@@ -1,115 +1,102 @@
-import React, { useState, useEffect } from "react";
-import { useAuth } from "../../context/AuthContext";
-import freelancerService from "../../services/freelancerService";
-import Loader from "../common/Loader";
+package com.freelancenexus.userservice.dto;
 
-const FreelancerProfile = () => {
-  const { user } = useAuth();
 
-  const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState({
-    bio: "",
-    hourlyRate: "",
-    skills: [],        // string[]
-    portfolio: []
-  });
 
-  const [newSkill, setNewSkill] = useState("");
+import com.freelancenexus.userservice.model.Skill.ProficiencyLevel;
 
-  // Load Profile
-  useEffect(() => {
-    if (user?.id) {
-      fetchProfile();
-    }
-  }, [user]);
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
-  const fetchProfile = async () => {
-    setLoading(true);
-    try {
-      const response = await freelancerService.getProfile(user.id);
-      setProfile(response.data);
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    }
-    setLoading(false);
-  };
+/**
+ * Data Transfer Object (DTO) for representing a skill.
+ * Includes details such as skill name, proficiency level, and years of experience.
+ */
+public class SkillDTO {
+    
+    /**
+     * The unique identifier of the skill.
+     */
+    private Long id;
+    
+    /**
+     * The name of the skill.
+     * Must not be blank and cannot exceed 100 characters.
+     */
+    @NotBlank(message = "Skill name is required")
+    @Size(max = 100, message = "Skill name must not exceed 100 characters")
+    private String skillName;
+    
+    /**
+     * The proficiency level of the skill.
+     * Must not be null.
+     */
+    @NotNull(message = "Proficiency level is required")
+    private ProficiencyLevel proficiencyLevel;
+    
+    /**
+     * The number of years of experience with the skill.
+     * Must be a non-negative value and cannot exceed 50 years.
+     */
+    @Min(value = 0, message = "Years of experience cannot be negative")
+    @Max(value = 50, message = "Years of experience seems too high")
+    private Integer yearsExperience;
 
-  const handleAddSkill = () => {
-    if (newSkill.trim() === "") return;
+	public Long getId() {
+		return id;
+	}
 
-    setProfile((prev) => ({
-      ...prev,
-      skills: [...prev.skills, newSkill.trim()],
-    }));
+	public void setId(Long id) {
+		this.id = id;
+	}
 
-    setNewSkill("");
-  };
+	public String getSkillName() {
+		return skillName;
+	}
 
-  const handleRemoveSkill = (skillToRemove) => {
-    setProfile((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s !== skillToRemove),
-    }));
-  };
+	public void setSkillName(String skillName) {
+		this.skillName = skillName;
+	}
 
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      await freelancerService.updateProfile(user.id, profile);
-      alert("Profile updated successfully!");
-    } catch (error) {
-      console.error("Update failed:", error);
-      alert("Failed to update profile");
-    }
-    setLoading(false);
-  };
+	public ProficiencyLevel getProficiencyLevel() {
+		return proficiencyLevel;
+	}
 
-  if (loading) return <Loader />;
+	public void setProficiencyLevel(ProficiencyLevel proficiencyLevel) {
+		this.proficiencyLevel = proficiencyLevel;
+	}
 
-  return (
-    <div className="profile-container">
+	public Integer getYearsExperience() {
+		return yearsExperience;
+	}
 
-      <h2>Freelancer Profile</h2>
+	public void setYearsExperience(Integer yearsExperience) {
+		this.yearsExperience = yearsExperience;
+	}
 
-      <label>Bio</label>
-      <textarea
-        value={profile.bio}
-        onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-      />
+	public SkillDTO(Long id,
+			@NotBlank(message = "Skill name is required") @Size(max = 100, message = "Skill name must not exceed 100 characters") String skillName,
+			@NotNull(message = "Proficiency level is required") ProficiencyLevel proficiencyLevel,
+			@Min(value = 0, message = "Years of experience cannot be negative") @Max(value = 50, message = "Years of experience seems too high") Integer yearsExperience) {
+		super();
+		this.id = id;
+		this.skillName = skillName;
+		this.proficiencyLevel = proficiencyLevel;
+		this.yearsExperience = yearsExperience;
+	}
 
-      <label>Hourly Rate</label>
-      <input
-        type="number"
-        value={profile.hourlyRate}
-        onChange={(e) => setProfile({ ...profile, hourlyRate: e.target.value })}
-      />
+	public SkillDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
 
-      <label>Skills (string[])</label>
-
-      <div className="skills-section">
-        <input
-          type="text"
-          value={newSkill}
-          onChange={(e) => setNewSkill(e.target.value)}
-          placeholder="Add skill"
-        />
-        <button onClick={handleAddSkill}>Add</button>
-      </div>
-
-      <ul>
-        {profile.skills.map((skill, index) => (
-          <li key={index}>
-            {skill}
-            <button onClick={() => handleRemoveSkill(skill)}>X</button>
-          </li>
-        ))}
-      </ul>
-
-      <button className="save-btn" onClick={handleSave}>
-        Save Profile
-      </button>
-    </div>
-  );
-};
-
-export default FreelancerProfile;
+	@Override
+	public String toString() {
+		return "SkillDTO [id=" + id + ", skillName=" + skillName + ", proficiencyLevel=" + proficiencyLevel
+				+ ", yearsExperience=" + yearsExperience + "]";
+	}
+    
+    
+}
