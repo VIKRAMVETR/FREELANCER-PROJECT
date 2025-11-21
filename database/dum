@@ -838,11 +838,323 @@ public class FreelancerController {
         return ResponseEntity.ok(freelancers);
     }
 }
+package com.freelancenexus.userservice.controller;
 
+import java.util.List;
 
- Secured PUT /api/freelancers/4
-2025-11-21T11:18:56.498+05:30 ERROR 21744 --- [user-service] [nio-8081-exec-2] c.f.u.exception.GlobalExceptionHandler   : Validation failed: Validation failed for argument [1] in public org.springframework.http.ResponseEntity<com.freelancenexus.userservice.dto.FreelancerDTO> com.freelancenexus.userservice.controller.FreelancerController.updateFreelancer(java.lang.Long,com.freelancenexus.userservice.dto.FreelancerDTO) with 2 errors: [Field error in object 'freelancerDTO' on field 'userId': rejected value [null]; codes [NotNull.freelancerDTO.userId,NotNull.userId,NotNull.java.lang.Long,NotNull]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [freelancerDTO.userId,userId]; arguments []; default message [userId]]; default message [User ID is required]] [Field error in object 'freelancerDTO' on field 'title': rejected value [null]; codes [NotBlank.freelancerDTO.title,NotBlank.title,NotBlank.java.lang.String,NotBlank]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [freelancerDTO.title,title]; arguments []; default message [title]]; default message [Title is required]] 
- i want fix my frontend
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.PortfolioDTO;
+import com.freelancenexus.userservice.service.PortfolioService;
+
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancer portfolios.
+ * Provides endpoints for adding, retrieving, updating, and deleting portfolio items.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+public class PortfolioController {
+
+	private final Logger log= LoggerFactory.getLogger(PortfolioController.class);
+    private final PortfolioService portfolioService;
+    
+    public PortfolioController(PortfolioService portfolioService) {
+		super();
+		this.portfolioService = portfolioService;
+	}
+
+	/**
+     * Adds a portfolio item for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @param portfolioDTO the portfolio item to be added
+     * @return the created portfolio item
+     */
+    @PostMapping("/{id}/portfolio")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<PortfolioDTO> addPortfolio(
+            @PathVariable Long id,
+            @Valid @RequestBody PortfolioDTO portfolioDTO) {
+        log.info("REST request to add portfolio for freelancer ID: {}", id);
+        PortfolioDTO created = portfolioService.addPortfolio(id, portfolioDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Retrieves all portfolio items for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the list of portfolio items
+     */
+    @GetMapping("/{id}/portfolio")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<PortfolioDTO>> getFreelancerPortfolios(@PathVariable Long id) {
+        log.info("REST request to get portfolios for freelancer ID: {}", id);
+        List<PortfolioDTO> portfolios = portfolioService.getFreelancerPortfolios(id);
+        return ResponseEntity.ok(portfolios);
+    }
+
+    /**
+     * Retrieves a portfolio item by its ID.
+     *
+     * @param portfolioId the ID of the portfolio item
+     * @return the portfolio item
+     */
+    @GetMapping("/portfolio/{portfolioId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PortfolioDTO> getPortfolioById(@PathVariable Long portfolioId) {
+        log.info("REST request to get portfolio by ID: {}", portfolioId);
+        PortfolioDTO portfolio = portfolioService.getPortfolioById(portfolioId);
+        return ResponseEntity.ok(portfolio);
+    }
+
+    /**
+     * Updates a portfolio item.
+     *
+     * @param portfolioId the ID of the portfolio item to be updated
+     * @param portfolioDTO the updated portfolio item
+     * @return the updated portfolio item
+     */
+    @PutMapping("/portfolio/{portfolioId}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<PortfolioDTO> updatePortfolio(
+            @PathVariable Long portfolioId,
+            @Valid @RequestBody PortfolioDTO portfolioDTO) {
+        log.info("REST request to update portfolio with ID: {}", portfolioId);
+        PortfolioDTO updated = portfolioService.updatePortfolio(portfolioId, portfolioDTO);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Deletes a portfolio item.
+     *
+     * @param portfolioId the ID of the portfolio item to be deleted
+     * @return a response entity with no content
+     */
+    @DeleteMapping("/portfolio/{portfolioId}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<Void> deletePortfolio(@PathVariable Long portfolioId) {
+        log.info("REST request to delete portfolio with ID: {}", portfolioId);
+        portfolioService.deletePortfolio(portfolioId);
+        return ResponseEntity.noContent().build();
+    }
+}
+
+package com.freelancenexus.userservice.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+/**
+ * Entity representing a portfolio item associated with a freelancer.
+ */
+@Entity
+@Table(name = "portfolios")
+
+public class Portfolio {
+    
+    /**
+     * The unique identifier of the portfolio item.
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    /**
+     * The freelancer associated with this portfolio item.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "freelancer_id", nullable = false)
+    private Freelancer freelancer;
+    
+    /**
+     * The title of the portfolio item.
+     */
+    @Column(nullable = false, length = 255)
+    private String title;
+    
+    /**
+     * A description of the portfolio item.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String description;
+    
+    /**
+     * The URL of the project associated with the portfolio item.
+     */
+    @Column(name = "project_url", length = 500)
+    private String projectUrl;
+    
+    /**
+     * The URL of the image associated with the portfolio item.
+     */
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+    
+    /**
+     * A description of the technologies used in the portfolio item.
+     */
+    @Column(name = "technologies_used", columnDefinition = "TEXT")
+    private String technologiesUsed;
+    
+    /**
+     * The completion date of the portfolio item.
+     */
+    @Column(name = "completion_date")
+    private LocalDate completionDate;
+    
+    /**
+     * The timestamp when the portfolio item was created.
+     */
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    /**
+     * Sets the creation timestamp before persisting the entity.
+     */
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Freelancer getFreelancer() {
+		return freelancer;
+	}
+
+	public void setFreelancer(Freelancer freelancer) {
+		this.freelancer = freelancer;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public String getProjectUrl() {
+		return projectUrl;
+	}
+
+	public void setProjectUrl(String projectUrl) {
+		this.projectUrl = projectUrl;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
+
+	public String getTechnologiesUsed() {
+		return technologiesUsed;
+	}
+
+	public void setTechnologiesUsed(String technologiesUsed) {
+		this.technologiesUsed = technologiesUsed;
+	}
+
+	public LocalDate getCompletionDate() {
+		return completionDate;
+	}
+
+	public void setCompletionDate(LocalDate completionDate) {
+		this.completionDate = completionDate;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public Portfolio(Long id, Freelancer freelancer, String title, String description, String projectUrl,
+			String imageUrl, String technologiesUsed, LocalDate completionDate, LocalDateTime createdAt) {
+		super();
+		this.id = id;
+		this.freelancer = freelancer;
+		this.title = title;
+		this.description = description;
+		this.projectUrl = projectUrl;
+		this.imageUrl = imageUrl;
+		this.technologiesUsed = technologiesUsed;
+		this.completionDate = completionDate;
+		this.createdAt = createdAt;
+	}
+
+	public Portfolio() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+HHH000204: Processing PersistenceUnitInfo [name: default]
+2025-11-21T12:11:46.153+05:30  INFO 23256 --- [user-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.3.1.Final
+2025-11-21T12:11:46.207+05:30  INFO 23256 --- [user-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2025-11-21T12:11:46.534+05:30  INFO 23256 --- [user-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2025-11-21T12:11:46.575+05:30  INFO 23256 --- [user-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2025-11-21T12:11:47.321+05:30  INFO 23256 --- [user-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2914a328
+2025-11-21T12:11:47.323+05:30  INFO 23256 --- [user-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2025-11-21T12:11:47.537+05:30  WARN 23256 --- [user-service] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2025-11-21T12:11:49.035+05:30  INFO 23256 --- [user-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2025-11-21T12:11:49.458+05:30  INFO 23256 --- [user-service] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2025-11-21T12:11:50.627+05:30  INFO 23256 --- [user-service] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2025-11-21T12:11:53.428+05:30 DEBUG 23256 --- [user-service] [           main] swordEncoderAuthenticationManagerBuilder : No authenticationProviders and no parentAuthenticationManager defined. Returning null.
+2025-11-21T12:11:54.222+05:30  INFO 23256 --- [user-service] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 3 endpoint(s) beneath base path '/actuator'
+2025-11-21T12:11:54.329+05:30  INFO 23256 --- [user-service] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@9f3d1b9, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@391aedcd, org.springframework.security.web.context.SecurityContextHolderFilter@70c3b62b, org.springframework.security.web.header.HeaderWriterFilter@3108f0a3, org.springframework.web.filter.CorsFilter@3d132bb6, org.springframework.security.web.authentication.logout.LogoutFilter@7e0aab75, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@994d48d, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@2d6b2be7, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@53fd4420, org.springframework.security.web.session.SessionManagementFilter@1d932614, org.springframework.security.web.access.ExceptionTranslationFilter@5d57f01f, org.springframework.security.web.access.intercept.AuthorizationFilter@755fbfab]
+2025-11-21T12:11:55.665+05:30  INFO 23256 --- [user-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8081 (http) with context path ''
+2025-11-21T12:11:55.696+05:30  INFO 23256 --- [user-service] [           main] c.f.userservice.UserServiceApplication   : Started UserServiceApplication in 15.268 seconds (process running for 20.313)
+2025-11-21T12:12:11.959+05:30  INFO 23256 --- [user-service] [nio-8081-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2025-11-21T12:12:11.959+05:30  INFO 23256 --- [user-service] [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2025-11-21T12:12:11.962+05:30  INFO 23256 --- [user-service] [nio-8081-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 3 ms
+2025-11-21T12:12:11.983+05:30 DEBUG 23256 --- [user-service] [nio-8081-exec-1] o.s.security.web.FilterChainProxy        : Securing OPTIONS /api/freelancers/4
+2025-11-21T12:12:12.017+05:30 DEBUG 23256 --- [user-service] [nio-8081-exec-2] o.s.security.web.FilterChainProxy        : Securing PUT /api/freelancers/4
+2025-11-21T12:12:12.024+05:30 DEBUG 23256 --- [user-service] [nio-8081-exec-2] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+2025-11-21T12:12:12.027+05:30  WARN 23256 --- [user-service] [nio-8081-exec-2] o.s.w.s.h.HandlerMappingIntrospector     : Cache miss for REQUEST dispatch to '/api/freelancers/4' (previous null). Performing MatchableHandlerMapping lookup. This is logged once only at WARN level, and every time at TRACE.
+2025-11-21T12:12:12.039+05:30 DEBUG 23256 --- [user-service] [nio-8081-exec-2] o.s.security.web.FilterChainProxy        : Secured PUT /api/freelancers/4
+2025-11-21T12:12:12.266+05:30 ERROR 23256 --- [user-service] [nio-8081-exec-2] c.f.u.exception.GlobalExceptionHandler   : Validation failed: Validation failed for argument [1] in public org.springframework.http.ResponseEntity<com.freelancenexus.userservice.dto.FreelancerDTO> com.freelancenexus.userservice.controller.FreelancerController.updateFreelancer(java.lang.Long,com.freelancenexus.userservice.dto.FreelancerDTO) with 2 errors: [Field error in object 'freelancerDTO' on field 'title': rejected value [null]; codes [NotBlank.freelancerDTO.title,NotBlank.title,NotBlank.java.lang.String,NotBlank]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [freelancerDTO.title,title]; arguments []; default message [title]]; default message [Title is required]] [Field error in object 'freelancerDTO' on field 'userId': rejected value [null]; codes [NotNull.freelancerDTO.userId,NotNull.userId,NotNull.java.lang.Long,NotNull]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [freelancerDTO.userId,userId]; arguments []; default message [userId]]; default message [User ID is required]] 
+
 
 
 
