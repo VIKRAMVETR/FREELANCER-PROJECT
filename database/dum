@@ -1,913 +1,217 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../../context/AuthContext";
-import freelancerService from "../../services/freelancerService";
-import Loader from "../common/Loader";
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import projectService from '../../services/projectService';
+import aiService from '../../services/aiService';
+import Loader from '../common/Loader';
 
-const FreelancerProfile = () => {
-  const { user } = useAuth();
-
-  const [profile, setProfile] = useState({
-    title: "",           // ✔ Added
-    bio: "",
-    hourlyRate: "",
-    skills: [],
-    portfolio: []
-  });
-
-  const [newSkill, setNewSkill] = useState({
-    skillName: "",
-    proficiencyLevel: "BEGINNER",
-    yearsExperience: 1
-  });
-
-  const [newPortfolio, setNewPortfolio] = useState({
-    title: "",
-    description: "",
-    url: ""
-  });
-
+const ProjectDetails = () => {
+  const { id } = useParams();
+  const { user, authenticated } = useAuth();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
-
-
-  const fetchProfile = useCallback(async () => {
-    try {
-      const data = await freelancerService.getFreelancerProfile(user.id);
-
-      // ✔ Ensure the frontend state matches backend fields
-      setProfile({
-        title: data.title || "",
-        bio: data.bio || "",
-        hourlyRate: data.hourlyRate || "",
-        skills: data.skills || [],
-        portfolio: data.portfolios || []
-      });
-
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
 
   useEffect(() => {
-    if (user?.id) {
-      fetchProfile();
-      console.log(profile)
-    }
-  }, [fetchProfile, user?.id]);
+    const fetchProject = async () => {
+      try {
+        const data = await projectService.getProjectById(id);
+        setProject(data);
+      } catch (error) {
+        console.error('Error fetching project:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // ✔ Fix update - include userId + title
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
+    const fetchSummary = async () => {
+      try {
+        const data = await aiService.generateProjectSummary(id);
+        setSummary(data);
+      } catch (error) {
+        console.error('Error fetching AI summary:', error);
+      }
+    };
 
-    try {
-      const payload = {
-        ...profile,
-        userId: user.id,
-        title: profile.title || "Freelancer" // fallback to avoid validation error
-      };
-
-      await freelancerService.updateFreelancerProfile(user.id, payload);
-
-      setMessage({ type: "success", text: "Profile updated successfully!" });
-    } catch (error) {
-      setMessage({ type: "danger", text: "Failed to update profile" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-
-  // Add Skill
-  const addSkill = () => {
-    if (!newSkill.skillName.trim()) return;
-
-    setProfile((prev) => ({
-      ...prev,
-      skills: [...prev.skills, { ...newSkill }]
-    }));
-
-    setNewSkill({
-      skillName: "",
-      proficiencyLevel: "BEGINNER",
-      yearsExperience: 1
-    });
-  };
-
-  const removeSkill = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s.id !== id)
-    }));
-  };
-
-
-  // Portfolio
-  const addPortfolioItem = () => {
-    if (newPortfolio.title && newPortfolio.description) {
-      setProfile((prev) => ({
-        ...prev,
-        portfolio: [...prev.portfolio, { ...newPortfolio, id: Date.now() }]
-      }));
-
-      setNewPortfolio({ title: "", description: "", projectUrl: "" });
-    }
-  };
-
-  const removePortfolioItem = (id) => {
-    setProfile((prev) => ({
-      ...prev,
-      portfolio: prev.portfolio.filter((item) => item.id !== id)
-    }));
-  };
-
+    fetchProject();
+    fetchSummary();
+  }, [id]);
 
   if (loading) return <Loader />;
 
+  if (!project) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">Project not found</div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-4">
-      <div className="row">
-        <div className="col-lg-8 mx-auto">
-          <h2 className="mb-4">My Profile</h2>
+      <div className="row mb-4">
+        <div className="col">
+          <button 
+            className="btn btn-outline-secondary mb-3"
+            onClick={() => navigate(-1)}
+          >
+            ← Back
+          </button>
+          <h2>{project.title}</h2>
+          <p className="text-muted">
+            Posted by {project.clientName} on {new Date(project.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
 
-          {message.text && (
-            <div className={`alert alert-${message.type}`}>{message.text}</div>
+      <div className="row">
+        <div className="col-lg-8">
+          {/* AI Summary */}
+          {summary && (
+            <div className="card shadow-sm mb-4 ai-feature">
+              <div className="card-body">
+                <h5 className="mb-3">
+                  <span className="ai-badge">AI</span> Project Summary
+                </h5>
+                <p>{summary.summary}</p>
+                <div className="mt-3">
+                  <strong>Key Requirements:</strong>
+                  <ul className="mt-2">
+                    {summary.keyRequirements?.map((req, idx) => (
+                      <li key={idx}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-
-            {/* BASIC INFO */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">Basic Information</h5>
-              </div>
-
-              <div className="card-body">
-
-                {/* ✔ Title */}
-                <div className="mb-3">
-                  <label className="form-label">Profile Title</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    value={profile.title}
-                    onChange={(e) =>
-                      setProfile({ ...profile, title: e.target.value })
-                    }
-                    placeholder="Eg: Full Stack Developer, UI/UX Designer..."
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Bio</label>
-                  <textarea
-                    className="form-control"
-                    rows="4"
-                    value={profile.bio}
-                    onChange={(e) =>
-                      setProfile({ ...profile, bio: e.target.value })
-                    }
-                    placeholder="Tell us about your expertise..."
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Hourly Rate (₹)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    value={profile.hourlyRate}
-                    onChange={(e) =>
-                      setProfile({ ...profile, hourlyRate: e.target.value })
-                    }
-                    placeholder="Enter your hourly rate"
-                  />
-                </div>
-              </div>
+          {/* Project Description */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Project Description</h5>
             </div>
-
-
-            {/* SKILLS */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">Skills</h5>
-              </div>
-
-              <div className="card-body">
-                <div className="row g-2 align-items-end">
-                  <div className="col-md-4">
-                    <label>Skill Name</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      value={newSkill.skillName}
-                      onChange={(e) =>
-                        setNewSkill({ ...newSkill, skillName: e.target.value })
-                      }
-                    />
-                  </div>
-
-                  <div className="col-md-4">
-                    <label>Proficiency</label>
-                    <select
-                      className="form-select"
-                      value={newSkill.proficiencyLevel}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          proficiencyLevel: e.target.value
-                        })
-                      }
-                    >
-                      <option value="BEGINNER">Beginner</option>
-                      <option value="INTERMEDIATE">Intermediate</option>
-                      <option value="ADVANCED">Advanced</option>
-                      <option value="EXPERT">Expert</option>
-                    </select>
-                  </div>
-
-                  <div className="col-md-3">
-                    <label>Years</label>
-                    <input
-                      type="number"
-                      className="form-control"
-                      min="0"
-                      max="50"
-                      value={newSkill.yearsExperience}
-                      onChange={(e) =>
-                        setNewSkill({
-                          ...newSkill,
-                          yearsExperience: Number(e.target.value)
-                        })
-                      }
-                    />
-                  </div>
-
-                  <div className="col-md-1">
-                    <button
-                      type="button"
-                      className="btn btn-success w-100"
-                      onClick={addSkill}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  {profile.skills.map((skill) => (
-                    <div
-                      key={skill.id}
-                      className="d-flex justify-content-between p-2 border rounded mb-2"
-                    >
-                      <div>
-                        <strong>{skill.skillName}</strong> —{" "}
-                        {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
-                      </div>
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => removeSkill(skill.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
+            <div className="card-body">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{project.description}</p>
             </div>
+          </div>
 
+          {/* Required Skills */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0">Required Skills</h5>
+            </div>
+            <div className="card-body">
+              {project.requiredSkills?.map((skill, idx) => (
+                <span key={idx} className="badge bg-secondary me-2 mb-2">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
 
-            {/* PORTFOLIO */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-info text-white">
-                <h5 className="mb-0">Portfolio</h5>
+        <div className="col-lg-4">
+          {/* Project Info */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0">Project Details</h5>
+            </div>
+            <div className="card-body">
+              <div className="mb-3">
+                <strong>Budget:</strong>
+                <div className="mt-1">₹{project.budgetMin} - ₹{project.budgetMax}</div>
               </div>
-              <div className="card-body">
 
-                <div className="row mb-3">
-                  <div className="col-md-6">
-                    <input
-                      type="text"
-                      className="form-control mb-2"
-                      value={newPortfolio.title}
-                      onChange={(e) =>
-                        setNewPortfolio({ ...newPortfolio, title: e.target.value })
-                      }
-                      placeholder="Project Title"
-                    />
-                  </div>
+              <div className="mb-3">
+                <strong>Duration:</strong>
+                <div className="mt-1">{project.durationDays} days</div>
+              </div>
 
-                  <div className="col-md-6">
-                    <input
-                      type="url"
-                      className="form-control mb-2"
-                      value={newPortfolio.url}
-                      onChange={(e) =>
-                        setNewPortfolio({ ...newPortfolio, url: e.target.value })
-                      }
-                      placeholder="Project URL"
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <textarea
-                      className="form-control mb-2"
-                      rows="2"
-                      value={newPortfolio.description}
-                      onChange={(e) =>
-                        setNewPortfolio({
-                          ...newPortfolio,
-                          description: e.target.value
-                        })
-                      }
-                      placeholder="Project Description"
-                    />
-                  </div>
-
-                  <div className="col-12">
-                    <button
-                      type="button"
-                      className="btn btn-info"
-                      onClick={addPortfolioItem}
-                    >
-                      Add Portfolio Item
-                    </button>
-                  </div>
+              <div className="mb-3">
+                <strong>Category:</strong>
+                <div className="mt-1">
+                  <span className="badge bg-primary">{project.category}</span>
                 </div>
+              </div>
 
-                {profile.portfolio.map((item) => (
-                  <div
-                    key={item.id}
-                    className="portfolio-item d-flex justify-content-between"
+              <div className="mb-3">
+                <strong>Status:</strong>
+                <div className="mt-1">
+                  <span className={`badge bg-${
+                    project.status === 'OPEN' ? 'success' :
+                    project.status === 'IN_PROGRESS' ? 'warning' :
+                    project.status === 'COMPLETED' ? 'info' : 'secondary'
+                  }`}>
+                    {project.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Proposals:</strong>
+                <div className="mt-1">{project.proposalCount || 0}</div>
+              </div>
+
+              {authenticated && user?.roles?.includes('FREELANCER') && project.status === 'OPEN' && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/freelancer/submit-proposal/${project.id}`}
+                    className="btn btn-primary"
                   >
-                    <div>
-                      <h6>{item.title}</h6>
-                      <p className="text-muted mb-1">{item.description}</p>
-                      {item.projectUrl && (
-                        <a href={item.projectUrl} target="_blank" rel="noreferrer">
-                          View Project →
-                        </a>
-                      )}
-                    </div>
+                    Submit Proposal
+                  </Link>
+                </div>
+              )}
 
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline-danger"
-                      onClick={() => removePortfolioItem(item.id)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ))}
+              {authenticated && user?.roles?.includes('CLIENT') && user?.id === project.clientId && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/client/proposals/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    View Proposals
+                  </Link>
+                  <Link 
+                    to={`/client/ai-ranking/${project.id}`}
+                    className="btn btn-info"
+                  >
+                    <span className="ai-badge">AI</span> Rank Proposals
+                  </Link>
+                </div>
+              )}
+
+              {!authenticated && (
+                <div className="alert alert-info mt-4">
+                  <small>
+                    <Link to="/login">Login</Link> or <Link to="/register">Register</Link> to submit a proposal
+                  </small>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Client Info */}
+          <div className="card shadow-sm">
+            <div className="card-header bg-secondary text-white">
+              <h5 className="mb-0">About the Client</h5>
+            </div>
+            <div className="card-body">
+              <h6>{project.clientName}</h6>
+              <p className="text-muted mb-2">Member since {new Date(project.clientJoinDate).getFullYear()}</p>
+              <div className="mb-2">
+                <strong>Projects Posted:</strong> {project.clientProjectCount || 0}
+              </div>
+              <div className="mb-2">
+                <strong>Rating:</strong>  {project.clientRating || 'N/A'}
               </div>
             </div>
-
-
-            <button
-              type="submit"
-              className="btn btn-primary w-100"
-              disabled={saving}
-            >
-              {saving ? "Saving..." : "Save Profile"}
-            </button>
-
-          </form>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default FreelancerProfile;
-
-
-import api from "./api";
-
-const freelancerService = {
-  // Get full profile (skills + portfolio + ratings)
-  getFreelancerProfile: async (freelancerId) => {
-    const res = await api.get(`/api/freelancers/${freelancerId}`);
-    return res.data;
-  },
-
-  // UPDATE freelancer profile - FIXED ✔
-  updateFreelancerProfile: async (freelancerId, profileData) => {
-    const payload = {
-      ...profileData,
-      userId: freelancerId,                        // backend requires userId
-      title: profileData.title || "Freelancer"     // backend requires title
-    };
-
-    const res = await api.put(`/api/freelancers/${freelancerId}`, payload);
-    return res.data;
-  },
-
-  // Portfolio functions (these match your backend)
-  getFreelancerPortfolio: async (freelancerId) => {
-    const res = await api.get(`/api/freelancers/${freelancerId}/portfolio`);
-    return res.data;
-  },
-
-  addPortfolioItem: async (freelancerId, item) => {
-    const res = await api.post(`/api/freelancers/${freelancerId}/portfolio`, item);
-    return res.data;
-  },
-
-  deletePortfolioItem: async (itemId) => {
-    const res = await api.delete(`/api/freelancers/portfolio/${itemId}`);
-    return res.data;
-  },
-};
-
-export default freelancerService;
-
-
-package com.freelancenexus.userservice.controller;
-
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.freelancenexus.userservice.dto.PortfolioDTO;
-import com.freelancenexus.userservice.service.PortfolioService;
-
-import jakarta.validation.Valid;
-/**
- * REST controller for managing freelancer portfolios.
- * Provides endpoints for adding, retrieving, updating, and deleting portfolio items.
- */
-@RestController
-@RequestMapping("/api/freelancers")
-public class PortfolioController {
-
-	private final Logger log= LoggerFactory.getLogger(PortfolioController.class);
-    private final PortfolioService portfolioService;
-    
-    public PortfolioController(PortfolioService portfolioService) {
-		super();
-		this.portfolioService = portfolioService;
-	}
-
-	/**
-     * Adds a portfolio item for a freelancer.
-     *
-     * @param id the ID of the freelancer
-     * @param portfolioDTO the portfolio item to be added
-     * @return the created portfolio item
-     */
-    @PostMapping("/{id}/portfolio")
-    @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<PortfolioDTO> addPortfolio(
-            @PathVariable Long id,
-            @Valid @RequestBody PortfolioDTO portfolioDTO) {
-        log.info("REST request to add portfolio for freelancer ID: {}", id);
-        PortfolioDTO created = portfolioService.addPortfolio(id, portfolioDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
-
-    /**
-     * Retrieves all portfolio items for a freelancer.
-     *
-     * @param id the ID of the freelancer
-     * @return the list of portfolio items
-     */
-    @GetMapping("/{id}/portfolio")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<PortfolioDTO>> getFreelancerPortfolios(@PathVariable Long id) {
-        log.info("REST request to get portfolios for freelancer ID: {}", id);
-        List<PortfolioDTO> portfolios = portfolioService.getFreelancerPortfolios(id);
-        return ResponseEntity.ok(portfolios);
-    }
-
-    /**
-     * Retrieves a portfolio item by its ID.
-     *
-     * @param portfolioId the ID of the portfolio item
-     * @return the portfolio item
-     */
-    @GetMapping("/portfolio/{portfolioId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<PortfolioDTO> getPortfolioById(@PathVariable Long portfolioId) {
-        log.info("REST request to get portfolio by ID: {}", portfolioId);
-        PortfolioDTO portfolio = portfolioService.getPortfolioById(portfolioId);
-        return ResponseEntity.ok(portfolio);
-    }
-
-    /**
-     * Updates a portfolio item.
-     *
-     * @param portfolioId the ID of the portfolio item to be updated
-     * @param portfolioDTO the updated portfolio item
-     * @return the updated portfolio item
-     */
-    @PutMapping("/portfolio/{portfolioId}")
-    @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<PortfolioDTO> updatePortfolio(
-            @PathVariable Long portfolioId,
-            @Valid @RequestBody PortfolioDTO portfolioDTO) {
-        log.info("REST request to update portfolio with ID: {}", portfolioId);
-        PortfolioDTO updated = portfolioService.updatePortfolio(portfolioId, portfolioDTO);
-        return ResponseEntity.ok(updated);
-    }
-
-    /**
-     * Deletes a portfolio item.
-     *
-     * @param portfolioId the ID of the portfolio item to be deleted
-     * @return a response entity with no content
-     */
-    @DeleteMapping("/portfolio/{portfolioId}")
-    @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<Void> deletePortfolio(@PathVariable Long portfolioId) {
-        log.info("REST request to delete portfolio with ID: {}", portfolioId);
-        portfolioService.deletePortfolio(portfolioId);
-        return ResponseEntity.noContent().build();
-    }
-}
-
-package com.freelancenexus.userservice.dto;
-
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.PastOrPresent;
-import jakarta.validation.constraints.Size;
-
-/**
- * Data Transfer Object (DTO) for representing a portfolio item.
- * Includes details such as title, description, URLs, and completion date.
- */
-
-public class PortfolioDTO {
-    
-    /**
-     * The unique identifier of the portfolio item.
-     */
-    private Long id;
-    
-    /**
-     * The title of the portfolio item.
-     * Must not be blank and cannot exceed 255 characters.
-     */
-    @NotBlank(message = "Portfolio title is required")
-    @Size(max = 255, message = "Title must not exceed 255 characters")
-    private String title;
-    
-    /**
-     * A description of the portfolio item.
-     * Cannot exceed 5000 characters.
-     */
-    @Size(max = 5000, message = "Description must not exceed 5000 characters")
-    private String description;
-    
-    /**
-     * The URL of the project associated with the portfolio item.
-     * Cannot exceed 500 characters.
-     */
-    @Size(max = 500, message = "Project URL must not exceed 500 characters")
-    private String projectUrl;
-    
-    /**
-     * The URL of the image associated with the portfolio item.
-     * Cannot exceed 500 characters.
-     */
-    @Size(max = 500, message = "Image URL must not exceed 500 characters")
-    private String imageUrl;
-    
-    /**
-     * A description of the technologies used in the portfolio item.
-     * Cannot exceed 1000 characters.
-     */
-    @Size(max = 1000, message = "Technologies used must not exceed 1000 characters")
-    private String technologiesUsed;
-    
-    /**
-     * The completion date of the portfolio item.
-     * Must be in the past or present.
-     */
-    @PastOrPresent(message = "Completion date cannot be in the future")
-    private LocalDate completionDate;
-    
-    /**
-     * The timestamp when the portfolio item was created.
-     */
-    private LocalDateTime createdAt;
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
-	public void setTitle(String title) {
-		this.title = title;
-	}
-
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(String description) {
-		this.description = description;
-	}
-
-	public String getProjectUrl() {
-		return projectUrl;
-	}
-
-	public void setProjectUrl(String projectUrl) {
-		this.projectUrl = projectUrl;
-	}
-
-	public String getImageUrl() {
-		return imageUrl;
-	}
-
-	public void setImageUrl(String imageUrl) {
-		this.imageUrl = imageUrl;
-	}
-
-	public String getTechnologiesUsed() {
-		return technologiesUsed;
-	}
-
-	public void setTechnologiesUsed(String technologiesUsed) {
-		this.technologiesUsed = technologiesUsed;
-	}
-
-	public LocalDate getCompletionDate() {
-		return completionDate;
-	}
-
-	public void setCompletionDate(LocalDate completionDate) {
-		this.completionDate = completionDate;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public PortfolioDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-
-	public PortfolioDTO(Long id,
-			@NotBlank(message = "Portfolio title is required") @Size(max = 255, message = "Title must not exceed 255 characters") String title,
-			@Size(max = 5000, message = "Description must not exceed 5000 characters") String description,
-			@Size(max = 500, message = "Project URL must not exceed 500 characters") String projectUrl,
-			@Size(max = 500, message = "Image URL must not exceed 500 characters") String imageUrl,
-			@Size(max = 1000, message = "Technologies used must not exceed 1000 characters") String technologiesUsed,
-			@PastOrPresent(message = "Completion date cannot be in the future") LocalDate completionDate,
-			LocalDateTime createdAt) {
-		super();
-		this.id = id;
-		this.title = title;
-		this.description = description;
-		this.projectUrl = projectUrl;
-		this.imageUrl = imageUrl;
-		this.technologiesUsed = technologiesUsed;
-		this.completionDate = completionDate;
-		this.createdAt = createdAt;
-	}
-    
-    
-    
-}
-
-
-
-package com.freelancenexus.userservice.service;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.PortfolioDTO;
-import com.freelancenexus.userservice.exception.ResourceNotFoundException;
-import com.freelancenexus.userservice.model.Freelancer;
-import com.freelancenexus.userservice.model.Portfolio;
-import com.freelancenexus.userservice.repository.FreelancerRepository;
-import com.freelancenexus.userservice.repository.PortfolioRepository;
-
-
-
-/**
- * Service class for managing freelancer portfolios.
- * Provides operations to add, retrieve, update, and delete portfolios.
- *
- * <p>This class uses {@link PortfolioRepository} and {@link FreelancerRepository}
- * to interact with the database and perform CRUD operations on {@link Portfolio} entities.</p>
- *
- * @author YourName
- * @version 1.0
- */
-
-@Service
-public class PortfolioService {
-	private final Logger log= LoggerFactory.getLogger(PortfolioService.class);
-    private final PortfolioRepository portfolioRepository;
-    private final FreelancerRepository freelancerRepository;
-    
-    public PortfolioService(PortfolioRepository portfolioRepository, FreelancerRepository freelancerRepository) {
-		super();
-		this.portfolioRepository = portfolioRepository;
-		this.freelancerRepository = freelancerRepository;
-	}
-
-	/**
-     * Adds a new portfolio for a given freelancer.
-     *
-     * @param freelancerId the ID of the freelancer to associate the portfolio with
-     * @param portfolioDTO the portfolio details to be added
-     * @return the saved portfolio as a {@link PortfolioDTO}
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional
-    public PortfolioDTO addPortfolio(Long freelancerId, PortfolioDTO portfolioDTO) {
-        log.info("Adding portfolio for freelancer ID: {}", freelancerId);
-        
-        Freelancer freelancer = freelancerRepository.findById(freelancerId)
-            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
-        
-        Portfolio portfolio = mapToEntity(portfolioDTO);
-        freelancer.addPortfolio(portfolio);
-        
-        Portfolio saved = portfolioRepository.save(portfolio);
-        log.info("Portfolio added with ID: {}", saved.getId());
-        
-        return mapToDTO(saved);
-    }
-
-    /**
-     * Retrieves all portfolios associated with a given freelancer.
-     *
-     * @param freelancerId the ID of the freelancer
-     * @return a list of {@link PortfolioDTO} objects
-     * @throws ResourceNotFoundException if the freelancer does not exist
-     */
-
-    @Transactional(readOnly = true)
-    public List<PortfolioDTO> getFreelancerPortfolios(Long freelancerId) {
-        log.info("Fetching portfolios for freelancer ID: {}", freelancerId);
-        
-        if (!freelancerRepository.existsById(freelancerId)) {
-            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
-        }
-        
-        List<Portfolio> portfolios = portfolioRepository.findByFreelancerId(freelancerId);
-        
-        return portfolios.stream()
-            .map(this::mapToDTO)
-            .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves a portfolio by its ID.
-     *
-     * @param portfolioId the ID of the portfolio
-     * @return the portfolio as a {@link PortfolioDTO}
-     * @throws ResourceNotFoundException if the portfolio does not exist
-     */
-
-    @Transactional(readOnly = true)
-    public PortfolioDTO getPortfolioById(Long portfolioId) {
-        log.info("Fetching portfolio by ID: {}", portfolioId);
-        
-        Portfolio portfolio = portfolioRepository.findById(portfolioId)
-            .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId));
-        
-        return mapToDTO(portfolio);
-    }
-
-    /**
-     * Updates an existing portfolio with new details.
-     *
-     * @param portfolioId the ID of the portfolio to update
-     * @param portfolioDTO the updated portfolio details
-     * @return the updated portfolio as a {@link PortfolioDTO}
-     * @throws ResourceNotFoundException if the portfolio does not exist
-     */
-
-    @Transactional
-    public PortfolioDTO updatePortfolio(Long portfolioId, PortfolioDTO portfolioDTO) {
-        log.info("Updating portfolio with ID: {}", portfolioId);
-        
-        Portfolio portfolio = portfolioRepository.findById(portfolioId)
-            .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId));
-        
-        if (portfolioDTO.getTitle() != null) {
-            portfolio.setTitle(portfolioDTO.getTitle());
-        }
-        if (portfolioDTO.getDescription() != null) {
-            portfolio.setDescription(portfolioDTO.getDescription());
-        }
-        if (portfolioDTO.getProjectUrl() != null) {
-            portfolio.setProjectUrl(portfolioDTO.getProjectUrl());
-        }
-        if (portfolioDTO.getImageUrl() != null) {
-            portfolio.setImageUrl(portfolioDTO.getImageUrl());
-        }
-        if (portfolioDTO.getTechnologiesUsed() != null) {
-            portfolio.setTechnologiesUsed(portfolioDTO.getTechnologiesUsed());
-        }
-        if (portfolioDTO.getCompletionDate() != null) {
-            portfolio.setCompletionDate(portfolioDTO.getCompletionDate());
-        }
-        
-        Portfolio updated = portfolioRepository.save(portfolio);
-        log.info("Portfolio updated successfully: {}", portfolioId);
-        
-        return mapToDTO(updated);
-    }
-
-    /**
-     * Deletes a portfolio by its ID.
-     *
-     * @param portfolioId the ID of the portfolio to delete
-     * @throws ResourceNotFoundException if the portfolio does not exist
-     */
-
-    @Transactional
-    public void deletePortfolio(Long portfolioId) {
-        log.info("Deleting portfolio with ID: {}", portfolioId);
-        
-        if (!portfolioRepository.existsById(portfolioId)) {
-            throw new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId);
-        }
-        
-        portfolioRepository.deleteById(portfolioId);
-        log.info("Portfolio deleted successfully: {}", portfolioId);
-    }
-
-    /**
-     * Converts a {@link Portfolio} entity to a {@link PortfolioDTO}.
-     *
-     * @param portfolio the portfolio entity
-     * @return the corresponding {@link PortfolioDTO}
-     */
-
-    private PortfolioDTO mapToDTO(Portfolio portfolio) {
-        PortfolioDTO dto = new PortfolioDTO();
-        dto.setId(portfolio.getId());
-        dto.setTitle(portfolio.getTitle());
-        dto.setDescription(portfolio.getDescription());
-        dto.setProjectUrl(portfolio.getProjectUrl());
-        dto.setImageUrl(portfolio.getImageUrl());
-        dto.setTechnologiesUsed(portfolio.getTechnologiesUsed());
-        dto.setCompletionDate(portfolio.getCompletionDate());
-        dto.setCreatedAt(portfolio.getCreatedAt());
-        return dto;
-    }
-
-    /**
-     * Converts a {@link PortfolioDTO} to a {@link Portfolio} entity.
-     *
-     * @param dto the portfolio DTO
-     * @return the corresponding {@link Portfolio} entity
-     */
-
-    private Portfolio mapToEntity(PortfolioDTO dto) {
-        Portfolio portfolio = new Portfolio();
-        portfolio.setTitle(dto.getTitle());
-        portfolio.setDescription(dto.getDescription());
-        portfolio.setProjectUrl(dto.getProjectUrl());
-        portfolio.setImageUrl(dto.getImageUrl());
-        portfolio.setTechnologiesUsed(dto.getTechnologiesUsed());
-        portfolio.setCompletionDate(dto.getCompletionDate());
-        return portfolio;
-    }
-}
+export default ProjectDetails;
