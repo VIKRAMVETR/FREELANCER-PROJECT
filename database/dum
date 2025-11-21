@@ -1,158 +1,849 @@
-package com.freelancenexus.userservice.security;
+import React, { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/AuthContext";
+import freelancerService from "../../services/freelancerService";
+import Loader from "../common/Loader";
 
-import java.io.IOException;
-import java.util.Collections;
+const FreelancerProfile = () => {
+  const { user } = useAuth();
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-import org.springframework.web.filter.OncePerRequestFilter;
+  const [profile, setProfile] = useState({
+    bio: "",
+    hourlyRate: "",
+    skills: [],        // NOW SkillDTO[]
+    portfolio: []
+  });
 
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+  const [newSkill, setNewSkill] = useState({
+    skillName: "",
+    proficiencyLevel: "BEGINNER",
+    yearsExperience: 1
+  });
 
-@Component
-public class JwtAuthenticationFilter extends OncePerRequestFilter {
-	private final Logger log= LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-    private final JwtTokenProvider jwtTokenProvider;
+  const [newPortfolio, setNewPortfolio] = useState({
+    title: "",
+    description: "",
+    url: ""
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
+
+
+  const fetchProfile = useCallback(async () => {
+    try {
+      const data = await freelancerService.getFreelancerProfile(user.id);
+      setProfile(data);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchProfile();
+    }
+  }, [fetchProfile, user?.id]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      await freelancerService.updateFreelancerProfile(user.id, profile);
+      setMessage({ type: "success", text: "Profile updated successfully!" });
+    } catch (error) {
+      setMessage({ type: "danger", text: "Failed to update profile" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Add SkillDTO
+  const addSkill = () => {
+    if (!newSkill.skillName.trim()) return;
+
+    setProfile((prev) => ({
+      ...prev,
+      skills: [...prev.skills, { ...newSkill, id: Date.now() }]
+    }));
+
+    setNewSkill({
+      skillName: "",
+      proficiencyLevel: "BEGINNER",
+      yearsExperience: 1
+    });
+  };
+
+  const removeSkill = (id) => {
+    setProfile((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((s) => s.id !== id)
+    }));
+  };
+
+  // Portfolio
+  const addPortfolioItem = () => {
+    if (newPortfolio.title && newPortfolio.description) {
+      setProfile((prev) => ({
+        ...prev,
+        portfolio: [...prev.portfolio, { ...newPortfolio, id: Date.now() }]
+      }));
+
+      setNewPortfolio({ title: "", description: "", url: "" });
+    }
+  };
+
+  const removePortfolioItem = (id) => {
+    setProfile((prev) => ({
+      ...prev,
+      portfolio: prev.portfolio.filter((item) => item.id !== id)
+    }));
+  };
+
+  if (loading) return <Loader />;
+
+  return (
+    <div className="container mt-4">
+      <div className="row">
+        <div className="col-lg-8 mx-auto">
+          <h2 className="mb-4">My Profile</h2>
+
+          {message.text && (
+            <div className={`alert alert-${message.type}`}>{message.text}</div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+            {/* Basic Info */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-primary text-white">
+                <h5 className="mb-0">Basic Information</h5>
+              </div>
+              <div className="card-body">
+                <div className="mb-3">
+                  <label className="form-label">Bio</label>
+                  <textarea
+                    className="form-control"
+                    rows="4"
+                    value={profile.bio}
+                    onChange={(e) =>
+                      setProfile({ ...profile, bio: e.target.value })
+                    }
+                    placeholder="Tell us about your expertise..."
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Hourly Rate (₹)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={profile.hourlyRate}
+                    onChange={(e) =>
+                      setProfile({ ...profile, hourlyRate: e.target.value })
+                    }
+                    placeholder="Enter your hourly rate"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Skills */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-success text-white">
+                <h5 className="mb-0">Skills</h5>
+              </div>
+              <div className="card-body">
+                <div className="row g-2 align-items-end">
+                  <div className="col-md-4">
+                    <label>Skill Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={newSkill.skillName}
+                      onChange={(e) =>
+                        setNewSkill({
+                          ...newSkill,
+                          skillName: e.target.value
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label>Proficiency</label>
+                    <select
+                      className="form-select"
+                      value={newSkill.proficiencyLevel}
+                      onChange={(e) =>
+                        setNewSkill({
+                          ...newSkill,
+                          proficiencyLevel: e.target.value
+                        })
+                      }
+                    >
+                      <option value="BEGINNER">Beginner</option>
+                      <option value="INTERMEDIATE">Intermediate</option>
+                      <option value="ADVANCED">Advanced</option>
+                      <option value="EXPERT">Expert</option>
+                    </select>
+                  </div>
+
+                  <div className="col-md-3">
+                    <label>Years</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      max="50"
+                      value={newSkill.yearsExperience}
+                      onChange={(e) =>
+                        setNewSkill({
+                          ...newSkill,
+                          yearsExperience: Number(e.target.value)
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="col-md-1">
+                    <button
+                      type="button"
+                      className="btn btn-success w-100"
+                      onClick={addSkill}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Skill List */}
+                <div className="mt-3">
+                  {profile.skills.map((skill) => (
+                    <div
+                      key={skill.id}
+                      className="d-flex justify-content-between p-2 border rounded mb-2"
+                    >
+                      <div>
+                        <strong>{skill.skillName}</strong> —{" "}
+                        {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => removeSkill(skill.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Portfolio */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-info text-white">
+                <h5 className="mb-0">Portfolio</h5>
+              </div>
+              <div className="card-body">
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <input
+                      type="text"
+                      className="form-control mb-2"
+                      value={newPortfolio.title}
+                      onChange={(e) =>
+                        setNewPortfolio({
+                          ...newPortfolio,
+                          title: e.target.value
+                        })
+                      }
+                      placeholder="Project Title"
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <input
+                      type="url"
+                      className="form-control mb-2"
+                      value={newPortfolio.url}
+                      onChange={(e) =>
+                        setNewPortfolio({
+                          ...newPortfolio,
+                          url: e.target.value
+                        })
+                      }
+                      placeholder="Project URL (optional)"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <textarea
+                      className="form-control mb-2"
+                      rows="2"
+                      value={newPortfolio.description}
+                      onChange={(e) =>
+                        setNewPortfolio({
+                          ...newPortfolio,
+                          description: e.target.value
+                        })
+                      }
+                      placeholder="Project Description"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <button
+                      type="button"
+                      className="btn btn-info"
+                      onClick={addPortfolioItem}
+                    >
+                      Add Portfolio Item
+                    </button>
+                  </div>
+                </div>
+
+                {profile.portfolio.map((item) => (
+                  <div
+                    key={item.id}
+                    className="portfolio-item d-flex justify-content-between"
+                  >
+                    <div>
+                      <h6>{item.title}</h6>
+                      <p className="text-muted mb-1">{item.description}</p>
+                      {item.url && (
+                        <a href={item.url} target="_blank" rel="noreferrer">
+                          View Project →
+                        </a>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => removePortfolioItem(item.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary w-100"
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Profile"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FreelancerProfile;
+package com.freelancenexus.userservice.model;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
+
+/**
+ * Entity representing a freelancer.
+ */
+@Entity
+@Table(name = "freelancers")
+public class Freelancer {
     
-    public JwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
-		super();
-		this.jwtTokenProvider = jwtTokenProvider;
+    /**
+     * The unique identifier of the freelancer.
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    /**
+     * The user ID associated with the freelancer.
+     */
+    @Column(name = "user_id", unique = true, nullable = false)
+    private Long userId;
+    
+//    @OneToOne
+//    @JoinColumn(name = "userId")
+//    private User user;
+  
+    
+    /**
+     * The title or headline of the freelancer profile.
+     */
+    @Column(nullable = false, length = 255)
+    private String title;
+    
+    /**
+     * The biography or description of the freelancer.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+    
+    /**
+     * The hourly rate of the freelancer.
+     */
+    @Column(name = "hourly_rate", precision = 10, scale = 2)
+    private BigDecimal hourlyRate;
+    
+    /**
+     * The availability status of the freelancer.
+     */
+    @Column(length = 50)
+    private String availability;
+    
+    /**
+     * The total earnings of the freelancer.
+     */
+    @Column(name = "total_earnings", precision = 12, scale = 2)
+    private BigDecimal totalEarnings = BigDecimal.ZERO;
+    
+    /**
+     * The number of completed projects by the freelancer.
+     */
+    @Column(name = "completed_projects")
+    private Integer completedProjects = 0;
+    
+    /**
+     * The average rating of the freelancer.
+     */
+    @Column(name = "average_rating", precision = 3, scale = 2)
+    private BigDecimal averageRating = BigDecimal.ZERO;
+    
+    /**
+     * The list of skills associated with the freelancer.
+     */
+    @OneToMany(mappedBy = "freelancer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Skill> skills = new ArrayList<>();
+    
+    /**
+     * The list of portfolio items associated with the freelancer.
+     */
+    @OneToMany(mappedBy = "freelancer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Portfolio> portfolios = new ArrayList<>();
+    
+    /**
+     * The list of ratings received by the freelancer.
+     */
+    @OneToMany(mappedBy = "freelancer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Rating> ratings = new ArrayList<>();
+    
+    /**
+     * The timestamp when the freelancer profile was created.
+     */
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    /**
+     * The timestamp when the freelancer profile was last updated.
+     */
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Sets the creation and update timestamps before persisting the entity.
+     */
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+    
+    /**
+     * Sets the update timestamp before updating the entity.
+     */
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+    
+    /**
+     * Adds a skill to the freelancer.
+     *
+     * @param skill the skill to add
+     */
+    public void addSkill(Skill skill) {
+        skills.add(skill);
+        skill.setFreelancer(this);
+    }
+    
+    /**
+     * Removes a skill from the freelancer.
+     *
+     * @param skill the skill to remove
+     */
+    public void removeSkill(Skill skill) {
+        skills.remove(skill);
+        skill.setFreelancer(null);
+    }
+    
+    /**
+     * Adds a portfolio item to the freelancer.
+     *
+     * @param portfolio the portfolio item to add
+     */
+    public void addPortfolio(Portfolio portfolio) {
+        portfolios.add(portfolio);
+        portfolio.setFreelancer(this);
+    }
+    
+    /**
+     * Removes a portfolio item from the freelancer.
+     *
+     * @param portfolio the portfolio item to remove
+     */
+    public void removePortfolio(Portfolio portfolio) {
+        portfolios.remove(portfolio);
+        portfolio.setFreelancer(null);
+    }
+    
+    /**
+     * Adds a rating to the freelancer.
+     *
+     * @param rating the rating to add
+     */
+    public void addRating(Rating rating) {
+        ratings.add(rating);
+        rating.setFreelancer(this);
+    }
+
+	public Long getId() {
+		return id;
 	}
 
-	@Override
-    protected void doFilterInternal(HttpServletRequest request, 
-                                    HttpServletResponse response, 
-                                    FilterChain filterChain) throws ServletException, IOException {
-        try {
-            String jwt = getJwtFromRequest(request);
-            
-            if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-                Long userId = jwtTokenProvider.getUserIdFromToken(jwt);
-                String role = jwtTokenProvider.getRoleFromToken(jwt);
-                
-                UsernamePasswordAuthenticationToken authentication = 
-                    new UsernamePasswordAuthenticationToken(
-                        userId, 
-                        null, 
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
-                    );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("Set authentication for user ID: {}", userId);
-            }
-        } catch (Exception ex) {
-            log.error("Could not set user authentication in security context", ex);
-        }
-        
-        filterChain.doFilter(request, response);
-    }
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
+
+	public BigDecimal getHourlyRate() {
+		return hourlyRate;
+	}
+
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate;
+	}
+
+	public String getAvailability() {
+		return availability;
+	}
+
+	public void setAvailability(String availability) {
+		this.availability = availability;
+	}
+
+	public BigDecimal getTotalEarnings() {
+		return totalEarnings;
+	}
+
+	public void setTotalEarnings(BigDecimal totalEarnings) {
+		this.totalEarnings = totalEarnings;
+	}
+
+	public Long getUserId() {
+		return userId;
+	}
+
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+
+	public Integer getCompletedProjects() {
+		return completedProjects;
+	}
+
+	public void setCompletedProjects(Integer completedProjects) {
+		this.completedProjects = completedProjects;
+	}
+
+	public BigDecimal getAverageRating() {
+		return averageRating;
+	}
+
+	public void setAverageRating(BigDecimal averageRating) {
+		this.averageRating = averageRating;
+	}
+
+	public List<Skill> getSkills() {
+		return skills;
+	}
+
+	public void setSkills(List<Skill> skills) {
+		this.skills = skills;
+	}
+
+	public List<Portfolio> getPortfolios() {
+		return portfolios;
+	}
+
+	public void setPortfolios(List<Portfolio> portfolios) {
+		this.portfolios = portfolios;
+	}
+
+	public List<Rating> getRatings() {
+		return ratings;
+	}
+
+	public void setRatings(List<Rating> ratings) {
+		this.ratings = ratings;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+//	public Freelancer(Long id,String title, String bio, BigDecimal hourlyRate, String availability,
+//			BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating, List<Skill> skills,
+//			List<Portfolio> portfolios, List<Rating> ratings, LocalDateTime createdAt, LocalDateTime updatedAt) {
+//		super();
+//		this.id = id;
+//		this.title = title;
+//		this.bio = bio;
+//		this.hourlyRate = hourlyRate;
+//		this.availability = availability;
+//		this.totalEarnings = totalEarnings;
+//		this.completedProjects = completedProjects;
+//		this.averageRating = averageRating;
+//		this.skills = skills;
+//		this.portfolios = portfolios;
+//		this.ratings = ratings;
+//		this.createdAt = createdAt;
+//		this.updatedAt = updatedAt;
+//	}
+	
+	
+
+	public Freelancer() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Freelancer(Long id, Long userId, String title, String bio, BigDecimal hourlyRate, String availability,
+			BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating, List<Skill> skills,
+			List<Portfolio> portfolios, List<Rating> ratings, LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.userId = userId;
+		this.title = title;
+		this.bio = bio;
+		this.hourlyRate = hourlyRate;
+		this.availability = availability;
+		this.totalEarnings = totalEarnings;
+		this.completedProjects = completedProjects;
+		this.averageRating = averageRating;
+		this.skills = skills;
+		this.portfolios = portfolios;
+		this.ratings = ratings;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
     
-    private String getJwtFromRequest(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
-        }
-        return null;
-    }
+    
 }
 
-package com.freelancenexus.userservice.security;
+package com.freelancenexus.userservice.controller;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Date;
-
-import javax.crypto.SecretKey;
+import java.math.BigDecimal;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import com.freelancenexus.userservice.dto.FreelancerDTO;
+import com.freelancenexus.userservice.dto.FreelancerProfileDTO;
+import com.freelancenexus.userservice.service.FreelancerService;
 
-@Component
-public class JwtTokenProvider {
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancers.
+ * Provides endpoints for creating, retrieving, updating, and searching freelancer profiles.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+@CrossOrigin("http://localhost:3000")
+public class FreelancerController {
+	private final Logger log= LoggerFactory.getLogger(FreelancerController.class);
+    private final FreelancerService freelancerService;
     
-    @Value("${jwt.secret}")
-    private String jwtSecret;
-    
-    @Value("${jwt.expiration}")
-    private long jwtExpiration;
-    
-    private final Logger log= LoggerFactory.getLogger(JwtTokenProvider.class);
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
-        return Keys.hmacShaKeyFor(keyBytes);
+    public FreelancerController(FreelancerService freelancerService) {
+		super();
+		this.freelancerService = freelancerService;
+	}
+
+	/**
+     * Creates a freelancer profile.
+     *
+     * @param freelancerDTO the freelancer profile to be created
+     * @return the created freelancer profile
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> createFreelancer(@Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to create freelancer for user ID: {}", freelancerDTO.getUserId());
+        FreelancerDTO created = freelancerService.createFreelancer(freelancerDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
     
-    public String generateToken(String email, Long userId, String role) {
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+    /**
+     * Retrieves a freelancer profile by its ID.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerById(@PathVariable Long id) {
+        log.info("REST request to get freelancer by ID: {}", id);
+        FreelancerDTO freelancer = freelancerService.getFreelancerById(id);
+        return ResponseEntity.ok(freelancer);
+    }
+    
+    /**
+     * Retrieves the complete profile of a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer's complete profile
+     */
+    @GetMapping("/{id}/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerProfileDTO> getFreelancerProfile(@PathVariable Long id) {
+        log.info("REST request to get complete freelancer profile for ID: {}", id);
+        FreelancerProfileDTO profile = freelancerService.getFreelancerProfile(id);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Retrieves a freelancer profile by the user ID.
+     *
+     * @param userId the user ID associated with the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerByUserId(@PathVariable Long userId) {
+        log.info("REST request to get freelancer by user ID: {}", userId);
+        FreelancerDTO freelancer = freelancerService.getFreelancerByUserId(userId);
+        return ResponseEntity.ok(freelancer);
+    }
+    
+    /**
+     * Updates a freelancer profile.
+     *
+     * @param id the ID of the freelancer
+     * @param freelancerDTO the updated freelancer profile
+     * @return the updated freelancer profile
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> updateFreelancer(
+            @PathVariable Long id,
+            @Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to update freelancer with ID: {}", id);
+        FreelancerDTO updated = freelancerService.updateFreelancer(id, freelancerDTO);
+        return ResponseEntity.ok(updated);
+    }
+    
+    /**
+     * Searches for freelancers based on various criteria.
+     *
+     * @param minRate the minimum hourly rate
+     * @param maxRate the maximum hourly rate
+     * @param minRating the minimum rating
+     * @param availability the availability status
+     * @param skills the list of skills
+     * @return the list of freelancers matching the criteria
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<FreelancerDTO>> searchFreelancers(
+            @RequestParam(required = false) BigDecimal minRate,
+            @RequestParam(required = false) BigDecimal maxRate,
+            @RequestParam(required = false) BigDecimal minRating,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) List<String> skills) {
+        log.info("REST request to search freelancers");
         
-        return Jwts.builder()
-                .setSubject(email)
-                .claim("userId", userId)
-                .claim("role", role)
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
-                .compact();
-    }
-    
-    public String getEmailFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        List<FreelancerDTO> freelancers;
         
-        return claims.getSubject();
-    }
-    
-    public Long getUserIdFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        
-        return claims.get("userId", Long.class);
-    }
-    
-    public String getRoleFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
-        
-        return claims.get("role", String.class);
-    }
-    
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
-                .parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            log.error("Invalid JWT token: {}", e.getMessage());
-            return false;
+        if (skills != null && !skills.isEmpty()) {
+            freelancers = freelancerService.getFreelancersBySkills(skills);
+        } else if (minRate != null || maxRate != null || minRating != null || availability != null) {
+            freelancers = freelancerService.searchFreelancers(minRate, maxRate, minRating, availability);
+        } else {
+            freelancers = freelancerService.getAllFreelancers();
         }
+        
+        return ResponseEntity.ok(freelancers);
     }
 }
+
+
+ Secured PUT /api/freelancers/4
+2025-11-21T11:18:56.498+05:30 ERROR 21744 --- [user-service] [nio-8081-exec-2] c.f.u.exception.GlobalExceptionHandler   : Validation failed: Validation failed for argument [1] in public org.springframework.http.ResponseEntity<com.freelancenexus.userservice.dto.FreelancerDTO> com.freelancenexus.userservice.controller.FreelancerController.updateFreelancer(java.lang.Long,com.freelancenexus.userservice.dto.FreelancerDTO) with 2 errors: [Field error in object 'freelancerDTO' on field 'userId': rejected value [null]; codes [NotNull.freelancerDTO.userId,NotNull.userId,NotNull.java.lang.Long,NotNull]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [freelancerDTO.userId,userId]; arguments []; default message [userId]]; default message [User ID is required]] [Field error in object 'freelancerDTO' on field 'title': rejected value [null]; codes [NotBlank.freelancerDTO.title,NotBlank.title,NotBlank.java.lang.String,NotBlank]; arguments [org.springframework.context.support.DefaultMessageSourceResolvable: codes [freelancerDTO.title,title]; arguments []; default message [title]]; default message [Title is required]] 
+ i want fix my frontend
+
+
+
+
