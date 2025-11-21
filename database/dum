@@ -1,30 +1,158 @@
-import api from "./api";
+import React, { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/AuthContext";
+import freelancerService from "../../services/freelancerService";
+import Loader from "../common/Loader";
 
-const freelancerService = {
-  getFreelancerProfile(id) {
-    return api.get(`/freelancers/${id}`).then(res => res.data);
-  },
+const FreelancerProfile = () => {
+  const { user } = useAuth();
 
-  updateFreelancerProfile(id, data) {
-    return api.put(`/freelancers/${id}`, data).then(res => res.data);
-  },
+  const [profile, setProfile] = useState({
+    title: "",
+    bio: "",
+    hourlyRate: "",
+    skills: [],
+    portfolio: []
+  });
 
-  // ---------- PORTFOLIO APIS (OPTION B) ----------
-  getPortfolio(id) {
-    return api.get(`/freelancers/${id}/portfolio`).then(res => res.data);
-  },
+  const [newSkill, setNewSkill] = useState({
+    skillName: "",
+    proficiencyLevel: "BEGINNER",
+    yearsExperience: 1
+  });
 
-  addPortfolio(id, data) {
-    return api.post(`/freelancers/${id}/portfolio`, data).then(res => res.data);
-  },
+  const [newPortfolio, setNewPortfolio] = useState({
+    title: "",
+    description: "",
+    projectUrl: ""
+  });
 
-  updatePortfolio(portfolioId, data) {
-    return api.put(`/freelancers/portfolio/${portfolioId}`, data).then(res => res.data);
-  },
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
 
-  deletePortfolio(portfolioId) {
-    return api.delete(`/freelancers/portfolio/${portfolioId}`);
-  }
-};
 
-export default freelancerService;
+  // ---------- FETCH PROFILE + PORTFOLIO ----------
+  const fetchProfile = useCallback(async () => {
+    try {
+      const data = await freelancerService.getFreelancerProfile(user.id);
+      const portfolio = await freelancerService.getPortfolio(user.id);
+
+      setProfile({
+        title: data.title || "",
+        bio: data.bio || "",
+        hourlyRate: data.hourlyRate || "",
+        skills: data.skills || [],
+        portfolio: portfolio || []
+      });
+
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) fetchProfile();
+  }, [fetchProfile, user?.id]);
+
+
+  // ---------- UPDATE BASIC PROFILE ----------
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const payload = { ...profile, userId: user.id };
+
+      await freelancerService.updateFreelancerProfile(user.id, payload);
+
+      setMessage({ type: "success", text: "Profile updated successfully!" });
+
+    } catch (error) {
+      setMessage({ type: "danger", text: "Profile update failed!" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
+  // ---------- SKILLS ----------
+  const addSkill = () => {
+    if (!newSkill.skillName.trim()) return;
+
+    setProfile((prev) => ({
+      ...prev,
+      skills: [...prev.skills, { ...newSkill }]
+    }));
+
+    setNewSkill({
+      skillName: "",
+      proficiencyLevel: "BEGINNER",
+      yearsExperience: 1
+    });
+  };
+
+  const removeSkill = (id) => {
+    setProfile((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((s) => s.id !== id)
+    }));
+  };
+
+
+  // ---------- PORTFOLIO CRUD ----------
+  const addPortfolioItem = async () => {
+    if (!newPortfolio.title || !newPortfolio.description) return;
+
+    try {
+      const saved = await freelancerService.addPortfolio(user.id, newPortfolio);
+
+      setProfile((prev) => ({
+        ...prev,
+        portfolio: [...prev.portfolio, saved]
+      }));
+
+      setNewPortfolio({ title: "", description: "", projectUrl: "" });
+
+    } catch (e) {
+      console.error("Error adding portfolio", e);
+    }
+  };
+
+  const removePortfolioItem = async (id) => {
+    try {
+      await freelancerService.deletePortfolio(id);
+
+      setProfile((prev) => ({
+        ...prev,
+        portfolio: prev.portfolio.filter((item) => item.id !== id)
+      }));
+
+    } catch (e) {
+      console.error("Error deleting portfolio", e);
+    }
+  };
+
+
+  if (loading) return <Loader />;
+
+
+  return (
+    <div className="container mt-4">
+      <div className="row">
+        <div className="col-lg-8 mx-auto">
+          <h2 className="mb-4">My Profile</h2>
+
+          {message.text && (
+            <div className={`alert alert-${message.type}`}>{message.text}</div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+
+            {/* BASIC INFO */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-primary text-white">
+                <h5 className="mb-0">Basic Information</h5>
+              </div>
+              <div className="card-body">
