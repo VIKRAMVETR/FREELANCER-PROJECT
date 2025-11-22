@@ -1,247 +1,1594 @@
-2025-11-22T13:59:37.555+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-4] o.s.security.web.FilterChainProxy        : Securing OPTIONS /api/proposals/26/withdraw
-2025-11-22T13:59:37.559+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-5] o.s.security.web.FilterChainProxy        : Securing PUT /api/proposals/26/withdraw
-2025-11-22T13:59:37.560+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-5] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
-2025-11-22T13:59:37.561+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-5] o.s.security.web.FilterChainProxy        : Secured PUT /api/proposals/26/withdraw
-2025-11-22T13:59:37.567+05:30  INFO 44284 --- [user-service] [nio-8081-exec-5] c.f.u.controller.ProposalController      : PUT /api/proposals/26/withdraw - Withdrawing proposal
-2025-11-22T13:59:37.569+05:30  INFO 44284 --- [user-service] [nio-8081-exec-5] c.f.userservice.service.ProposalService  : Withdrawing proposal ID: 26
-Hibernate: 
-    select
-        p1_0.id,
-        p1_0.ai_score,
-        p1_0.cover_letter,
-        p1_0.delivery_days,
-        p1_0.freelancer_id,
-        p1_0.project_id,
-        p1_0.proposed_budget,
-        p1_0.status,
-        p1_0.submitted_at,
-        p1_0.updated_at 
-    from
-        proposals p1_0 
-    where
-        p1_0.id=?
-Hibernate: 
-    select
-        p1_0.id,
-        p1_0.assigned_freelancer,
-        p1_0.budget_max,
-        p1_0.budget_min,
-        p1_0.category,
-        p1_0.client_id,
-        p1_0.created_at,
-        p1_0.deadline,
-        p1_0.description,
-        p1_0.duration_days,
-        p1_0.required_skills,
-        p1_0.status,
-        p1_0.title,
-        p1_0.updated_at 
-    from
-        projects p1_0 
-    where
-        p1_0.id=?
-Hibernate: 
-    update
-        proposals 
-    set
-        ai_score=?,
-        cover_letter=?,
-        delivery_days=?,
-        freelancer_id=?,
-        project_id=?,
-        proposed_budget=?,
-        status=?,
-        updated_at=? 
-    where
-        id=?
-2025-11-22T13:59:37.580+05:30  WARN 44284 --- [user-service] [nio-8081-exec-5] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 0, SQLState: 23514
-2025-11-22T13:59:37.580+05:30 ERROR 44284 --- [user-service] [nio-8081-exec-5] o.h.engine.jdbc.spi.SqlExceptionHelper   : ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
-  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).
-2025-11-22T13:59:37.581+05:30 ERROR 44284 --- [user-service] [nio-8081-exec-5] c.f.u.controller.ProposalController      : Error in ProposalController
+import api from './api';
 
-org.springframework.dao.DataIntegrityViolationException: could not execute statement [ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
-  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).] [update proposals set ai_score=?,cover_letter=?,delivery_days=?,freelancer_id=?,project_id=?,proposed_budget=?,status=?,updated_at=? where id=?]; SQL [update proposals set ai_score=?,cover_letter=?,delivery_days=?,freelancer_id=?,project_id=?,proposed_budget=?,status=?,updated_at=? where id=?]; constraint [proposals_status_check]
-	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.convertHibernateAccessException(HibernateJpaDialect.java:290) ~[spring-orm-6.1.1.jar:6.1.1]
-	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:241) ~[spring-orm-6.1.1.jar:6.1.1]
-	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:565) ~[spring-orm-6.1.1.jar:6.1.1]
-	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:794) ~[spring-tx-6.1.1.jar:6.1.1]
-	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:757) ~[spring-tx-6.1.1.jar:6.1.1]
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:669) ~[spring-tx-6.1.1.jar:6.1.1]
-	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:419) ~[spring-tx-6.1.1.jar:6.1.1]
-	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.1.1.jar:6.1.1]
-	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.1.1.jar:6.1.1]
-	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:765) ~[spring-aop-6.1.1.jar:6.1.1]
-	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:717) ~[spring-aop-6.1.1.jar:6.1.1]
-	at com.freelancenexus.userservice.service.ProposalService$$SpringCGLIB$$0.withdrawProposal(<generated>) ~[classes/:na]
-	at com.freelancenexus.userservice.controller.ProposalController.withdrawProposal(ProposalController.java:193) ~[classes/:na]
-	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
-	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
-	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:254) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:182) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:917) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:829) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at org.springframework.web.servlet.FrameworkServlet.doPut(FrameworkServlet.java:925) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:593) ~[tomcat-embed-core-10.1.16.jar:6.0]
-	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.1.1.jar:6.1.1]
-	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.16.jar:6.0]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at com.freelancenexus.userservice.security.JwtAuthenticationFilter.doFilterInternal(JwtAuthenticationFilter.java:57) ~[classes/:na]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$FilterObservation$SimpleFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:479) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:340) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator.lambda$wrapSecured$0(ObservationFilterChainDecorator.java:82) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:128) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$0(ObservationFilterChainDecorator.java:323) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:224) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191) ~[spring-security-web-6.2.0.jar:6.2.0]
-	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
-	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
-	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
-Caused by: org.hibernate.exception.ConstraintViolationException: could not execute statement [ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
-  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).] [update proposals set ai_score=?,cover_letter=?,delivery_days=?,freelancer_id=?,project_id=?,proposed_budget=?,status=?,updated_at=? where id=?]
-	at org.hibernate.exception.internal.SQLStateConversionDelegate.convert(SQLStateConversionDelegate.java:97) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:58) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:283) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:107) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:40) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:52) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.doStaticUpdate(UpdateCoordinatorStandard.java:769) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.performUpdate(UpdateCoordinatorStandard.java:325) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.coordinateUpdate(UpdateCoordinatorStandard.java:242) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.persister.entity.AbstractEntityPersister.update(AbstractEntityPersister.java:2802) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.action.internal.EntityUpdateAction.execute(EntityUpdateAction.java:166) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:631) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:498) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:363) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:39) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1415) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:496) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2325) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:1988) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:439) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:169) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:267) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:561) ~[spring-orm-6.1.1.jar:6.1.1]
-	... 138 common frames omitted
-Caused by: org.postgresql.util.PSQLException: ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
-  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).
-	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2713) ~[postgresql-42.6.0.jar:42.6.0]
-	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2401) ~[postgresql-42.6.0.jar:42.6.0]
-	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:368) ~[postgresql-42.6.0.jar:42.6.0]
-	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:498) ~[postgresql-42.6.0.jar:42.6.0]
-	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:415) ~[postgresql-42.6.0.jar:42.6.0]
-	at org.postgresql.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:190) ~[postgresql-42.6.0.jar:42.6.0]
-	at org.postgresql.jdbc.PgPreparedStatement.executeUpdate(PgPreparedStatement.java:152) ~[postgresql-42.6.0.jar:42.6.0]
-	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-5.0.1.jar:na]
-	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-5.0.1.jar:na]
-	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:280) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
-	... 160 common frames omitted
+const projectService = {
+ 
 
+getAllProjects: async (filters = {}) => {
+
+  const params = new URLSearchParams();
+ 
+  if (filters.keyword) params.append("keyword", filters.keyword);
+
+  if (filters.category) params.append("category", filters.category);
+
+  if (filters.status) params.append("status", filters.status);
+ 
+  const response = await api.get(`/api/projects?${params.toString()}`);
+
+  return response.data;
+
+},
+ 
+
+  getProjectById: async (projectId) => {
+    const response = await api.get(`/api/projects/${projectId}`);
+    return response.data;
+  },
+
+  createProject: async (projectData) => {
+    const response = await api.post('/api/projects', projectData);
+    return response.data;
+  },
+
+  updateProject: async (projectId, projectData) => {
+    const response = await api.put(`/api/projects/${projectId}`, projectData);
+    return response.data;
+  },
+
+  deleteProject: async (projectId) => {
+    const response = await api.delete(`/api/projects/${projectId}`);
+    return response.data;
+  },
+
+  getClientProjects: async (clientId) => {
+    const response = await api.get(`/api/projects/client/${clientId}`);
+    return response.data;
+  },
+
+  getProjectsByStatus: async (status) => {
+    const response = await api.get(`/api/projects/status/${status}`);
+    return response.data;
+  },
+
+ searchProjects: async (query) => {
+  const response = await api.get(`/api/projects?keyword=${query}`);
+  return response.data;
+}
+};
+
+export default projectService;
+
+
+
+
+
+
+
+
+
+
+
+
+import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import projectService from '../../services/projectService';
+import aiService from '../../services/aiService';
+import Loader from '../common/Loader';
+
+const ProjectDetails = () => {
+  const { id } = useParams();
+  const { user, authenticated } = useAuth();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProject = async () => {
+      try {
+        const data = await projectService.getProjectById(id);
+        setProject(data);
+      } catch (error) {
+        console.error('Error fetching project:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const fetchSummary = async () => {
+      try {
+        const data = await aiService.generateProjectSummary(id);
+        setSummary(data);
+      } catch (error) {
+        console.error('Error fetching AI summary:', error);
+      }
+    };
+
+    fetchProject();
+    fetchSummary();
+  }, [id]);
+
+  if (loading) return <Loader />;
+
+  if (!project) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">Project not found</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <button 
+            className="btn btn-outline-secondary mb-3"
+            onClick={() => navigate(-1)}
+          >
+            ← Back
+          </button>
+          <h2>{project.title}</h2>
+          <p className="text-muted">
+            Posted by {project.clientName} on {new Date(project.createdAt).toLocaleDateString()}
+          </p>
+        </div>
+      </div>
+
+      <div className="row">
+        <div className="col-lg-8">
+          {/* AI Summary */}
+          {summary && (
+            <div className="card shadow-sm mb-4 ai-feature">
+              <div className="card-body">
+                <h5 className="mb-3">
+                  <span className="ai-badge">AI</span> Project Summary
+                </h5>
+                <p>{summary.summary}</p>
+                <div className="mt-3">
+                  <strong>Key Requirements:</strong>
+                  <ul className="mt-2">
+                    {summary.keyRequirements?.map((req, idx) => (
+                      <li key={idx}>{req}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Project Description */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Project Description</h5>
+            </div>
+            <div className="card-body">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{project.description}</p>
+            </div>
+          </div>
+
+          {/* Required Skills */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0">Required Skills</h5>
+            </div>
+            <div className="card-body">
+              {project.requiredSkills?.map((skill, idx) => (
+                <span key={idx} className="badge bg-secondary me-2 mb-2">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="col-lg-4">
+          {/* Project Info */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0">Project Details</h5>
+            </div>
+            <div className="card-body">
+              <div className="mb-3">
+                <strong>Budget:</strong>
+                <div className="mt-1">₹{project.budgetMin} - ₹{project.budgetMax}</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Duration:</strong>
+                <div className="mt-1">{project.durationDays} days</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Category:</strong>
+                <div className="mt-1">
+                  <span className="badge bg-primary">{project.category}</span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Status:</strong>
+                <div className="mt-1">
+                  <span className={`badge bg-${
+                    project.status === 'OPEN' ? 'success' :
+                    project.status === 'IN_PROGRESS' ? 'warning' :
+                    project.status === 'COMPLETED' ? 'info' : 'secondary'
+                  }`}>
+                    {project.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Proposals:</strong>
+                <div className="mt-1">{project.proposalCount || 0}</div>
+              </div>
+
+              {authenticated && user.role === "FREELANCER" && project.status === 'OPEN' && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/freelancer/submit-proposal/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    Submit Proposal
+                  </Link>
+                </div>
+              )}
+
+              {authenticated && user.role === "CLIENT" && user?.id === project.clientId && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/client/proposals/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    View Proposals
+                  </Link>
+                  <Link 
+                    to={`/client/ai-ranking/${project.id}`}
+                    className="btn btn-info"
+                  >
+                    <span className="ai-badge">AI</span> Rank Proposals
+                  </Link>
+                </div>
+              )}
+
+              {!authenticated && (
+                <div className="alert alert-info mt-4">
+                  <small>
+                    <Link to="/login">Login</Link> or <Link to="/register">Register</Link> to submit a proposal
+                  </small>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Client Info */}
+          <div className="card shadow-sm">
+            <div className="card-header bg-secondary text-white">
+              <h5 className="mb-0">About the Client</h5>
+            </div>
+            <div className="card-body">
+              <h6>{project.clientName}</h6>
+              <p className="text-muted mb-2">Member since {new Date(project.clientJoinDate).getFullYear()}</p>
+              <div className="mb-2">
+                <strong>Projects Posted:</strong> {project.clientProjectCount || 0}
+              </div>
+              <div className="mb-2">
+                <strong>Rating:</strong>  {project.clientRating || 'N/A'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ProjectDetails;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDateTime;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a rating.
+ * Includes details such as client ID, project ID, rating value, and review.
+ */
+
+public class RatingDTO {
+    
+    /**
+     * The unique identifier of the rating.
+     */
+    private Long id;
+    
+    /**
+     * The ID of the client who provided the rating.
+     * Must not be null.
+     */
+    @NotNull(message = "Client ID is required")
+    private Long clientId;
+    
+    /**
+     * The ID of the project associated with the rating.
+     */
+    private Long projectId;
+    
+    /**
+     * The rating value.
+     * Must be between 1 and 5.
+     */
+    @NotNull(message = "Rating is required")
+    @Min(value = 1, message = "Rating must be at least 1")
+    @Max(value = 5, message = "Rating must not exceed 5")
+    private Integer rating;
+    
+    /**
+     * The review text provided by the client.
+     * Cannot exceed 2000 characters.
+     */
+    @Size(max = 2000, message = "Review must not exceed 2000 characters")
+    private String review;
+    
+    /**
+     * The timestamp when the rating was created.
+     */
+    private LocalDateTime createdAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public Integer getRating() {
+		return rating;
+	}
+
+	public void setRating(Integer rating) {
+		this.rating = rating;
+	}
+
+	public String getReview() {
+		return review;
+	}
+
+	public void setReview(String review) {
+		this.review = review;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public RatingDTO(Long id, @NotNull(message = "Client ID is required") Long clientId, Long projectId,
+			@NotNull(message = "Rating is required") @Min(value = 1, message = "Rating must be at least 1") @Max(value = 5, message = "Rating must not exceed 5") Integer rating,
+			@Size(max = 2000, message = "Review must not exceed 2000 characters") String review,
+			LocalDateTime createdAt) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.projectId = projectId;
+		this.rating = rating;
+		this.review = review;
+		this.createdAt = createdAt;
+	}
+
+	public RatingDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.freelancenexus.userservice.model.ProjectStatus;
+
+/**
+ * ProjectDTO
+ *
+ * <p>Data Transfer Object representing project information returned by API endpoints.
+ * Contains project details, status, budget information, required skills, and metadata.
+ * Excludes sensitive information and is used for transferring project data to clients.</p>
+ *
+ * <p>Typically returned by project retrieval, creation, and update endpoints.</p>
+ *
+ * @since 1.0
+ */
+public class ProjectDTO {
+    
+    /**
+     * Unique identifier of the project.
+     */
+    private Long id;
+    
+    /**
+     * Unique identifier of the client who created the project.
+     */
+    private Long clientId;
+    
+    /**
+     * Project title.
+     */
+    private String title;
+    
+    /**
+     * Detailed description of the project and its requirements.
+     */
+    private String description;
+    
+    /**
+     * Minimum budget amount for the project.
+     */
+    private BigDecimal budgetMin;
+    
+    /**
+     * Maximum budget amount for the project.
+     */
+    private BigDecimal budgetMax;
+    
+    /**
+     * Estimated project duration in days.
+     */
+    private Integer durationDays;
+    
+    /**
+     * List of required skills to complete the project.
+     */
+    private List<String> requiredSkills;
+    
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     */
+    private String category;
+    
+    /**
+     * Current status of the project (e.g., OPEN, IN_PROGRESS, COMPLETED).
+     *
+     * @see ProjectStatus
+     */
+    private ProjectStatus status;
+    
+    /**
+     * Project deadline date.
+     */
+    private LocalDate deadline;
+    
+    /**
+     * Unique identifier of the freelancer assigned to the project (if any).
+     * {@code null} if no freelancer is assigned.
+     */
+    private Long assignedFreelancer;
+    
+    /**
+     * Timestamp when the project was created.
+     */
+    private LocalDateTime createdAt;
+    
+    /**
+     * Timestamp when the project was last updated.
+     */
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Number of proposals submitted for this project.
+     */
+    private Integer proposalCount;
+
+	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
+			ProjectStatus status, LocalDate deadline, Long assignedFreelancer,
+			LocalDateTime createdAt, LocalDateTime updatedAt, Integer proposalCount) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposalCount = proposalCount;
+	}
+
+	public ProjectDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public ProjectStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ProjectStatus status) {
+		this.status = status;
+	}
+
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+
+	public Long getAssignedFreelancer() {
+		return assignedFreelancer;
+	}
+
+	public void setAssignedFreelancer(Long assignedFreelancer) {
+		this.assignedFreelancer = assignedFreelancer;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Integer getProposalCount() {
+		return proposalCount;
+	}
+
+	public void setProposalCount(Integer proposalCount) {
+		this.proposalCount = proposalCount;
+	}
+	
+	
+    
+    
+}
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.service;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.RatingDTO;
+import com.freelancenexus.userservice.exception.DuplicateRatingException;
+import com.freelancenexus.userservice.exception.ResourceNotFoundException;
+import com.freelancenexus.userservice.model.Freelancer;
+import com.freelancenexus.userservice.model.Rating;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
+import com.freelancenexus.userservice.repository.RatingRepository;
+@Service
+public class RatingService {
+	private final Logger log= LoggerFactory.getLogger(RatingService.class);
+    private final RatingRepository ratingRepository;
+    private final FreelancerRepository freelancerRepository;
+    private final FreelancerService freelancerService;
+    
+    public RatingService(RatingRepository ratingRepository, FreelancerRepository freelancerRepository,
+			FreelancerService freelancerService) {
+		super();
+		this.ratingRepository = ratingRepository;
+		this.freelancerRepository = freelancerRepository;
+		this.freelancerService = freelancerService;
+	}
+
+	@Transactional
+    public RatingDTO addRating(Long freelancerId, RatingDTO ratingDTO) {
+        log.info("Adding rating for freelancer ID: {} by client ID: {}", freelancerId, ratingDTO.getClientId());
+        
+        Freelancer freelancer = freelancerRepository.findById(freelancerId)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
+        
+        // Check if rating already exists for this project
+        if (ratingDTO.getProjectId() != null && 
+            ratingRepository.existsByFreelancerIdAndClientIdAndProjectId(
+                freelancerId, ratingDTO.getClientId(), ratingDTO.getProjectId())) {
+            throw new DuplicateRatingException("Rating already exists for this project");
+        }
+        
+        Rating rating = mapToEntity(ratingDTO);
+        freelancer.addRating(rating);
+        
+        Rating saved = ratingRepository.save(rating);
+        log.info("Rating added with ID: {}", saved.getId());
+        
+        // Update freelancer's average rating
+        freelancerService.updateFreelancerStats(freelancerId);
+        
+        return mapToDTO(saved);
+    }
+    
+    @Transactional(readOnly = true)
+    public List<RatingDTO> getFreelancerRatings(Long freelancerId) {
+        log.info("Fetching ratings for freelancer ID: {}", freelancerId);
+        
+        if (!freelancerRepository.existsById(freelancerId)) {
+            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
+        }
+        
+        List<Rating> ratings = ratingRepository.findByFreelancerIdOrderByCreatedAtDesc(freelancerId);
+        
+        return ratings.stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public BigDecimal getAverageRating(Long freelancerId) {
+        log.info("Calculating average rating for freelancer ID: {}", freelancerId);
+        
+        BigDecimal average = ratingRepository.calculateAverageRating(freelancerId);
+        return average != null ? average : BigDecimal.ZERO;
+    }
+    
+    @Transactional(readOnly = true)
+    public long getRatingCount(Long freelancerId) {
+        return ratingRepository.countByFreelancerId(freelancerId);
+    }
+    
+    private RatingDTO mapToDTO(Rating rating) {
+        RatingDTO dto = new RatingDTO();
+        dto.setId(rating.getId());
+        dto.setClientId(rating.getClientId());
+        dto.setProjectId(rating.getProjectId());
+        dto.setRating(rating.getRating());
+        dto.setReview(rating.getReview());
+        dto.setCreatedAt(rating.getCreatedAt());
+        return dto;
+    }
+    
+    private Rating mapToEntity(RatingDTO dto) {
+        Rating rating = new Rating();
+        rating.setClientId(dto.getClientId());
+        rating.setProjectId(dto.getProjectId());
+        rating.setRating(dto.getRating());
+        rating.setReview(dto.getReview());
+        return rating;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.RatingDTO;
+import com.freelancenexus.userservice.service.RatingService;
+
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancer ratings.
+ * Provides endpoints for adding and retrieving ratings.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+public class RatingController {
+	private final Logger log= LoggerFactory.getLogger(RatingController.class);
+    private final RatingService ratingService;
+
+    
+    public RatingController(RatingService ratingService) {
+		super();
+		this.ratingService = ratingService;
+	}
+
+	/**
+     * Adds a rating for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @param ratingDTO the rating to be added
+     * @return the created rating
+     */
+    // Only clients can add ratings (after project completion)
+    @PostMapping("/{id}/ratings")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<RatingDTO> addRating(
+            @PathVariable Long id,
+            @Valid @RequestBody RatingDTO ratingDTO) {
+        log.info("REST request to add rating for freelancer ID: {}", id);
+        RatingDTO created = ratingService.addRating(id, ratingDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Retrieves all ratings for a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the list of ratings
+     */
+    // Anyone authenticated can view ratings
+    @GetMapping("/{id}/ratings")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<RatingDTO>> getFreelancerRatings(@PathVariable Long id) {
+        log.info("REST request to get ratings for freelancer ID: {}", id);
+        List<RatingDTO> ratings = ratingService.getFreelancerRatings(id);
+        return ResponseEntity.ok(ratings);
+    }
+}
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.service.ProjectService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * ProjectController
+ *
+ * <p>REST API controller for project management in the Project Service.
+ * Provides endpoints for creating, retrieving, updating, and deleting projects.
+ * Implements role-based access control to restrict operations by user role.</p>
+ *
+ * <p>Endpoints are categorized by operation type:
+ * <ul>
+ *   <li><strong>Creation</strong> — clients create new projects</li>
+ *   <li><strong>Retrieval</strong> — authenticated users view projects</li>
+ *   <li><strong>Updates</strong> — clients update their projects</li>
+ *   <li><strong>Deletion</strong> — clients and admins delete projects</li>
+ *   <li><strong>Search/Filter</strong> — keyword, category, and status filtering</li>
+ *   <li><strong>Assignment</strong> — clients assign freelancers to projects</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+@Slf4j
+public class ProjectController {
+	private final Logger log= LoggerFactory.getLogger(ProjectController.class);
+    private final ProjectService projectService;
+    
+    public ProjectController(ProjectService projectService) {
+		super();
+		this.projectService = projectService;
+	}
+
+	/**
+     * Create a new project.
+     *
+     * <p>Requires CLIENT role. Accepts validated project creation details and
+     * persists the new project to the database.</p>
+     *
+     * @param createDTO project creation details
+     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProjectDTO}
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> createProject(@Valid @RequestBody ProjectCreateDTO createDTO) {
+        log.info("POST /api/projects - Creating project: {}", createDTO.getTitle());
+        ProjectDTO createdProject = projectService.createProject(createDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
+    }
+
+    /**
+     * Retrieve a project by id.
+     *
+     * <p>Requires authentication. Any authenticated user can view project details.</p>
+     *
+     * @param id the unique identifier of the project
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProjectDTO}
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProjectDTO> getProject(@PathVariable Long id) {
+        log.info("GET /api/projects/{} - Fetching project", id);
+        ProjectDTO project = projectService.getProjectById(id);
+        return ResponseEntity.ok(project);
+    }
+
+    /**
+     * Update an existing project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can update it.</p>
+     *
+     * @param id the unique identifier of the project to update
+     * @param updateDTO updated project details
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> updateProject(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectCreateDTO updateDTO) {
+        log.info("PUT /api/projects/{} - Updating project", id);
+        ProjectDTO updatedProject = projectService.updateProject(id, updateDTO);
+        return ResponseEntity.ok(updatedProject);
+    }
+
+    /**
+     * Delete a project by id.
+     *
+     * <p>Requires CLIENT or ADMIN role. Only the project owner (client) or an admin can delete.</p>
+     *
+     * @param id the unique identifier of the project to delete
+     * @return ResponseEntity with HTTP 204 (No Content) status
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
+        log.info("DELETE /api/projects/{} - Deleting project", id);
+        projectService.deleteProject(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Retrieve all projects with optional filtering.
+     *
+     * <p>Requires authentication. Supports filtering by keyword, status, and category.
+     * Returns open projects by default if status="OPEN" is specified.</p>
+     *
+     * @param keyword optional keyword for searching project titles/descriptions
+     * @param status optional status filter (e.g., "OPEN", "IN_PROGRESS")
+     * @param category optional category filter
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProjectDTO>> getAllProjects(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category) {
+        log.info("GET /api/projects - Fetching projects with filters");
+        
+        List<ProjectDTO> projects;
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            projects = projectService.searchProjects(keyword, status);
+        } else if (category != null && !category.isEmpty()) {
+            projects = projectService.getProjectsByCategory(category);
+        } else if ("OPEN".equalsIgnoreCase(status)) {
+            projects = projectService.getOpenProjects();
+        } else {
+            projects = projectService.getAllProjects();
+        }
+        
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * Retrieve all projects created by a specific client.
+     *
+     * <p>Requires CLIENT role.</p>
+     *
+     * @param clientId the unique identifier of the client
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping("/client/{clientId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<ProjectDTO>> getClientProjects(@PathVariable Long clientId) {
+        log.info("GET /api/projects/client/{} - Fetching client projects", clientId);
+        List<ProjectDTO> projects = projectService.getProjectsByClientId(clientId);
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * Assign a freelancer to a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can assign a freelancer.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param freelancerId the unique identifier of the freelancer to assign
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{projectId}/assign/{freelancerId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> assignFreelancer(
+            @PathVariable Long projectId,
+            @PathVariable Long freelancerId) {
+        log.info("PUT /api/projects/{}/assign/{} - Assigning freelancer", projectId, freelancerId);
+        ProjectDTO project = projectService.assignFreelancer(projectId, freelancerId);
+        return ResponseEntity.ok(project);
+    }
+
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in ProjectController", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.service;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.RatingDTO;
+import com.freelancenexus.userservice.exception.DuplicateRatingException;
+import com.freelancenexus.userservice.exception.ResourceNotFoundException;
+import com.freelancenexus.userservice.model.Freelancer;
+import com.freelancenexus.userservice.model.Rating;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
+import com.freelancenexus.userservice.repository.RatingRepository;
+@Service
+public class RatingService {
+	private final Logger log= LoggerFactory.getLogger(RatingService.class);
+    private final RatingRepository ratingRepository;
+    private final FreelancerRepository freelancerRepository;
+    private final FreelancerService freelancerService;
+    
+    public RatingService(RatingRepository ratingRepository, FreelancerRepository freelancerRepository,
+			FreelancerService freelancerService) {
+		super();
+		this.ratingRepository = ratingRepository;
+		this.freelancerRepository = freelancerRepository;
+		this.freelancerService = freelancerService;
+	}
+
+	@Transactional
+    public RatingDTO addRating(Long freelancerId, RatingDTO ratingDTO) {
+        log.info("Adding rating for freelancer ID: {} by client ID: {}", freelancerId, ratingDTO.getClientId());
+        
+        Freelancer freelancer = freelancerRepository.findById(freelancerId)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
+        
+        // Check if rating already exists for this project
+        if (ratingDTO.getProjectId() != null && 
+            ratingRepository.existsByFreelancerIdAndClientIdAndProjectId(
+                freelancerId, ratingDTO.getClientId(), ratingDTO.getProjectId())) {
+            throw new DuplicateRatingException("Rating already exists for this project");
+        }
+        
+        Rating rating = mapToEntity(ratingDTO);
+        freelancer.addRating(rating);
+        
+        Rating saved = ratingRepository.save(rating);
+        log.info("Rating added with ID: {}", saved.getId());
+        
+        // Update freelancer's average rating
+        freelancerService.updateFreelancerStats(freelancerId);
+        
+        return mapToDTO(saved);
+    }
+    
+    @Transactional(readOnly = true)
+    public List<RatingDTO> getFreelancerRatings(Long freelancerId) {
+        log.info("Fetching ratings for freelancer ID: {}", freelancerId);
+        
+        if (!freelancerRepository.existsById(freelancerId)) {
+            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
+        }
+        
+        List<Rating> ratings = ratingRepository.findByFreelancerIdOrderByCreatedAtDesc(freelancerId);
+        
+        return ratings.stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public BigDecimal getAverageRating(Long freelancerId) {
+        log.info("Calculating average rating for freelancer ID: {}", freelancerId);
+        
+        BigDecimal average = ratingRepository.calculateAverageRating(freelancerId);
+        return average != null ? average : BigDecimal.ZERO;
+    }
+    
+    @Transactional(readOnly = true)
+    public long getRatingCount(Long freelancerId) {
+        return ratingRepository.countByFreelancerId(freelancerId);
+    }
+    
+    private RatingDTO mapToDTO(Rating rating) {
+        RatingDTO dto = new RatingDTO();
+        dto.setId(rating.getId());
+        dto.setClientId(rating.getClientId());
+        dto.setProjectId(rating.getProjectId());
+        dto.setRating(rating.getRating());
+        dto.setReview(rating.getReview());
+        dto.setCreatedAt(rating.getCreatedAt());
+        return dto;
+    }
+    
+    private Rating mapToEntity(RatingDTO dto) {
+        Rating rating = new Rating();
+        rating.setClientId(dto.getClientId());
+        rating.setProjectId(dto.getProjectId());
+        rating.setRating(dto.getRating());
+        rating.setReview(dto.getReview());
+        return rating;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.service;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.model.Project;
+import com.freelancenexus.userservice.model.ProjectStatus;
+import com.freelancenexus.userservice.repository.ProjectRepository;
+import com.freelancenexus.userservice.repository.ProposalRepository;
+
+/**
+ * ProjectService
+ *
+ * <p>Core service layer for project management. Handles creation, retrieval, update,
+ * assignment and soft-deletion (cancellation) of projects. Coordinates persistence
+ * via {@link ProjectRepository}, proposal counting via {@link ProposalRepository},
+ * and event publication to RabbitMQ. Methods that modify state are annotated with
+ * {@link Transactional} to ensure data consistency.</p>
+ *
+ * <p>Typical responsibilities:
+ * <ul>
+ *   <li>Persist new projects</li>
+ *   <li>Update existing projects</li>
+ *   <li>Soft-delete (cancel) projects</li>
+ *   <li>Assign freelancers to projects</li>
+ *   <li>Convert between entity and DTO representations</li>
+ *   <li>Publish domain events for downstream consumers</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@Service
+public class ProjectService {
+	private final Logger log= LoggerFactory.getLogger(ProjectService.class);
+    /**
+     * Repository for project CRUD operations.
+     */
+	@Autowired
+    private ProjectRepository projectRepository;
+
+    /**
+     * Repository for proposal access used to compute proposal counts and queries.
+     */
+	@Autowired
+    private ProposalRepository proposalRepository;
+
+    /**
+     * RabbitTemplate used to publish project-related events to RabbitMQ.
+     */
+	@Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    /**
+     * Jackson ObjectMapper used to serialize/deserialize skill lists.
+     */
+	@Autowired
+    private ObjectMapper objectMapper;
+
+    /**
+     * Exchange name for publishing project events (injected from configuration).
+     */
+    @Value("${rabbitmq.exchange.project}")
+    private String projectExchange;
+
+    /**
+     * Routing key used for project.created events (injected from configuration).
+     */
+    @Value("${rabbitmq.routing.project.created}")
+    private String projectCreatedRoutingKey;
+
+   
+
+	/**
+     * Create a new project.
+     *
+     * <p>Persists the project entity, publishes a project.created event, and returns
+     * a {@link ProjectDTO} representing the persisted project.</p>
+     *
+     * @param createDTO validated DTO containing project creation details
+     * @return the created project's {@link ProjectDTO}
+     */
+    @Transactional
+    public ProjectDTO createProject(ProjectCreateDTO createDTO) {
+        log.info("Creating new project: {}", createDTO.getTitle());
+
+        Project project = new Project();
+        project.setClientId(createDTO.getClientId());
+        project.setTitle(createDTO.getTitle());
+        project.setDescription(createDTO.getDescription());
+        project.setBudgetMin(createDTO.getBudgetMin());
+        project.setBudgetMax(createDTO.getBudgetMax());
+        project.setDurationDays(createDTO.getDurationDays());
+        project.setRequiredSkills(convertSkillsToJson(createDTO.getRequiredSkills()));
+        project.setCategory(createDTO.getCategory());
+        project.setStatus(ProjectStatus.OPEN);
+        project.setDeadline(createDTO.getDeadline());
+
+        Project savedProject = projectRepository.save(project);
+        log.info("Project created with ID: {}", savedProject.getId());
+
+        // Publish event to RabbitMQ
+        publishProjectCreatedEvent(savedProject);
+
+        return convertToDTO(savedProject);
+    }
+
+    /**
+     * Retrieve a project by its id.
+     *
+     * @param id unique identifier of the project
+     * @return the project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    public ProjectDTO getProjectById(Long id) {
+        log.info("Fetching project by ID: {}", id);
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+        return convertToDTO(project);
+    }
+
+    /**
+     * Update an existing project.
+     *
+     * <p>Only fields present in {@link ProjectCreateDTO} are updated. The method
+     * validates existence and persists changes within a transaction.</p>
+     *
+     * @param id unique identifier of the project to update
+     * @param updateDTO DTO containing updated project fields
+     * @return the updated project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public ProjectDTO updateProject(Long id, ProjectCreateDTO updateDTO) {
+        log.info("Updating project ID: {}", id);
+
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+
+        project.setTitle(updateDTO.getTitle());
+        project.setDescription(updateDTO.getDescription());
+        project.setBudgetMin(updateDTO.getBudgetMin());
+        project.setBudgetMax(updateDTO.getBudgetMax());
+        project.setDurationDays(updateDTO.getDurationDays());
+        project.setRequiredSkills(convertSkillsToJson(updateDTO.getRequiredSkills()));
+        project.setCategory(updateDTO.getCategory());
+        project.setDeadline(updateDTO.getDeadline());
+
+        Project updatedProject = projectRepository.save(project);
+        return convertToDTO(updatedProject);
+    }
+
+    /**
+     * Soft-delete (cancel) a project.
+     *
+     * <p>Marks the project's status as {@link ProjectStatus#CANCELLED} rather than
+     * removing it from the database, allowing historical data and associated proposals
+     * to remain for audit and reporting.</p>
+     *
+     * @param id unique identifier of the project to cancel
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public void deleteProject(Long id) {
+        log.info("Deleting project ID: {}", id);
+        
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+        
+        project.setStatus(ProjectStatus.CANCELLED);
+        projectRepository.save(project);
+    }
+
+    /**
+     * Retrieve all projects.
+     *
+     * @return list of {@link ProjectDTO} for all projects
+     */
+    public List<ProjectDTO> getAllProjects() {
+        log.info("Fetching all projects");
+        return projectRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve projects created by a specific client.
+     *
+     * @param clientId unique identifier of the client
+     * @return list of {@link ProjectDTO} for that client
+     */
+    public List<ProjectDTO> getProjectsByClientId(Long clientId) {
+        log.info("Fetching projects for client ID: {}", clientId);
+        return projectRepository.findByClientId(clientId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve all open projects available for bidding.
+     *
+     * @return list of open {@link ProjectDTO}
+     */
+    public List<ProjectDTO> getOpenProjects() {
+        log.info("Fetching all open projects");
+        return projectRepository.findAllOpenProjects().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Search projects by keyword and optional status.
+     *
+     * <p>Performs a case-insensitive keyword search against title and description,
+     * filtering by provided status (defaults to OPEN when status is null).</p>
+     *
+     * @param keyword search keyword
+     * @param status optional status string (e.g., "OPEN")
+     * @return list of matching {@link ProjectDTO}
+     * @throws IllegalArgumentException if provided status is invalid
+     */
+    public List<ProjectDTO> searchProjects(String keyword, String status) {
+        log.info("Searching projects with keyword: {} and status: {}", keyword, status);
+        
+        ProjectStatus projectStatus = status != null ? ProjectStatus.valueOf(status.toUpperCase()) : ProjectStatus.OPEN;
+        
+        return projectRepository.searchByKeywordAndStatus(keyword, projectStatus).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve projects by category.
+     *
+     * @param category the project category
+     * @return list of {@link ProjectDTO} in the specified category
+     */
+    public List<ProjectDTO> getProjectsByCategory(String category) {
+        log.info("Fetching projects by category: {}", category);
+        return projectRepository.findByCategory(category).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Assign a freelancer to a project and transition the project to IN_PROGRESS.
+     *
+     * @param projectId the project id
+     * @param freelancerId the freelancer id to assign
+     * @return the updated project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public ProjectDTO assignFreelancer(Long projectId, Long freelancerId) {
+        log.info("Assigning freelancer {} to project {}", freelancerId, projectId);
+        
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
+        
+        project.setAssignedFreelancer(freelancerId);
+        project.setStatus(ProjectStatus.IN_PROGRESS);
+        
+        Project updatedProject = projectRepository.save(project);
+        return convertToDTO(updatedProject);
+    }
+
+    /**
+     * Convert a {@link Project} entity to a {@link ProjectDTO}.
+     *
+     * <p>Maps entity fields to the DTO and computes the current proposal count.</p>
+     *
+     * @param project the entity to convert
+     * @return the mapped {@link ProjectDTO}
+     */
+    private ProjectDTO convertToDTO(Project project) {
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(project.getId());
+        dto.setClientId(project.getClientId());
+        dto.setTitle(project.getTitle());
+        dto.setDescription(project.getDescription());
+        dto.setBudgetMin(project.getBudgetMin());
+        dto.setBudgetMax(project.getBudgetMax());
+        dto.setDurationDays(project.getDurationDays());
+        dto.setRequiredSkills(parseSkillsFromJson(project.getRequiredSkills()));
+        dto.setCategory(project.getCategory());
+        dto.setStatus(project.getStatus());
+        dto.setDeadline(project.getDeadline());
+        dto.setAssignedFreelancer(project.getAssignedFreelancer());
+        dto.setCreatedAt(project.getCreatedAt());
+        dto.setUpdatedAt(project.getUpdatedAt());
+        dto.setProposalCount((int) proposalRepository.countByProjectId(project.getId()));
+        return dto;
+    }
+
+    /**
+     * Serialize a list of skills to a JSON string for storage.
+     *
+     * @param skills list of skill strings
+     * @return JSON string representation of skills, or "[]" on error
+     */
+    private String convertSkillsToJson(List<String> skills) {
+        try {
+            return objectMapper.writeValueAsString(skills);
+        } catch (Exception e) {
+            log.error("Error converting skills to JSON", e);
+            return "[]";
+        }
+    }
+
+    /**
+     * Parse a stored skills JSON string back into a list of skills.
+     *
+     * <p>Attempts JSON parsing and falls back to comma-splitting on error.</p>
+     *
+     * @param skillsJson the stored skills string
+     * @return list of skill strings
+     */
+    private List<String> parseSkillsFromJson(String skillsJson) {
+        try {
+            return objectMapper.readValue(skillsJson, List.class);
+        } catch (Exception e) {
+            log.error("Error parsing skills from JSON", e);
+            return Arrays.asList(skillsJson.split(","));
+        }
+    }
+
+    /**
+     * Publish a project.created event to RabbitMQ.
+     *
+     * <p>Converts the project to {@link ProjectDTO} and sends it to the configured exchange
+     * with the configured routing key. Exceptions are logged but do not prevent the caller
+     * from continuing.</p>
+     *
+     * @param project the project that was created
+     */
+    private void publishProjectCreatedEvent(Project project) {
+        try {
+            ProjectDTO dto = convertToDTO(project);
+            rabbitTemplate.convertAndSend(projectExchange, projectCreatedRoutingKey, dto);
+            log.info("Published project.created event for project ID: {}", project.getId());
+        } catch (Exception e) {
+            log.error("Error publishing project.created event", e);
+        }
+    }
+}
