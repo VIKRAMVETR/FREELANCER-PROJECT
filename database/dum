@@ -2330,7 +2330,75 @@ public class ProjectController {
 
 
 
+package com.freelancenexus.userservice.model;
 
+/**
+ * ProposalStatus
+ *
+ * <p>Enumeration representing the lifecycle status of a freelancer's proposal.
+ * Tracks the progression of a proposal from submission through client decision.</p>
+ *
+ * @since 1.0
+ */
+public enum ProposalStatus {
+    /**
+     * Proposal has been submitted and is awaiting client review.
+     * The client can view, rank, and compare this proposal with others.
+     */
+    PENDING,
+    
+    /**
+     * Proposal has been accepted by the client.
+     * The associated freelancer is assigned to the project and work can begin.
+     */
+    ACCEPTED,
+    
+    /**
+     * Proposal has been rejected by the client.
+     * The freelancer will not be considered for this project.
+     */
+    REJECTED,
+    
+    
+    WITHDRAWN
+}
+
+
+package com.freelancenexus.userservice.model;
+
+/**
+ * ProjectStatus
+ *
+ * <p>Enumeration representing the lifecycle status of a project in the Freelance Nexus system.
+ * Tracks the progression of a project from creation through completion or cancellation.</p>
+ *
+ * @since 1.0
+ */
+public enum ProjectStatus {
+    /**
+     * Project has been posted and is accepting proposals from freelancers.
+     * Clients can still modify project details and no freelancer has been assigned yet.
+     */
+    OPEN,
+    
+    /**
+     * Project is actively being worked on by an assigned freelancer.
+     * Payment milestones may be released as work progresses.
+     */
+    IN_PROGRESS,
+    
+    /**
+     * Project has been completed and all deliverables accepted.
+     * Final payment has been released to the freelancer.
+     */
+    COMPLETED,
+    
+    /**
+     * Project has been cancelled and will not proceed.
+     * No further work is expected and participants are notified.
+     */
+    CANCELLED
+}
 
 
 
