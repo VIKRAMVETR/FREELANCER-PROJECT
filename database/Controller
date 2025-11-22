@@ -476,7 +476,7 @@ import jakarta.validation.Valid;
  * Provides endpoints for adding, retrieving, updating, and deleting portfolio items.
  */
 @RestController
-@RequestMapping("/api/freelancers")
+@RequestMapping("/api/portfolios")
 public class PortfolioController {
 
 	private final Logger log= LoggerFactory.getLogger(PortfolioController.class);
@@ -1026,7 +1026,7 @@ import jakarta.validation.Valid;
  * Provides endpoints for adding and retrieving ratings.
  */
 @RestController
-@RequestMapping("/api/freelancers")
+@RequestMapping("/api/ratings")
 public class RatingController {
 	private final Logger log= LoggerFactory.getLogger(RatingController.class);
     private final RatingService ratingService;
