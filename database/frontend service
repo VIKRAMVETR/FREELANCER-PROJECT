@@ -1,0 +1,358 @@
+import api from './api';
+
+const aiService = {
+  getProjectRecommendations: async (freelancerId) => {
+    const response = await api.get(`/api/ai/recommendations/freelancer/${freelancerId}`);
+    return response.data;
+  },
+
+  rankProposals: async (projectId) => {
+    const response = await api.get(`/api/ai/rank-proposals/${projectId}`);
+    return response.data;
+  },
+
+  generateProjectSummary: async (projectId) => {
+    const response = await api.get(`/api/ai/summarize-project/${projectId}`);
+    return response.data;
+  },
+
+  analyzeFreelancerProfile: async (freelancerId) => {
+    const response = await api.get(`/api/ai/analyze-profile/${freelancerId}`);
+    return response.data;
+  },
+
+  matchFreelancersToProject: async (projectId) => {
+    const response = await api.get(`/api/ai/match-freelancers/${projectId}`);
+    return response.data;
+  },
+
+  predictProjectSuccess: async (projectId) => {
+    const response = await api.get(`/api/ai/predict-success/${projectId}`);
+    return response.data;
+  }
+};
+
+export default aiService;
+
+
+
+import axios from 'axios';
+import { API_GATEWAY_URL } from '../utils/constants';
+
+const api = axios.create({
+  baseURL: API_GATEWAY_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Request interceptor to add JWT token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+
+
+
+import api from './api';
+
+const authService = {
+  login: async (email, password) => {
+    const response = await api.post('/api/users/login', { email, password });
+    if (response.data.accessToken) {
+      localStorage.setItem('token', response.data.accessToken);
+      localStorage.setItem('user', JSON.stringify(response.data.user));
+    }
+    return response.data;
+  },
+
+  register: async (userData) => {
+    const response = await api.post('/api/users/register', userData);
+    return response.data;
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+  },
+
+  getCurrentUser: () => {
+    const user = localStorage.getItem('user');
+    return user ? JSON.parse(user) : null;
+  },
+
+  getToken: () => localStorage.getItem('token'),
+
+  isAuthenticated: () => !!localStorage.getItem('token'),
+
+  hasRole: (role) => {
+    const user = authService.getCurrentUser();
+    return user?.role === role;
+  }
+};
+
+export default authService;
+
+
+
+import api from "./api";
+
+const freelancerService = {
+  // Get full profile (skills + portfolio + ratings)
+  getFreelancerProfile: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}`);
+    return res.data;
+  },
+
+  // UPDATE freelancer profile - FIXED ✔
+  updateFreelancerProfile: async (id, profileData) => {
+    const payload = {
+      ...profileData,
+      userId: id,                        // backend requires userId
+      title: profileData.title || "Freelancer"     // backend requires title
+    };
+
+    const res = await api.put(`/api/freelancers/${id}`, payload);
+    return res.data;
+  },
+
+  // Portfolio functions (these match your backend)
+  getFreelancerPortfolio: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}/portfolio`);
+    return res.data;
+  },
+
+  getFreelancerByUserId: async (userId) => {
+  const res = await api.get(`/api/freelancers/user/${userId}`);
+  return res.data;
+  },
+
+  addPortfolioItem: async (freelancerId, item) => {
+    const res = await api.post(`/api/freelancers/${freelancerId}/portfolio`, item);
+    return res.data;
+  },
+
+  deletePortfolioItem: async (itemId) => {
+    const res = await api.delete(`/api/freelancers/portfolio/${itemId}`);
+    return res.data;
+  },
+  getFreelancerStats: async (freelancerId) => {
+  const res = await api.get(`/api/freelancers/${freelancerId}/stats`);
+  return res.data;
+}
+};
+
+export default freelancerService;
+
+
+
+
+import api from './api';
+
+const paymentService = {
+  initiatePayment: async (paymentData) => {
+    const response = await api.post('/api/payments', paymentData);
+    return response.data;
+  },
+
+  processUPIPayment: async (paymentId, upiData) => {
+    const response = await api.post(`/api/payments/${paymentId}/upi`, upiData);
+    return response.data;
+  },
+
+  getPaymentById: async (paymentId) => {
+    const response = await api.get(`/api/payments/${paymentId}`);
+    return response.data;
+  },
+
+  getPaymentHistory: async (userId) => {
+    const response = await api.get(`/api/payments/user/${userId}`);
+    return response.data;
+  },
+
+  getPaymentByProposal: async (proposalId) => {
+    const response = await api.get(`/api/payments/proposal/${proposalId}`);
+    return response.data;
+  },
+
+  verifyPayment: async (paymentId, transactionId) => {
+    const response = await api.post(`/api/payments/${paymentId}/verify`, { transactionId });
+    return response.data;
+  },
+
+  requestRefund: async (paymentId, reason) => {
+    const response = await api.post(`/api/payments/${paymentId}/refund`, { reason });
+    return response.data;
+  }
+};
+
+export default paymentService;
+
+
+
+
+import api from './api';
+
+const projectService = {
+ 
+
+getAllProjects: async (filters = {}) => {
+
+  const params = new URLSearchParams();
+ 
+  if (filters.keyword) params.append("keyword", filters.keyword);
+
+  if (filters.category) params.append("category", filters.category);
+
+  if (filters.status) params.append("status", filters.status);
+ 
+  const response = await api.get(`/api/projects?${params.toString()}`);
+
+  return response.data;
+
+ },
+ updateStatus: async (projectId, status) => {
+  const response = await api.put(`/api/projects/${projectId}/status?status=${status}`);
+  return response.data;
+ },
+
+  getProjectById: async (projectId) => {
+    const response = await api.get(`/api/projects/${projectId}`);
+    return response.data;
+  },
+
+  createProject: async (projectData) => {
+    const response = await api.post('/api/projects', projectData);
+    return response.data;
+  },
+
+  updateProject: async (projectId, projectData) => {
+    const response = await api.put(`/api/projects/${projectId}`, projectData);
+    return response.data;
+  },
+
+  deleteProject: async (projectId) => {
+    const response = await api.delete(`/api/projects/${projectId}`);
+    return response.data;
+  },
+
+  getClientProjects: async (clientId) => {
+    const response = await api.get(`/api/projects/client/${clientId}`);
+    return response.data;
+  },
+
+  getProjectsByStatus: async (status) => {
+    const response = await api.get(`/api/projects/status/${status}`);
+    return response.data;
+  },
+
+ searchProjects: async (query) => {
+  const response = await api.get(`/api/projects?keyword=${query}`);
+  return response.data;
+}
+};
+
+export default projectService;
+
+
+
+import api from './api';
+
+const proposalService = {
+
+  getProposalById: async (proposalId) => {
+    const response = await api.get(`/api/proposals/${proposalId}`);
+    return response.data;
+  },
+
+  getProposalsByProject: async (projectId) => {
+    const response = await api.get(`/api/projects/${projectId}/proposals`);
+    return response.data;
+  },
+
+  getFreelancerProposals: async (freelancerId) => {
+    const response = await api.get(`/api/proposals/freelancer/${freelancerId}`);
+    return response.data;
+  },
+
+  updateProposal: async (proposalId, proposalData) => {
+    const response = await api.put(`/api/proposals/${proposalId}`, proposalData);
+    return response.data;
+  },
+
+  deleteProposal: async (proposalId) => {
+    const response = await api.delete(`/api/proposals/${proposalId}`);
+    return response.data;
+  },
+
+  acceptProposal: async (proposalId) => {
+    const response = await api.post(`/api/proposals/${proposalId}/accept`);
+    return response.data;
+  },
+
+ 
+  rejectProposal: async (proposalId) => {
+  return api.put(`/api/proposals/${proposalId}/reject`);
+  },
+
+ withdrawProposal: async (proposalId) => {
+  const response = await api.put(`/api/proposals/${proposalId}/withdraw`);
+  return response.data;
+  },
+   
+  submitProposal: async (projectId, payload) => {
+    const response = await api.post(`/api/projects/${projectId}/proposals`,payload);
+    return response.data;
+  }
+};
+
+export default proposalService;
+
+import api from './api';
+
+const userService = {
+  getUserProfile: async (userId) => {
+    const response = await api.get(`/api/users/${userId}`);
+    return response.data;
+  },
+
+  updateUserProfile: async (userId, userData) => {
+    const response = await api.put(`/api/users/profile`, userData);
+    return response.data;
+  },
+
+  getAllUsers: async () => {
+    const response = await api.get('/api/users');
+    return response.data;
+  },
+
+  deleteUser: async (userId) => {
+    const response = await api.delete(`/api/users/${userId}`);
+    return response.data;
+  }
+};
+
+export default userService;
+
+
