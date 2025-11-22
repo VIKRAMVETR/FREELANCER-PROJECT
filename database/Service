@@ -446,14 +446,17 @@ public class AIService {
      * @param skillsJson the skills string to parse
      * @return list of skill strings
      */
-    private List<String> parseSkills(String skillsJson) {
+    
+    private List<String> parseSkills(String json) {
         try {
-            JsonNode node = objectMapper.readTree(skillsJson);
-            List<String> skills = new ArrayList<>();
-            node.forEach(skill -> skills.add(skill.asText()));
-            return skills;
+            // Case 1: Valid JSON array → ["Java","Spring"]
+            return objectMapper.readValue(json, List.class);
         } catch (Exception e) {
-            return Arrays.asList(skillsJson.split(","));
+            // Case 2: fallback → "Java, Spring , Docker"
+            return Arrays.stream(json.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(Collectors.toList());
         }
     }
 
@@ -505,7 +508,6 @@ public class AIService {
         return dto;
     }
 }
-
 
 package com.freelancenexus.userservice.service;
 
