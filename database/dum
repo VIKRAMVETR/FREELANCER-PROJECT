@@ -1,346 +1,258 @@
-package com.freelancenexus.userservice.dto;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
-
-/**
- * Data Transfer Object (DTO) for representing a freelancer.
- * Includes details such as title, bio, hourly rate, and skills.
- */
-public class FreelancerDTO {
-    
-    /**
-     * The unique identifier of the freelancer.
-     */
-    private Long id;
-    
-    /**
-     * The user ID associated with the freelancer.
-     * Must not be null.
-     */
-    @NotNull(message = "User ID is required")
-    private Long userId;
-    
-    /**
-     * The title or headline of the freelancer profile.
-     * Must not be blank and cannot exceed 255 characters.
-     */
-    @NotBlank(message = "Title is required")
-    @Size(max = 255, message = "Title must not exceed 255 characters")
-    private String title;
-    
-    /**
-     * The biography or description of the freelancer.
-     * Cannot exceed 5000 characters.
-     */
-    @Size(max = 5000, message = "Bio must not exceed 5000 characters")
-    private String bio;
-    
-    /**
-     * The hourly rate of the freelancer.
-     * Must be positive and follow a valid format.
-     */
-    @DecimalMin(value = "0.0", inclusive = false, message = "Hourly rate must be positive")
-    @Digits(integer = 8, fraction = 2, message = "Invalid hourly rate format")
-    private BigDecimal hourlyRate;
-    
-    /**
-     * The availability status of the freelancer.
-     * Must match one of the predefined statuses.
-     */
-    @Pattern(regexp = "AVAILABLE|BUSY|UNAVAILABLE", message = "Invalid availability status")
-    private String availability;
-    
-    /**
-     * The total earnings of the freelancer.
-     */
-    private BigDecimal totalEarnings;
-
-    /**
-     * The number of completed projects by the freelancer.
-     */
-    private Integer completedProjects;
-
-    /**
-     * The average rating of the freelancer.
-     */
-    private BigDecimal averageRating;
-    
-    /**
-     * The list of skills associated with the freelancer.
-     */
-    private List<SkillDTO> skills;
-    
-    /**
-     * The timestamp when the freelancer profile was created.
-     */
-    private LocalDateTime createdAt;
-
-    /**
-     * The timestamp when the freelancer profile was last updated.
-     */
-    private LocalDateTime updatedAt;
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public Long getUserId() {
-		return userId;
-	}
-
-	public void setUserId(Long userId) {
-		this.userId = userId;
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
-	public void setTitle(String title) {
-		this.title = title;
-	}
-
-	public String getBio() {
-		return bio;
-	}
-
-	public void setBio(String bio) {
-		this.bio = bio;
-	}
-
-	public BigDecimal getHourlyRate() {
-		return hourlyRate;
-	}
-
-	public void setHourlyRate(BigDecimal hourlyRate) {
-		this.hourlyRate = hourlyRate;
-	}
-
-	public String getAvailability() {
-		return availability;
-	}
-
-	public void setAvailability(String availability) {
-		this.availability = availability;
-	}
-
-	public BigDecimal getTotalEarnings() {
-		return totalEarnings;
-	}
-
-	public void setTotalEarnings(BigDecimal totalEarnings) {
-		this.totalEarnings = totalEarnings;
-	}
-
-	public Integer getCompletedProjects() {
-		return completedProjects;
-	}
-
-	public void setCompletedProjects(Integer completedProjects) {
-		this.completedProjects = completedProjects;
-	}
-
-	public BigDecimal getAverageRating() {
-		return averageRating;
-	}
-
-	public void setAverageRating(BigDecimal averageRating) {
-		this.averageRating = averageRating;
-	}
-
-	public List<SkillDTO> getSkills() {
-		return skills;
-	}
-
-	public void setSkills(List<SkillDTO> skills) {
-		this.skills = skills;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-	public FreelancerDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-    
-    
-}
-
-
-package com.freelancenexus.userservice.controller;
-
-import java.math.BigDecimal;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.freelancenexus.userservice.dto.FreelancerDTO;
-import com.freelancenexus.userservice.dto.FreelancerProfileDTO;
-import com.freelancenexus.userservice.service.FreelancerService;
-
-import jakarta.validation.Valid;
-/**
- * REST controller for managing freelancers.
- * Provides endpoints for creating, retrieving, updating, and searching freelancer profiles.
- */
-@RestController
-@RequestMapping("/api/freelancers")
-@CrossOrigin("http://localhost:3000")
-public class FreelancerController {
-	private final Logger log= LoggerFactory.getLogger(FreelancerController.class);
-    private final FreelancerService freelancerService;
-    
-    public FreelancerController(FreelancerService freelancerService) {
-		super();
-		this.freelancerService = freelancerService;
-	}
-
-	/**
-     * Creates a freelancer profile.
-     *
-     * @param freelancerDTO the freelancer profile to be created
-     * @return the created freelancer profile
-     */
-    @PostMapping
-    @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<FreelancerDTO> createFreelancer(@Valid @RequestBody FreelancerDTO freelancerDTO) {
-        log.info("REST request to create freelancer for user ID: {}", freelancerDTO.getUserId());
-        FreelancerDTO created = freelancerService.createFreelancer(freelancerDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import projectService from "../../services/projectService";
+import proposalService from "../../services/proposalService";
+import freelancerService from "../../services/freelancerService";
+import Loader from "../common/Loader";
+ 
+const SubmitProposal = () => {
+  const { projectId } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+ 
+  const [project, setProject] = useState(null);
+  const [freelancerId, setFreelancerId] = useState(null);
+ 
+  const [proposal, setProposal] = useState({
+    bidAmount: "",
+    durationDays: "",
+    coverLetter: "",
+  });
+ 
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+ 
+  // ---------------- FETCH PROJECT ----------------
+  const fetchProject = useCallback(async () => {
+    try {
+      const data = await projectService.getProjectById(projectId);
+      setProject(data);
+    } catch (err) {
+      setError("Failed to load project details");
+    } finally {
+      setLoading(false);
     }
-    
-    /**
-     * Retrieves a freelancer profile by its ID.
-     *
-     * @param id the ID of the freelancer
-     * @return the freelancer profile
-     */
-    @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<FreelancerDTO> getFreelancerById(@PathVariable Long id) {
-        log.info("REST request to get freelancer by ID: {}", id);
-        FreelancerDTO freelancer = freelancerService.getFreelancerById(id);
-        return ResponseEntity.ok(freelancer);
+  }, [projectId]);
+ 
+  // ---------------- FETCH FREELANCER PROFILE ----------------
+  const fetchFreelancer = useCallback(async () => {
+    try {
+      const data = await freelancerService.getFreelancerByUserId(user.id);
+      setFreelancerId(data.id); // Correct freelancerId
+    } catch (err) {
+      setError("Unable to load freelancer profile.");
     }
-    
-    /**
-     * Retrieves the complete profile of a freelancer.
-     *
-     * @param id the ID of the freelancer
-     * @return the freelancer's complete profile
-     */
-    @GetMapping("/{id}/profile")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<FreelancerProfileDTO> getFreelancerProfile(@PathVariable Long id) {
-        log.info("REST request to get complete freelancer profile for ID: {}", id);
-        FreelancerProfileDTO profile = freelancerService.getFreelancerProfile(id);
-        return ResponseEntity.ok(profile);
+  }, [user.id]);
+ 
+  useEffect(() => {
+    fetchProject();
+    fetchFreelancer();
+  }, [fetchProject, fetchFreelancer]);
+ 
+  // ---------------- SUBMIT PROPOSAL ----------------
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+ 
+    if (!freelancerId) {
+      setError("Invalid freelancer account.");
+      return;
     }
-    
-    /**
-     * Retrieves a freelancer profile by the user ID.
-     *
-     * @param userId the user ID associated with the freelancer
-     * @return the freelancer profile
-     */
-    @GetMapping("/user/{userId}")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<FreelancerDTO> getFreelancerByUserId(@PathVariable Long userId) {
-        log.info("REST request to get freelancer by user ID: {}", userId);
-        FreelancerDTO freelancer = freelancerService.getFreelancerByUserId(userId);
-        return ResponseEntity.ok(freelancer);
+ 
+    if (proposal.coverLetter.length < 50) {
+      setError("Cover letter must be at least 50 characters.");
+      return;
     }
-    
-    /**
-     * Updates a freelancer profile.
-     *
-     * @param id the ID of the freelancer
-     * @param freelancerDTO the updated freelancer profile
-     * @return the updated freelancer profile
-     */
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<FreelancerDTO> updateFreelancer(
-            @PathVariable Long id,
-            @Valid @RequestBody FreelancerDTO freelancerDTO) {
-        log.info("REST request to update freelancer with ID: {}", id);
-        FreelancerDTO updated = freelancerService.updateFreelancer(id, freelancerDTO);
-        return ResponseEntity.ok(updated);
+ 
+    setSubmitting(true);
+ 
+    try {
+      const payload = {
+        freelancerId: freelancerId,
+        coverLetter: proposal.coverLetter,
+        proposedBudget: Number(proposal.bidAmount),
+        deliveryDays: Number(proposal.durationDays)
+      };
+ 
+      await proposalService.submitProposal(projectId, payload);
+ 
+      navigate("/freelancer/proposals", {
+        state: { message: "Proposal submitted successfully!" },
+      });
+ 
+    } catch (err) {
+      setError(err.response?.data || "Failed to submit proposal");
+    } finally {
+      setSubmitting(false);
     }
-    
-    /**
-     * Searches for freelancers based on various criteria.
-     *
-     * @param minRate the minimum hourly rate
-     * @param maxRate the maximum hourly rate
-     * @param minRating the minimum rating
-     * @param availability the availability status
-     * @param skills the list of skills
-     * @return the list of freelancers matching the criteria
-     */
-    @GetMapping
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<FreelancerDTO>> searchFreelancers(
-            @RequestParam(required = false) BigDecimal minRate,
-            @RequestParam(required = false) BigDecimal maxRate,
-            @RequestParam(required = false) BigDecimal minRating,
-            @RequestParam(required = false) String availability,
-            @RequestParam(required = false) List<String> skills) {
-        log.info("REST request to search freelancers");
-        
-        List<FreelancerDTO> freelancers;
-        
-        if (skills != null && !skills.isEmpty()) {
-            freelancers = freelancerService.getFreelancersBySkills(skills);
-        } else if (minRate != null || maxRate != null || minRating != null || availability != null) {
-            freelancers = freelancerService.searchFreelancers(minRate, maxRate, minRating, availability);
-        } else {
-            freelancers = freelancerService.getAllFreelancers();
-        }
-        
-        return ResponseEntity.ok(freelancers);
-    }
-}
+  };
+ 
+  if (loading) return <Loader />;
+ 
+  return (
+<div className="container mt-4">
+<div className="row">
+<div className="col-lg-8 mx-auto">
+<h2 className="mb-4">Submit Proposal</h2>
+ 
+          {error && <div className="alert alert-danger">{error}</div>}
+ 
+          {/* ---------------- PROJECT DETAILS ---------------- */}
+<div className="card shadow-sm mb-4">
+<div className="card-header bg-primary text-white">
+<h5 className="mb-0">Project Details</h5>
+</div>
+<div className="card-body">
+<h4>{project?.title}</h4>
+<p className="text-muted">{project?.description}</p>
+ 
+              <div className="row mt-3">
+<div className="col-md-6">
+<strong>Budget:</strong> ₹{project?.budgetMin} - ₹{project?.budgetMax}
+</div>
+<div className="col-md-6">
+<strong>Duration:</strong> {project?.durationDays} days
+</div>
+</div>
+ 
+              <div className="mt-3">
+<strong>Required Skills:</strong>
+<div className="mt-2">
+                  {project?.requiredSkills?.map((skill, i) => (
+<span key={i} className="badge bg-secondary me-1 mb-1">
+                      {skill}
+</span>
+                  ))}
+</div>
+</div>
+</div>
+</div>
+ 
+          {/* ---------------- PROPOSAL FORM ---------------- */}
+<form onSubmit={handleSubmit}>
+<div className="card shadow-sm mb-4">
+<div className="card-header bg-success text-white">
+<h5 className="mb-0">Your Proposal</h5>
+</div>
+<div className="card-body">
+ 
+                {/* Bid Amount */}
+<div className="mb-3">
+<label className="form-label">Proposed Budget (₹) *</label>
+<input
+                    type="number"
+                    className="form-control"
+                    value={proposal.proposedBudget}
+                    onChange={(e) =>
+                      setProposal({ ...proposal, proposedBudget: e.target.value })
+                    }
+                    min={project?.budgetMin}
+                    max={project?.budgetMax}
+                    required
+                  />
+</div>
+ 
+                {/* Duration */}
+<div className="mb-3">
+<label className="form-label">Duration (Days) *</label>
+<input
+                    type="number"
+                    className="form-control"
+                    value={proposal.durationDays}
+                    onChange={(e) =>
+                      setProposal({ ...proposal, durationDays: e.target.value })
+                    }
+                    min="1"
+                    required
+                  />
+</div>
+ 
+                {/* Cover Letter */}
+<div className="mb-3">
+<label className="form-label">Cover Letter *</label>
+<textarea
+                    className="form-control"
+                    rows="7"
+                    value={proposal.coverLetter}
+                    onChange={(e) =>
+                      setProposal({ ...proposal, coverLetter: e.target.value })
+                    }
+                    placeholder="Explain why you’re the best fit (at least 50 characters)"
+                    required
+                  />
+</div>
+ 
+              </div>
+</div>
+ 
+            {/* Buttons */}
+<div className="d-flex justify-content-end gap-3">
+<button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => navigate(-1)}
+>
+                Cancel
+</button>
+ 
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit Proposal"}
+</button>
+</div>
+ 
+          </form>
+</div>
+</div>
+</div>
+  );
+};
+ 
+export default SubmitProposal;
+
+
+
+
+import api from "./api";
+
+const freelancerService = {
+  // Get full profile (skills + portfolio + ratings)
+  getFreelancerProfile: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}`);
+    return res.data;
+  },
+
+  // UPDATE freelancer profile - FIXED ✔
+  updateFreelancerProfile: async (id, profileData) => {
+    const payload = {
+      ...profileData,
+      userId: id,                        // backend requires userId
+      title: profileData.title || "Freelancer"     // backend requires title
+    };
+
+    const res = await api.put(`/api/freelancers/${id}`, payload);
+    return res.data;
+  },
+
+  // Portfolio functions (these match your backend)
+  getFreelancerPortfolio: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}/portfolio`);
+    return res.data;
+  },
+
+  addPortfolioItem: async (freelancerId, item) => {
+    const res = await api.post(`/api/freelancers/${freelancerId}/portfolio`, item);
+    return res.data;
+  },
+
+  deletePortfolioItem: async (itemId) => {
+    const res = await api.delete(`/api/freelancers/portfolio/${itemId}`);
+    return res.data;
+  },
+};
+
+export default freelancerService;
 
 
 package com.freelancenexus.userservice.service;
@@ -742,5 +654,153 @@ public class FreelancerService {
         freelancer.setHourlyRate(dto.getHourlyRate());
         freelancer.setAvailability(dto.getAvailability() != null ? dto.getAvailability() : "AVAILABLE");
         return freelancer;
+    }
+}
+
+package com.freelancenexus.userservice.controller;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.FreelancerDTO;
+import com.freelancenexus.userservice.dto.FreelancerProfileDTO;
+import com.freelancenexus.userservice.service.FreelancerService;
+
+import jakarta.validation.Valid;
+/**
+ * REST controller for managing freelancers.
+ * Provides endpoints for creating, retrieving, updating, and searching freelancer profiles.
+ */
+@RestController
+@RequestMapping("/api/freelancers")
+@CrossOrigin("http://localhost:3000")
+public class FreelancerController {
+	private final Logger log= LoggerFactory.getLogger(FreelancerController.class);
+    private final FreelancerService freelancerService;
+    
+    public FreelancerController(FreelancerService freelancerService) {
+		super();
+		this.freelancerService = freelancerService;
+	}
+
+	/**
+     * Creates a freelancer profile.
+     *
+     * @param freelancerDTO the freelancer profile to be created
+     * @return the created freelancer profile
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> createFreelancer(@Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to create freelancer for user ID: {}", freelancerDTO.getUserId());
+        FreelancerDTO created = freelancerService.createFreelancer(freelancerDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+    
+    /**
+     * Retrieves a freelancer profile by its ID.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerById(@PathVariable Long id) {
+        log.info("REST request to get freelancer by ID: {}", id);
+        FreelancerDTO freelancer = freelancerService.getFreelancerById(id);
+        return ResponseEntity.ok(freelancer);
+    }
+    
+    /**
+     * Retrieves the complete profile of a freelancer.
+     *
+     * @param id the ID of the freelancer
+     * @return the freelancer's complete profile
+     */
+    @GetMapping("/{id}/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerProfileDTO> getFreelancerProfile(@PathVariable Long id) {
+        log.info("REST request to get complete freelancer profile for ID: {}", id);
+        FreelancerProfileDTO profile = freelancerService.getFreelancerProfile(id);
+        return ResponseEntity.ok(profile);
+    }
+    
+    /**
+     * Retrieves a freelancer profile by the user ID.
+     *
+     * @param userId the user ID associated with the freelancer
+     * @return the freelancer profile
+     */
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<FreelancerDTO> getFreelancerByUserId(@PathVariable Long userId) {
+        log.info("REST request to get freelancer by user ID: {}", userId);
+        FreelancerDTO freelancer = freelancerService.getFreelancerByUserId(userId);
+        return ResponseEntity.ok(freelancer);
+    }
+    
+    /**
+     * Updates a freelancer profile.
+     *
+     * @param id the ID of the freelancer
+     * @param freelancerDTO the updated freelancer profile
+     * @return the updated freelancer profile
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<FreelancerDTO> updateFreelancer(
+            @PathVariable Long id,
+            @Valid @RequestBody FreelancerDTO freelancerDTO) {
+        log.info("REST request to update freelancer with ID: {}", id);
+        FreelancerDTO updated = freelancerService.updateFreelancer(id, freelancerDTO);
+        return ResponseEntity.ok(updated);
+    }
+    
+    /**
+     * Searches for freelancers based on various criteria.
+     *
+     * @param minRate the minimum hourly rate
+     * @param maxRate the maximum hourly rate
+     * @param minRating the minimum rating
+     * @param availability the availability status
+     * @param skills the list of skills
+     * @return the list of freelancers matching the criteria
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<FreelancerDTO>> searchFreelancers(
+            @RequestParam(required = false) BigDecimal minRate,
+            @RequestParam(required = false) BigDecimal maxRate,
+            @RequestParam(required = false) BigDecimal minRating,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) List<String> skills) {
+        log.info("REST request to search freelancers");
+        
+        List<FreelancerDTO> freelancers;
+        
+        if (skills != null && !skills.isEmpty()) {
+            freelancers = freelancerService.getFreelancersBySkills(skills);
+        } else if (minRate != null || maxRate != null || minRating != null || availability != null) {
+            freelancers = freelancerService.searchFreelancers(minRate, maxRate, minRating, availability);
+        } else {
+            freelancers = freelancerService.getAllFreelancers();
+        }
+        
+        return ResponseEntity.ok(freelancers);
     }
 }
