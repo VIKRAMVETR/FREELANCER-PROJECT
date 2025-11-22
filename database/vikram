@@ -1,0 +1,81 @@
+@RestController
+@RequestMapping("/api/freelancers")
+@CrossOrigin("http://localhost:3000")
+public class FreelancerController {
+
+    private final Logger log = LoggerFactory.getLogger(FreelancerController.class);
+    private final FreelancerService freelancerService;
+
+    public FreelancerController(FreelancerService freelancerService) {
+        this.freelancerService = freelancerService;
+    }
+
+    @PostMapping
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<?> createFreelancer(@Valid @RequestBody FreelancerDTO dto) {
+        try {
+            log.info("Creating freelancer for user {}", dto.getUserId());
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(freelancerService.createFreelancer(dto));
+        } catch (Exception e) {
+            log.error("Failed to create freelancer: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getFreelancerById(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(freelancerService.getFreelancerById(id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Freelancer not found");
+        }
+    }
+
+    @GetMapping("/{id}/profile")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getProfile(@PathVariable Long id) {
+        try {
+            return ResponseEntity.ok(freelancerService.getFreelancerProfile(id));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Freelancer profile not found");
+        }
+    }
+
+    @GetMapping("/user/{userId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getFreelancerByUserId(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(freelancerService.getFreelancerByUserId(userId));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Freelancer not found");
+        }
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<?> updateFreelancer(
+            @PathVariable Long id,
+            @Valid @RequestBody FreelancerDTO dto) {
+        try {
+            return ResponseEntity.ok(freelancerService.updateFreelancer(id, dto));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> searchFreelancers(
+            @RequestParam(required = false) BigDecimal minRate,
+            @RequestParam(required = false) BigDecimal maxRate,
+            @RequestParam(required = false) BigDecimal minRating,
+            @RequestParam(required = false) String availability,
+            @RequestParam(required = false) List<String> skills) {
+
+        return ResponseEntity.ok(
+                freelancerService.searchFreelancers(minRate, maxRate, minRating, availability, skills)
+        );
+    }
+}
