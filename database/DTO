@@ -1,0 +1,3037 @@
+package com.freelancenexus.userservice.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+/**
+ * AIRecommendationDTO
+ *
+ * <p>Data Transfer Object representing an AI-recommended project for a freelancer.
+ * Contains project details, required skills, and AI-computed match scoring metrics
+ * that indicate how well the project aligns with the freelancer's profile.</p>
+ *
+ * <p>Returned by AI recommendation endpoints to help freelancers discover suitable projects.</p>
+ *
+ * @since 1.0
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AIRecommendationDTO {
+    
+    /**
+     * Unique identifier of the recommended project.
+     */
+    private Long projectId;
+    
+    /**
+     * Title/name of the project.
+     */
+    private String projectTitle;
+    
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     */
+    private String category;
+    
+    /**
+     * Minimum budget amount for the project.
+     */
+    private BigDecimal budgetMin;
+    
+    /**
+     * Maximum budget amount for the project.
+     */
+    private BigDecimal budgetMax;
+    
+    /**
+     * Estimated duration of the project in days.
+     */
+    private Integer durationDays;
+    
+    /**
+     * List of skills required to complete the project.
+     */
+    private List<String> requiredSkills;
+    
+    /**
+     * AI-computed match score on a scale of 0-100 indicating overall project compatibility.
+     * Higher scores indicate better alignment with the freelancer's profile.
+     */
+    private BigDecimal matchScore;
+    
+    /**
+     * Human-readable explanation of why this project is recommended
+     * (e.g., reasons for the match score).
+     */
+    private String matchReason;
+    
+    /**
+     * List of freelancer skills that match the project's required skills.
+     */
+    private List<String> matchingSkills;
+    
+    /**
+     * Percentage of project-required skills that the freelancer possesses (0-100).
+     */
+    private Integer skillMatchPercentage;
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public String getProjectTitle() {
+		return projectTitle;
+	}
+
+	public void setProjectTitle(String projectTitle) {
+		this.projectTitle = projectTitle;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public BigDecimal getMatchScore() {
+		return matchScore;
+	}
+
+	public void setMatchScore(BigDecimal matchScore) {
+		this.matchScore = matchScore;
+	}
+
+	public String getMatchReason() {
+		return matchReason;
+	}
+
+	public void setMatchReason(String matchReason) {
+		this.matchReason = matchReason;
+	}
+
+	public List<String> getMatchingSkills() {
+		return matchingSkills;
+	}
+
+	public void setMatchingSkills(List<String> matchingSkills) {
+		this.matchingSkills = matchingSkills;
+	}
+
+	public Integer getSkillMatchPercentage() {
+		return skillMatchPercentage;
+	}
+
+	public void setSkillMatchPercentage(Integer skillMatchPercentage) {
+		this.skillMatchPercentage = skillMatchPercentage;
+	}
+
+	public AIRecommendationDTO(Long projectId, String projectTitle, String category, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, BigDecimal matchScore,
+			String matchReason, List<String> matchingSkills, Integer skillMatchPercentage) {
+		super();
+		this.projectId = projectId;
+		this.projectTitle = projectTitle;
+		this.category = category;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.matchScore = matchScore;
+		this.matchReason = matchReason;
+		this.matchingSkills = matchingSkills;
+		this.skillMatchPercentage = skillMatchPercentage;
+	}
+
+	public AIRecommendationDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a freelancer.
+ * Includes details such as title, bio, hourly rate, and skills.
+ */
+public class FreelancerDTO {
+    
+    /**
+     * The unique identifier of the freelancer.
+     */
+    private Long id;
+    
+    /**
+     * The user ID associated with the freelancer.
+     * Must not be null.
+     */
+    @NotNull(message = "User ID is required")
+    private Long userId;
+    
+    /**
+     * The title or headline of the freelancer profile.
+     * Must not be blank and cannot exceed 255 characters.
+     */
+    @NotBlank(message = "Title is required")
+    @Size(max = 255, message = "Title must not exceed 255 characters")
+    private String title;
+    
+    /**
+     * The biography or description of the freelancer.
+     * Cannot exceed 5000 characters.
+     */
+    @Size(max = 5000, message = "Bio must not exceed 5000 characters")
+    private String bio;
+    
+    /**
+     * The hourly rate of the freelancer.
+     * Must be positive and follow a valid format.
+     */
+    @DecimalMin(value = "0.0", inclusive = false, message = "Hourly rate must be positive")
+    @Digits(integer = 8, fraction = 2, message = "Invalid hourly rate format")
+    private BigDecimal hourlyRate;
+    
+    /**
+     * The availability status of the freelancer.
+     * Must match one of the predefined statuses.
+     */
+    
+    @Pattern(
+    	    regexp = "AVAILABLE|BUSY|UNAVAILABLE|FULL_TIME|PART_TIME",
+    	    message = "Invalid availability status"
+    	)
+    	private String availability;
+    
+    /**
+     * The total earnings of the freelancer.
+     */
+    private BigDecimal totalEarnings;
+
+    /**
+     * The number of completed projects by the freelancer.
+     */
+    private Integer completedProjects;
+
+    /**
+     * The average rating of the freelancer.
+     */
+    private BigDecimal averageRating;
+    
+    /**
+     * The list of skills associated with the freelancer.
+     */
+    private List<SkillDTO> skills;
+    
+    /**
+     * The timestamp when the freelancer profile was created.
+     */
+    private LocalDateTime createdAt;
+
+    /**
+     * The timestamp when the freelancer profile was last updated.
+     */
+    private LocalDateTime updatedAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getUserId() {
+		return userId;
+	}
+
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
+
+	public BigDecimal getHourlyRate() {
+		return hourlyRate;
+	}
+
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate;
+	}
+
+	public String getAvailability() {
+		return availability;
+	}
+
+	public void setAvailability(String availability) {
+		this.availability = availability;
+	}
+
+	public BigDecimal getTotalEarnings() {
+		return totalEarnings;
+	}
+
+	public void setTotalEarnings(BigDecimal totalEarnings) {
+		this.totalEarnings = totalEarnings;
+	}
+
+	public Integer getCompletedProjects() {
+		return completedProjects;
+	}
+
+	public void setCompletedProjects(Integer completedProjects) {
+		this.completedProjects = completedProjects;
+	}
+
+	public BigDecimal getAverageRating() {
+		return averageRating;
+	}
+
+	public void setAverageRating(BigDecimal averageRating) {
+		this.averageRating = averageRating;
+	}
+
+	public List<SkillDTO> getSkills() {
+		return skills;
+	}
+
+	public void setSkills(List<SkillDTO> skills) {
+		this.skills = skills;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public FreelancerDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Data Transfer Object (DTO) for representing a freelancer's complete profile.
+ * Includes details such as skills, portfolios, ratings, and earnings.
+ */
+
+public class FreelancerProfileDTO {
+    
+    /**
+     * The unique identifier of the freelancer profile.
+     */
+    private Long id;
+
+    /**
+     * The user ID associated with the freelancer.
+     */
+    private Long userId;
+
+    /**
+     * The title or headline of the freelancer profile.
+     */
+    private String title;
+
+    /**
+     * The biography or description of the freelancer.
+     */
+    private String bio;
+
+    /**
+     * The hourly rate of the freelancer.
+     */
+    private BigDecimal hourlyRate;
+
+    /**
+     * The availability status of the freelancer.
+     */
+    private String availability;
+
+    /**
+     * The total earnings of the freelancer.
+     */
+    private BigDecimal totalEarnings;
+
+    /**
+     * The number of completed projects by the freelancer.
+     */
+    private Integer completedProjects;
+
+    /**
+     * The average rating of the freelancer.
+     */
+    private BigDecimal averageRating;
+    
+    /**
+     * The list of skills associated with the freelancer.
+     */
+    private List<SkillDTO> skills;
+
+    /**
+     * The list of portfolio items associated with the freelancer.
+     */
+    private List<PortfolioDTO> portfolios;
+
+    /**
+     * The list of recent ratings received by the freelancer.
+     */
+    private List<RatingDTO> recentRatings;
+    
+    /**
+     * The timestamp when the freelancer profile was created.
+     */
+    private LocalDateTime createdAt;
+
+    /**
+     * The timestamp when the freelancer profile was last updated.
+     */
+    private LocalDateTime updatedAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getUserId() {
+		return userId;
+	}
+
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getBio() {
+		return bio;
+	}
+
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
+
+	public BigDecimal getHourlyRate() {
+		return hourlyRate;
+	}
+
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate;
+	}
+
+	public String getAvailability() {
+		return availability;
+	}
+
+	public void setAvailability(String availability) {
+		this.availability = availability;
+	}
+
+	public BigDecimal getTotalEarnings() {
+		return totalEarnings;
+	}
+
+	public void setTotalEarnings(BigDecimal totalEarnings) {
+		this.totalEarnings = totalEarnings;
+	}
+
+	public Integer getCompletedProjects() {
+		return completedProjects;
+	}
+
+	public void setCompletedProjects(Integer completedProjects) {
+		this.completedProjects = completedProjects;
+	}
+
+	public BigDecimal getAverageRating() {
+		return averageRating;
+	}
+
+	public void setAverageRating(BigDecimal averageRating) {
+		this.averageRating = averageRating;
+	}
+
+	public List<SkillDTO> getSkills() {
+		return skills;
+	}
+
+	public void setSkills(List<SkillDTO> skills) {
+		this.skills = skills;
+	}
+
+	public List<PortfolioDTO> getPortfolios() {
+		return portfolios;
+	}
+
+	public void setPortfolios(List<PortfolioDTO> portfolios) {
+		this.portfolios = portfolios;
+	}
+
+	public List<RatingDTO> getRecentRatings() {
+		return recentRatings;
+	}
+
+	public void setRecentRatings(List<RatingDTO> recentRatings) {
+		this.recentRatings = recentRatings;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public FreelancerProfileDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public FreelancerProfileDTO(Long id, Long userId, String title, String bio, BigDecimal hourlyRate,
+			String availability, BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating,
+			List<SkillDTO> skills, List<PortfolioDTO> portfolios, List<RatingDTO> recentRatings,
+			LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.userId = userId;
+		this.title = title;
+		this.bio = bio;
+		this.hourlyRate = hourlyRate;
+		this.availability = availability;
+		this.totalEarnings = totalEarnings;
+		this.completedProjects = completedProjects;
+		this.averageRating = averageRating;
+		this.skills = skills;
+		this.portfolios = portfolios;
+		this.recentRatings = recentRatings;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+    
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+public class LoginResponseDTO {
+    
+    private String accessToken;
+    private String refreshToken;
+    private Long expiresIn;
+    private String tokenType = "Bearer";
+    private UserResponseDTO user;
+	public LoginResponseDTO(String accessToken, String refreshToken, Long expiresIn, String tokenType,
+			UserResponseDTO user) {
+		super();
+		this.accessToken = accessToken;
+		this.refreshToken = refreshToken;
+		this.expiresIn = expiresIn;
+		this.tokenType = tokenType;
+		this.user = user;
+	}
+	public LoginResponseDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public String getAccessToken() {
+		return accessToken;
+	}
+	public void setAccessToken(String accessToken) {
+		this.accessToken = accessToken;
+	}
+	public String getRefreshToken() {
+		return refreshToken;
+	}
+	public void setRefreshToken(String refreshToken) {
+		this.refreshToken = refreshToken;
+	}
+	public Long getExpiresIn() {
+		return expiresIn;
+	}
+	public void setExpiresIn(Long expiresIn) {
+		this.expiresIn = expiresIn;
+	}
+	public String getTokenType() {
+		return tokenType;
+	}
+	public void setTokenType(String tokenType) {
+		this.tokenType = tokenType;
+	}
+	public UserResponseDTO getUser() {
+		return user;
+	}
+	public void setUser(UserResponseDTO user) {
+		this.user = user;
+	}
+    
+    
+}
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDateTime;
+
+public class PaymentHistoryDTO {
+    
+    private Long id;
+    private Long paymentId;
+    private String statusChange;
+    private String notes;
+    private LocalDateTime changedAt;
+	public PaymentHistoryDTO(Long id, Long paymentId, String statusChange, String notes, LocalDateTime changedAt) {
+		super();
+		this.id = id;
+		this.paymentId = paymentId;
+		this.statusChange = statusChange;
+		this.notes = notes;
+		this.changedAt = changedAt;
+	}
+	public PaymentHistoryDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public Long getPaymentId() {
+		return paymentId;
+	}
+	public void setPaymentId(Long paymentId) {
+		this.paymentId = paymentId;
+	}
+	public String getStatusChange() {
+		return statusChange;
+	}
+	public void setStatusChange(String statusChange) {
+		this.statusChange = statusChange;
+	}
+	public String getNotes() {
+		return notes;
+	}
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+	public LocalDateTime getChangedAt() {
+		return changedAt;
+	}
+	public void setChangedAt(LocalDateTime changedAt) {
+		this.changedAt = changedAt;
+	}
+    
+    
+    
+}
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+
+public class PaymentRequestDTO {
+    
+    @NotNull(message = "Project ID is required")
+    private Long projectId;
+    
+    @NotNull(message = "Payer ID is required")
+    private Long payerId;
+    
+    @NotNull(message = "Payee ID is required")
+    private Long payeeId;
+    
+    @NotNull(message = "Amount is required")
+    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
+    private BigDecimal amount;
+    
+    @NotBlank(message = "Currency is required")
+    @Size(max = 10)
+    private String currency;
+    
+    @NotBlank(message = "Payment method is required")
+    private String paymentMethod;
+    
+    @NotBlank(message = "UPI ID is required")
+    @Pattern(regexp = "^[\\w.-]+@[\\w.-]+$", message = "Invalid UPI ID format")
+    private String upiId;
+    
+    private String description;
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public Long getPayerId() {
+		return payerId;
+	}
+
+	public void setPayerId(Long payerId) {
+		this.payerId = payerId;
+	}
+
+	public Long getPayeeId() {
+		return payeeId;
+	}
+
+	public void setPayeeId(Long payeeId) {
+		this.payeeId = payeeId;
+	}
+
+	public BigDecimal getAmount() {
+		return amount;
+	}
+
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+
+	public String getCurrency() {
+		return currency;
+	}
+
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+
+	public String getPaymentMethod() {
+		return paymentMethod;
+	}
+
+	public void setPaymentMethod(String paymentMethod) {
+		this.paymentMethod = paymentMethod;
+	}
+
+	public String getUpiId() {
+		return upiId;
+	}
+
+	public void setUpiId(String upiId) {
+		this.upiId = upiId;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public PaymentRequestDTO(@NotNull(message = "Project ID is required") Long projectId,
+			@NotNull(message = "Payer ID is required") Long payerId,
+			@NotNull(message = "Payee ID is required") Long payeeId,
+			@NotNull(message = "Amount is required") @DecimalMin(value = "0.01", message = "Amount must be greater than 0") BigDecimal amount,
+			@NotBlank(message = "Currency is required") @Size(max = 10) String currency,
+			@NotBlank(message = "Payment method is required") String paymentMethod,
+			@NotBlank(message = "UPI ID is required") @Pattern(regexp = "^[\\w.-]+@[\\w.-]+$", message = "Invalid UPI ID format") String upiId,
+			String description) {
+		super();
+		this.projectId = projectId;
+		this.payerId = payerId;
+		this.payeeId = payeeId;
+		this.amount = amount;
+		this.currency = currency;
+		this.paymentMethod = paymentMethod;
+		this.upiId = upiId;
+		this.description = description;
+	}
+
+	public PaymentRequestDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import com.freelancenexus.userservice.model.PaymentStatus;
+
+public class PaymentResponseDTO {
+    
+    private Long id;
+    private String transactionId;
+    private Long projectId;
+    private Long payerId;
+    private Long payeeId;
+    private BigDecimal amount;
+    private String currency;
+    private String paymentMethod;
+    private String upiId;
+    private PaymentStatus status;
+    private LocalDateTime paymentDate;
+    private String description;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public String getTransactionId() {
+		return transactionId;
+	}
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
+	}
+	public Long getProjectId() {
+		return projectId;
+	}
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+	public Long getPayerId() {
+		return payerId;
+	}
+	public void setPayerId(Long payerId) {
+		this.payerId = payerId;
+	}
+	public Long getPayeeId() {
+		return payeeId;
+	}
+	public void setPayeeId(Long payeeId) {
+		this.payeeId = payeeId;
+	}
+	public BigDecimal getAmount() {
+		return amount;
+	}
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+	public String getCurrency() {
+		return currency;
+	}
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+	public String getPaymentMethod() {
+		return paymentMethod;
+	}
+	public void setPaymentMethod(String paymentMethod) {
+		this.paymentMethod = paymentMethod;
+	}
+	public String getUpiId() {
+		return upiId;
+	}
+	public void setUpiId(String upiId) {
+		this.upiId = upiId;
+	}
+	public PaymentStatus getStatus() {
+		return status;
+	}
+	public void setStatus(PaymentStatus status) {
+		this.status = status;
+	}
+	public LocalDateTime getPaymentDate() {
+		return paymentDate;
+	}
+	public void setPaymentDate(LocalDateTime paymentDate) {
+		this.paymentDate = paymentDate;
+	}
+	public String getDescription() {
+		return description;
+	}
+	public void setDescription(String description) {
+		this.description = description;
+	}
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+	public PaymentResponseDTO(Long id, String transactionId, Long projectId, Long payerId, Long payeeId,
+			BigDecimal amount, String currency, String paymentMethod, String upiId, PaymentStatus status,
+			LocalDateTime paymentDate, String description, LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.transactionId = transactionId;
+		this.projectId = projectId;
+		this.payerId = payerId;
+		this.payeeId = payeeId;
+		this.amount = amount;
+		this.currency = currency;
+		this.paymentMethod = paymentMethod;
+		this.upiId = upiId;
+		this.status = status;
+		this.paymentDate = paymentDate;
+		this.description = description;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+	public PaymentResponseDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PastOrPresent;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a portfolio item.
+ * Includes details such as title, description, URLs, and completion date.
+ */
+
+public class PortfolioDTO {
+    
+    /**
+     * The unique identifier of the portfolio item.
+     */
+    private Long id;
+    
+    /**
+     * The title of the portfolio item.
+     * Must not be blank and cannot exceed 255 characters.
+     */
+    @NotBlank(message = "Portfolio title is required")
+    @Size(max = 255, message = "Title must not exceed 255 characters")
+    private String title;
+    
+    /**
+     * A description of the portfolio item.
+     * Cannot exceed 5000 characters.
+     */
+    @Size(max = 5000, message = "Description must not exceed 5000 characters")
+    private String description;
+    
+    /**
+     * The URL of the project associated with the portfolio item.
+     * Cannot exceed 500 characters.
+     */
+    @Size(max = 500, message = "Project URL must not exceed 500 characters")
+    private String projectUrl;
+    
+    /**
+     * The URL of the image associated with the portfolio item.
+     * Cannot exceed 500 characters.
+     */
+    @Size(max = 500, message = "Image URL must not exceed 500 characters")
+    private String imageUrl;
+    
+    /**
+     * A description of the technologies used in the portfolio item.
+     * Cannot exceed 1000 characters.
+     */
+    @Size(max = 1000, message = "Technologies used must not exceed 1000 characters")
+    private String technologiesUsed;
+    
+    /**
+     * The completion date of the portfolio item.
+     * Must be in the past or present.
+     */
+    @PastOrPresent(message = "Completion date cannot be in the future")
+    private LocalDate completionDate;
+    
+    /**
+     * The timestamp when the portfolio item was created.
+     */
+    private LocalDateTime createdAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public String getProjectUrl() {
+		return projectUrl;
+	}
+
+	public void setProjectUrl(String projectUrl) {
+		this.projectUrl = projectUrl;
+	}
+
+	public String getImageUrl() {
+		return imageUrl;
+	}
+
+	public void setImageUrl(String imageUrl) {
+		this.imageUrl = imageUrl;
+	}
+
+	public String getTechnologiesUsed() {
+		return technologiesUsed;
+	}
+
+	public void setTechnologiesUsed(String technologiesUsed) {
+		this.technologiesUsed = technologiesUsed;
+	}
+
+	public LocalDate getCompletionDate() {
+		return completionDate;
+	}
+
+	public void setCompletionDate(LocalDate completionDate) {
+		this.completionDate = completionDate;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public PortfolioDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public PortfolioDTO(Long id,
+			@NotBlank(message = "Portfolio title is required") @Size(max = 255, message = "Title must not exceed 255 characters") String title,
+			@Size(max = 5000, message = "Description must not exceed 5000 characters") String description,
+			@Size(max = 500, message = "Project URL must not exceed 500 characters") String projectUrl,
+			@Size(max = 500, message = "Image URL must not exceed 500 characters") String imageUrl,
+			@Size(max = 1000, message = "Technologies used must not exceed 1000 characters") String technologiesUsed,
+			@PastOrPresent(message = "Completion date cannot be in the future") LocalDate completionDate,
+			LocalDateTime createdAt) {
+		super();
+		this.id = id;
+		this.title = title;
+		this.description = description;
+		this.projectUrl = projectUrl;
+		this.imageUrl = imageUrl;
+		this.technologiesUsed = technologiesUsed;
+		this.completionDate = completionDate;
+		this.createdAt = createdAt;
+	}
+    
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+/**
+ * ProjectCreateDTO
+ *
+ * <p>Data Transfer Object for creating a new project. Contains all required and optional
+ * information needed to set up a project in the system. All fields are validated for
+ * presence, format, and business logic constraints.</p>
+ *
+ * <p>Typically sent by clients via POST requests to create new projects.</p>
+ *
+ * @since 1.0
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProjectCreateDTO {
+
+    /**
+     * Unique identifier of the client creating the project.
+     * Must be provided and must reference a valid client.
+     *
+     * @validation NotNull
+     */
+    @NotNull(message = "Client ID is required")
+    private Long clientId;
+
+    /**
+     * Project title. Must be unique and descriptive.
+     * Cannot exceed 255 characters.
+     *
+     * @validation NotBlank, Size(max = 255)
+     */
+    @NotBlank(message = "Title is required")
+    @Size(max = 255, message = "Title must not exceed 255 characters")
+    private String title;
+
+    /**
+     * Detailed description of the project, requirements, and deliverables.
+     * Cannot be blank.
+     *
+     * @validation NotBlank
+     */
+    @NotBlank(message = "Description is required")
+    private String description;
+
+    /**
+     * Minimum budget amount for the project.
+     * Must be greater than 0.
+     *
+     * @validation NotNull, DecimalMin(0.0, exclusive)
+     */
+    @NotNull(message = "Minimum budget is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Minimum budget must be greater than 0")
+    private BigDecimal budgetMin;
+
+    /**
+     * Maximum budget amount for the project.
+     * Must be greater than 0.
+     *
+     * @validation NotNull, DecimalMin(0.0, exclusive)
+     */
+    @NotNull(message = "Maximum budget is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Maximum budget must be greater than 0")
+    private BigDecimal budgetMax;
+
+    /**
+     * Estimated project duration in days.
+     * Must be at least 1 day.
+     *
+     * @validation NotNull, Min(1)
+     */
+    @NotNull(message = "Duration is required")
+    @Min(value = 1, message = "Duration must be at least 1 day")
+    private Integer durationDays;
+
+    /**
+     * List of required skills for the project (e.g., "Java", "React", "AWS").
+     * At least one skill must be specified.
+     *
+     * @validation NotEmpty
+     */
+    @NotEmpty(message = "At least one skill is required")
+    private List<String> requiredSkills;
+
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     * Cannot be blank.
+     *
+     * @validation NotBlank
+     */
+    @NotBlank(message = "Category is required")
+    private String category;
+
+    /**
+     * Project deadline date. Must be in the future.
+     * Optional field.
+     *
+     * @validation Future
+     */
+    @Future(message = "Deadline must be in the future")
+    private LocalDate deadline;
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+
+	public ProjectCreateDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProjectCreateDTO(@NotNull(message = "Client ID is required") Long clientId,
+			@NotBlank(message = "Title is required") @Size(max = 255, message = "Title must not exceed 255 characters") String title,
+			@NotBlank(message = "Description is required") String description,
+			@NotNull(message = "Minimum budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Minimum budget must be greater than 0") BigDecimal budgetMin,
+			@NotNull(message = "Maximum budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Maximum budget must be greater than 0") BigDecimal budgetMax,
+			@NotNull(message = "Duration is required") @Min(value = 1, message = "Duration must be at least 1 day") Integer durationDays,
+			@NotEmpty(message = "At least one skill is required") List<String> requiredSkills,
+			@NotBlank(message = "Category is required") String category,
+			@Future(message = "Deadline must be in the future") LocalDate deadline) {
+		super();
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.deadline = deadline;
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.freelancenexus.userservice.model.ProjectStatus;
+
+/**
+ * ProjectDTO
+ *
+ * <p>Data Transfer Object representing project information returned by API endpoints.
+ * Contains project details, status, budget information, required skills, and metadata.
+ * Excludes sensitive information and is used for transferring project data to clients.</p>
+ *
+ * <p>Typically returned by project retrieval, creation, and update endpoints.</p>
+ *
+ * @since 1.0
+ */
+public class ProjectDTO {
+    
+    /**
+     * Unique identifier of the project.
+     */
+    private Long id;
+    
+    /**
+     * Unique identifier of the client who created the project.
+     */
+    private Long clientId;
+    
+    /**
+     * Project title.
+     */
+    private String title;
+    
+    /**
+     * Detailed description of the project and its requirements.
+     */
+    private String description;
+    
+    /**
+     * Minimum budget amount for the project.
+     */
+    private BigDecimal budgetMin;
+    
+    /**
+     * Maximum budget amount for the project.
+     */
+    private BigDecimal budgetMax;
+    
+    /**
+     * Estimated project duration in days.
+     */
+    private Integer durationDays;
+    
+    /**
+     * List of required skills to complete the project.
+     */
+    private List<String> requiredSkills;
+    
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     */
+    private String category;
+    
+    /**
+     * Current status of the project (e.g., OPEN, IN_PROGRESS, COMPLETED).
+     *
+     * @see ProjectStatus
+     */
+    private ProjectStatus status;
+    
+    /**
+     * Project deadline date.
+     */
+    private LocalDate deadline;
+    
+    /**
+     * Unique identifier of the freelancer assigned to the project (if any).
+     * {@code null} if no freelancer is assigned.
+     */
+    private Long assignedFreelancer;
+    
+    /**
+     * Timestamp when the project was created.
+     */
+    private LocalDateTime createdAt;
+    
+    /**
+     * Timestamp when the project was last updated.
+     */
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Number of proposals submitted for this project.
+     */
+    private Integer proposalCount;
+
+    private String clientName;
+    
+    private LocalDateTime clientJoinDate;
+    
+    private Long clientProjectCount;
+   
+    
+	public String getClientName() {
+		return clientName;
+	}
+
+
+	public void setClientName(String clientName) {
+		this.clientName = clientName;
+	}
+
+
+	public LocalDateTime getClientJoinDate() {
+		return clientJoinDate;
+	}
+
+
+	public void setClientJoinDate(LocalDateTime clientJoinDate) {
+		this.clientJoinDate = clientJoinDate;
+	}
+
+
+	public Long getClientProjectCount() {
+		return clientProjectCount;
+	}
+
+
+	public void setClientProjectCount(Long clientProjectCount) {
+		this.clientProjectCount = clientProjectCount;
+	}
+
+
+	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
+			ProjectStatus status, LocalDate deadline, Long assignedFreelancer,
+			LocalDateTime createdAt, LocalDateTime updatedAt, Integer proposalCount) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposalCount = proposalCount;
+	}
+
+	
+	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
+			ProjectStatus status, LocalDate deadline, Long assignedFreelancer, LocalDateTime createdAt,
+			LocalDateTime updatedAt, Integer proposalCount, String clientName, LocalDateTime clientJoinDate,
+			Long clientProjectCount) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposalCount = proposalCount;
+		this.clientName = clientName;
+		this.clientJoinDate = clientJoinDate;
+		this.clientProjectCount = clientProjectCount;
+	}
+
+
+	public ProjectDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public ProjectStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ProjectStatus status) {
+		this.status = status;
+	}
+
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+
+	public Long getAssignedFreelancer() {
+		return assignedFreelancer;
+	}
+
+	public void setAssignedFreelancer(Long assignedFreelancer) {
+		this.assignedFreelancer = assignedFreelancer;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Integer getProposalCount() {
+		return proposalCount;
+	}
+
+	public void setProposalCount(Integer proposalCount) {
+		this.proposalCount = proposalCount;
+	}
+	
+	
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.util.List;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+/**
+ * ProjectSummaryDTO
+ *
+ * <p>Data Transfer Object representing an AI-generated summary of a project.
+ * Contains concise summaries, key requirements, ideal candidate profile, and
+ * complexity assessment produced by the AI service.</p>
+ *
+ * <p>Returned by AI summary endpoints to provide clients and freelancers with
+ * quick, AI-generated insights about a project.</p>
+ *
+ * @since 1.0
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProjectSummaryDTO {
+    
+    /**
+     * Unique identifier of the project being summarized.
+     */
+    private Long projectId;
+    
+    /**
+     * AI-generated concise summary of the project's objectives and scope.
+     */
+    private String summary;
+    
+    /**
+     * AI-extracted key requirements and deliverables for the project.
+     */
+    private String keyRequirements;
+    
+    /**
+     * AI-generated description of the ideal candidate profile
+     * (experience level, skill set, background).
+     */
+    private String idealCandidate;
+    
+    /**
+     * AI-assessed complexity level of the project
+     * (e.g., "Low", "Medium", "High", "Very High").
+     */
+    private String estimatedComplexity;
+    
+    /**
+     * List of suggested skills recommended by AI for the project,
+     * based on analysis of the project description and requirements.
+     */
+    private java.util.List<String> suggestedSkills;
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public String getSummary() {
+		return summary;
+	}
+
+	public void setSummary(String summary) {
+		this.summary = summary;
+	}
+
+	public String getKeyRequirements() {
+		return keyRequirements;
+	}
+
+	public void setKeyRequirements(String keyRequirements) {
+		this.keyRequirements = keyRequirements;
+	}
+
+	public String getIdealCandidate() {
+		return idealCandidate;
+	}
+
+	public void setIdealCandidate(String idealCandidate) {
+		this.idealCandidate = idealCandidate;
+	}
+
+	public String getEstimatedComplexity() {
+		return estimatedComplexity;
+	}
+
+	public void setEstimatedComplexity(String estimatedComplexity) {
+		this.estimatedComplexity = estimatedComplexity;
+	}
+
+	public java.util.List<String> getSuggestedSkills() {
+		return suggestedSkills;
+	}
+
+	public void setSuggestedSkills(java.util.List<String> suggestedSkills) {
+		this.suggestedSkills = suggestedSkills;
+	}
+
+	public ProjectSummaryDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProjectSummaryDTO(Long projectId, String summary, String keyRequirements, String idealCandidate,
+			String estimatedComplexity, List<String> suggestedSkills) {
+		super();
+		this.projectId = projectId;
+		this.summary = summary;
+		this.keyRequirements = keyRequirements;
+		this.idealCandidate = idealCandidate;
+		this.estimatedComplexity = estimatedComplexity;
+		this.suggestedSkills = suggestedSkills;
+	}
+    
+    
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.freelancenexus.userservice.model.ProposalStatus;
+import com.freelancenexus.userservice.model.Skill;
+
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+
+/**
+ * Data Transfer Object (DTO) for transferring proposal data.
+ * Contains all the fields required for representing a proposal.
+ */
+
+public class ProposalDTO {
+
+    /**
+     * The unique identifier of the proposal.
+     */
+    private Long id;
+
+    /**
+     * The ID of the project associated with the proposal.
+     */
+    private Long projectId;
+
+    /**
+     * The title of the project associated with the proposal.
+     */
+    private String projectTitle;
+
+    /**
+     * The ID of the freelancer who submitted the proposal.
+     */
+    private Long freelancerId;
+
+    /**
+     * The cover letter submitted with the proposal.
+     */
+    private String coverLetter;
+
+    /**
+     * The budget proposed by the freelancer.
+     */
+    private BigDecimal proposedBudget;
+
+    /**
+     * The number of days proposed for delivery.
+     */
+    private Integer deliveryDays;
+
+    /**
+     * The AI-generated score for the proposal (0-100).
+     */
+    private BigDecimal aiScore;
+
+    /**
+     * The current status of the proposal.
+     */
+    @Enumerated(EnumType.STRING)
+    private ProposalStatus status;
+
+    /**
+     * The timestamp when the proposal was submitted.
+     */
+    private LocalDateTime submittedAt;
+
+    /**
+     * The timestamp when the proposal was last updated.
+     */
+    private LocalDateTime updatedAt;
+
+    private String projectDescription;
+     
+    public String getFreelancerName() {
+		return freelancerName;
+	}
+
+	public void setFreelancerName(String freelancerName) {
+		this.freelancerName = freelancerName;
+	}
+
+	public List<Skill> getFreelancerSkills() {
+		return freelancerSkills;
+	}
+	
+	
+
+	public void setFreelancerSkills(List<Skill> freelancerSkills) {
+		this.freelancerSkills = freelancerSkills;
+	}
+
+	public BigDecimal getFreelancerRating() {
+		return freelancerRating;
+	}
+
+	public void setFreelancerRating(BigDecimal freelancerRating) {
+		this.freelancerRating = freelancerRating;
+	}
+
+	private String freelancerName;
+    private List<Skill> freelancerSkills;
+    private BigDecimal freelancerRating;
+    
+	public String getProjectDescription() {
+		return projectDescription;
+	}
+
+	public void setProjectDescription(String projectDescription) {
+		this.projectDescription = projectDescription;
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public String getProjectTitle() {
+		return projectTitle;
+	}
+
+	public void setProjectTitle(String projectTitle) {
+		this.projectTitle = projectTitle;
+	}
+
+	public Long getFreelancerId() {
+		return freelancerId;
+	}
+
+	public void setFreelancerId(Long freelancerId) {
+		this.freelancerId = freelancerId;
+	}
+
+	public String getCoverLetter() {
+		return coverLetter;
+	}
+
+	public void setCoverLetter(String coverLetter) {
+		this.coverLetter = coverLetter;
+	}
+
+	public BigDecimal getProposedBudget() {
+		return proposedBudget;
+	}
+
+	public void setProposedBudget(BigDecimal proposedBudget) {
+		this.proposedBudget = proposedBudget;
+	}
+
+	public Integer getDeliveryDays() {
+		return deliveryDays;
+	}
+
+	public void setDeliveryDays(Integer deliveryDays) {
+		this.deliveryDays = deliveryDays;
+	}
+
+	public BigDecimal getAiScore() {
+		return aiScore;
+	}
+
+	public void setAiScore(BigDecimal aiScore) {
+		this.aiScore = aiScore;
+	}
+
+	public ProposalStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ProposalStatus status) {
+		this.status = status;
+	}
+
+	public LocalDateTime getSubmittedAt() {
+		return submittedAt;
+	}
+
+	public void setSubmittedAt(LocalDateTime submittedAt) {
+		this.submittedAt = submittedAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+
+	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
+			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
+			LocalDateTime submittedAt, LocalDateTime updatedAt, String projectDescription) {
+		super();
+		this.id = id;
+		this.projectId = projectId;
+		this.projectTitle = projectTitle;
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+		this.aiScore = aiScore;
+		this.status = status;
+		this.submittedAt = submittedAt;
+		this.updatedAt = updatedAt;
+		this.projectDescription = projectDescription;
+	}
+
+	public ProposalDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
+			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
+			LocalDateTime submittedAt, LocalDateTime updatedAt, String projectDescription, String freelancerName,
+			List<Skill> freelancerSkills, BigDecimal freelancerRating) {
+		super();
+		this.id = id;
+		this.projectId = projectId;
+		this.projectTitle = projectTitle;
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+		this.aiScore = aiScore;
+		this.status = status;
+		this.submittedAt = submittedAt;
+		this.updatedAt = updatedAt;
+		this.projectDescription = projectDescription;
+		this.freelancerName = freelancerName;
+		this.freelancerSkills = freelancerSkills;
+		this.freelancerRating = freelancerRating;
+	}
+    
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+
+/**
+ * Data Transfer Object (DTO) for submitting a proposal.
+ * Contains all the necessary fields and validation constraints for proposal submission.
+ */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ProposalSubmitDTO {
+
+    /**
+     * The ID of the freelancer submitting the proposal.
+     */
+    @NotNull(message = "Freelancer ID is required")
+    private Long freelancerId;
+
+    /**
+     * The cover letter submitted with the proposal.
+     */
+    @NotBlank(message = "Cover letter is required")
+    @Size(min = 50, message = "Cover letter must be at least 50 characters")
+    private String coverLetter;
+
+    /**
+     * The budget proposed by the freelancer.
+     */
+    @NotNull(message = "Proposed budget is required")
+    @DecimalMin(value = "0.0", inclusive = false, message = "Proposed budget must be greater than 0")
+    private BigDecimal proposedBudget;
+
+    /**
+     * The number of days proposed for delivery.
+     */
+    @NotNull(message = "Delivery days is required")
+    @Min(value = 1, message = "Delivery days must be at least 1")
+    private Integer deliveryDays;
+
+	public Long getFreelancerId() {
+		return freelancerId;
+	}
+
+	public void setFreelancerId(Long freelancerId) {
+		this.freelancerId = freelancerId;
+	}
+
+	public String getCoverLetter() {
+		return coverLetter;
+	}
+
+	public void setCoverLetter(String coverLetter) {
+		this.coverLetter = coverLetter;
+	}
+
+	public BigDecimal getProposedBudget() {
+		return proposedBudget;
+	}
+
+	public void setProposedBudget(BigDecimal proposedBudget) {
+		this.proposedBudget = proposedBudget;
+	}
+
+	public Integer getDeliveryDays() {
+		return deliveryDays;
+	}
+
+	public void setDeliveryDays(Integer deliveryDays) {
+		this.deliveryDays = deliveryDays;
+	}
+
+	public ProposalSubmitDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProposalSubmitDTO(@NotNull(message = "Freelancer ID is required") Long freelancerId,
+			@NotBlank(message = "Cover letter is required") @Size(min = 50, message = "Cover letter must be at least 50 characters") String coverLetter,
+			@NotNull(message = "Proposed budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Proposed budget must be greater than 0") BigDecimal proposedBudget,
+			@NotNull(message = "Delivery days is required") @Min(value = 1, message = "Delivery days must be at least 1") Integer deliveryDays) {
+		super();
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+	}
+    
+    
+}
+package com.freelancenexus.userservice.dto;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+/**
+ * Data Transfer Object (DTO) for transferring ranked proposal data.
+ * Contains details about the proposal, its ranking, and AI analysis.
+ */
+
+
+public class RankedProposalDTO {
+
+    /**
+     * The unique identifier of the proposal.
+     */
+    private Long id;
+
+    /**
+     * The ID of the freelancer who submitted the proposal.
+     */
+    private Long freelancerId;
+
+    /**
+     * The cover letter submitted with the proposal.
+     */
+    private String coverLetter;
+
+    /**
+     * The budget proposed by the freelancer.
+     */
+    private BigDecimal proposedBudget;
+
+    /**
+     * The number of days proposed for delivery.
+     */
+    private Integer deliveryDays;
+
+    /**
+     * The AI-generated score for the proposal (0-100).
+     */
+    private BigDecimal aiScore;
+
+    /**
+     * The rank of the proposal based on AI analysis.
+     */
+    private Integer rank;
+
+    /**
+     * The AI-generated analysis of the proposal.
+     */
+    private String aiAnalysis;
+
+    /**
+     * The list of strengths identified in the proposal.
+     */
+    private java.util.List<String> strengths;
+
+    /**
+     * The list of concerns identified in the proposal.
+     */
+    private java.util.List<String> concerns;
+
+    /**
+     * The timestamp when the proposal was submitted.
+     */
+    private LocalDateTime submittedAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getFreelancerId() {
+		return freelancerId;
+	}
+
+	public void setFreelancerId(Long freelancerId) {
+		this.freelancerId = freelancerId;
+	}
+
+	public String getCoverLetter() {
+		return coverLetter;
+	}
+
+	public void setCoverLetter(String coverLetter) {
+		this.coverLetter = coverLetter;
+	}
+
+	public BigDecimal getProposedBudget() {
+		return proposedBudget;
+	}
+
+	public void setProposedBudget(BigDecimal proposedBudget) {
+		this.proposedBudget = proposedBudget;
+	}
+
+	public Integer getDeliveryDays() {
+		return deliveryDays;
+	}
+
+	public void setDeliveryDays(Integer deliveryDays) {
+		this.deliveryDays = deliveryDays;
+	}
+
+	public BigDecimal getAiScore() {
+		return aiScore;
+	}
+
+	public void setAiScore(BigDecimal aiScore) {
+		this.aiScore = aiScore;
+	}
+
+	public Integer getRank() {
+		return rank;
+	}
+
+	public void setRank(Integer rank) {
+		this.rank = rank;
+	}
+
+	public String getAiAnalysis() {
+		return aiAnalysis;
+	}
+
+	public void setAiAnalysis(String aiAnalysis) {
+		this.aiAnalysis = aiAnalysis;
+	}
+
+	public java.util.List<String> getStrengths() {
+		return strengths;
+	}
+
+	public void setStrengths(java.util.List<String> strengths) {
+		this.strengths = strengths;
+	}
+
+	public java.util.List<String> getConcerns() {
+		return concerns;
+	}
+
+	public void setConcerns(java.util.List<String> concerns) {
+		this.concerns = concerns;
+	}
+
+	public LocalDateTime getSubmittedAt() {
+		return submittedAt;
+	}
+
+	public void setSubmittedAt(LocalDateTime submittedAt) {
+		this.submittedAt = submittedAt;
+	}
+
+	public RankedProposalDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public RankedProposalDTO(Long id, Long freelancerId, String coverLetter, BigDecimal proposedBudget,
+			Integer deliveryDays, BigDecimal aiScore, Integer rank, String aiAnalysis, List<String> strengths,
+			List<String> concerns, LocalDateTime submittedAt) {
+		super();
+		this.id = id;
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+		this.aiScore = aiScore;
+		this.rank = rank;
+		this.aiAnalysis = aiAnalysis;
+		this.strengths = strengths;
+		this.concerns = concerns;
+		this.submittedAt = submittedAt;
+	}
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDateTime;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a rating.
+ * Includes details such as client ID, project ID, rating value, and review.
+ */
+
+public class RatingDTO {
+    
+    /**
+     * The unique identifier of the rating.
+     */
+    private Long id;
+    
+    /**
+     * The ID of the client who provided the rating.
+     * Must not be null.
+     */
+    @NotNull(message = "Client ID is required")
+    private Long clientId;
+    
+    /**
+     * The ID of the project associated with the rating.
+     */
+    private Long projectId;
+    
+    /**
+     * The rating value.
+     * Must be between 1 and 5.
+     */
+    @NotNull(message = "Rating is required")
+    @Min(value = 1, message = "Rating must be at least 1")
+    @Max(value = 5, message = "Rating must not exceed 5")
+    private Integer rating;
+    
+    /**
+     * The review text provided by the client.
+     * Cannot exceed 2000 characters.
+     */
+    @Size(max = 2000, message = "Review must not exceed 2000 characters")
+    private String review;
+    
+    /**
+     * The timestamp when the rating was created.
+     */
+    private LocalDateTime createdAt;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public Integer getRating() {
+		return rating;
+	}
+
+	public void setRating(Integer rating) {
+		this.rating = rating;
+	}
+
+	public String getReview() {
+		return review;
+	}
+
+	public void setReview(String review) {
+		this.review = review;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public RatingDTO(Long id, @NotNull(message = "Client ID is required") Long clientId, Long projectId,
+			@NotNull(message = "Rating is required") @Min(value = 1, message = "Rating must be at least 1") @Max(value = 5, message = "Rating must not exceed 5") Integer rating,
+			@Size(max = 2000, message = "Review must not exceed 2000 characters") String review,
+			LocalDateTime createdAt) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.projectId = projectId;
+		this.rating = rating;
+		this.review = review;
+		this.createdAt = createdAt;
+	}
+
+	public RatingDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+    
+}
+
+
+
+package com.freelancenexus.userservice.dto;
+
+
+
+import com.freelancenexus.userservice.model.Skill.ProficiencyLevel;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+/**
+ * Data Transfer Object (DTO) for representing a skill.
+ * Includes details such as skill name, proficiency level, and years of experience.
+ */
+public class SkillDTO {
+    
+    /**
+     * The unique identifier of the skill.
+     */
+    private Long id;
+    
+    /**
+     * The name of the skill.
+     * Must not be blank and cannot exceed 100 characters.
+     */
+    @NotBlank(message = "Skill name is required")
+    @Size(max = 100, message = "Skill name must not exceed 100 characters")
+    private String skillName;
+    
+    /**
+     * The proficiency level of the skill.
+     * Must not be null.
+     */
+    @NotNull(message = "Proficiency level is required")
+    private ProficiencyLevel proficiencyLevel;
+    
+    /**
+     * The number of years of experience with the skill.
+     * Must be a non-negative value and cannot exceed 50 years.
+     */
+    @Min(value = 0, message = "Years of experience cannot be negative")
+    @Max(value = 50, message = "Years of experience seems too high")
+    private Integer yearsExperience;
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getSkillName() {
+		return skillName;
+	}
+
+	public void setSkillName(String skillName) {
+		this.skillName = skillName;
+	}
+
+	public ProficiencyLevel getProficiencyLevel() {
+		return proficiencyLevel;
+	}
+
+	public void setProficiencyLevel(ProficiencyLevel proficiencyLevel) {
+		this.proficiencyLevel = proficiencyLevel;
+	}
+
+	public Integer getYearsExperience() {
+		return yearsExperience;
+	}
+
+	public void setYearsExperience(Integer yearsExperience) {
+		this.yearsExperience = yearsExperience;
+	}
+
+	public SkillDTO(Long id,
+			@NotBlank(message = "Skill name is required") @Size(max = 100, message = "Skill name must not exceed 100 characters") String skillName,
+			@NotNull(message = "Proficiency level is required") ProficiencyLevel proficiencyLevel,
+			@Min(value = 0, message = "Years of experience cannot be negative") @Max(value = 50, message = "Years of experience seems too high") Integer yearsExperience) {
+		super();
+		this.id = id;
+		this.skillName = skillName;
+		this.proficiencyLevel = proficiencyLevel;
+		this.yearsExperience = yearsExperience;
+	}
+
+	public SkillDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	public String toString() {
+		return "SkillDTO [id=" + id + ", skillName=" + skillName + ", proficiencyLevel=" + proficiencyLevel
+				+ ", yearsExperience=" + yearsExperience + "]";
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+import com.freelancenexus.userservice.model.PaymentStatus;
+
+public class TransactionStatusDTO {
+    
+    private String transactionId;
+    private PaymentStatus status;
+    private BigDecimal amount;
+    private String currency;
+    private LocalDateTime timestamp;
+    private String message;
+	public String getTransactionId() {
+		return transactionId;
+	}
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
+	}
+	public PaymentStatus getStatus() {
+		return status;
+	}
+	public void setStatus(PaymentStatus status) {
+		this.status = status;
+	}
+	public BigDecimal getAmount() {
+		return amount;
+	}
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+	public String getCurrency() {
+		return currency;
+	}
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+	public LocalDateTime getTimestamp() {
+		return timestamp;
+	}
+	public void setTimestamp(LocalDateTime timestamp) {
+		this.timestamp = timestamp;
+	}
+	public String getMessage() {
+		return message;
+	}
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	public TransactionStatusDTO(String transactionId, PaymentStatus status, BigDecimal amount, String currency,
+			LocalDateTime timestamp, String message) {
+		super();
+		this.transactionId = transactionId;
+		this.status = status;
+		this.amount = amount;
+		this.currency = currency;
+		this.timestamp = timestamp;
+		this.message = message;
+	}
+	public TransactionStatusDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+
+public class UPIPaymentDTO {
+    
+    private String transactionId;
+    private String upiId;
+    private BigDecimal amount;
+    private String currency;
+    private String paymentLink;
+    private String qrCode;
+    private Long expiresIn; // seconds
+    private String status;
+    private String message;
+	public String getTransactionId() {
+		return transactionId;
+	}
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
+	}
+	public String getUpiId() {
+		return upiId;
+	}
+	public void setUpiId(String upiId) {
+		this.upiId = upiId;
+	}
+	public BigDecimal getAmount() {
+		return amount;
+	}
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
+	}
+	public String getCurrency() {
+		return currency;
+	}
+	public void setCurrency(String currency) {
+		this.currency = currency;
+	}
+	public String getPaymentLink() {
+		return paymentLink;
+	}
+	public void setPaymentLink(String paymentLink) {
+		this.paymentLink = paymentLink;
+	}
+	public String getQrCode() {
+		return qrCode;
+	}
+	public void setQrCode(String qrCode) {
+		this.qrCode = qrCode;
+	}
+	public Long getExpiresIn() {
+		return expiresIn;
+	}
+	public void setExpiresIn(Long expiresIn) {
+		this.expiresIn = expiresIn;
+	}
+	public String getStatus() {
+		return status;
+	}
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	public String getMessage() {
+		return message;
+	}
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	public UPIPaymentDTO(String transactionId, String upiId, BigDecimal amount, String currency, String paymentLink,
+			String qrCode, Long expiresIn, String status, String message) {
+		super();
+		this.transactionId = transactionId;
+		this.upiId = upiId;
+		this.amount = amount;
+		this.currency = currency;
+		this.paymentLink = paymentLink;
+		this.qrCode = qrCode;
+		this.expiresIn = expiresIn;
+		this.status = status;
+		this.message = message;
+	}
+	public UPIPaymentDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+
+public class UserLoginDTO {
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email should be valid")
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    private String password;
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public UserLoginDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public UserLoginDTO(@NotBlank(message = "Email is required") @Email(message = "Email should be valid") String email,
+			@NotBlank(message = "Password is required") String password) {
+		super();
+		this.email = email;
+		this.password = password;
+	}
+    
+    
+}
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import com.freelancenexus.userservice.model.UserRole;
+
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+
+public class UserRegistrationDTO {
+    
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email should be valid")
+    private String email;
+    
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters")
+    private String password;
+    
+    @NotBlank(message = "Full name is required")
+    @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters")
+    private String fullName;
+    
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
+    private String phone;
+    
+    @NotNull(message = "Role is required")
+    private UserRole role;
+    
+    private String profileImageUrl;
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public void setPassword(String password) {
+		this.password = password;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public UserRole getRole() {
+		return role;
+	}
+
+	public void setRole(UserRole role) {
+		this.role = role;
+	}
+
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserRegistrationDTO(
+			@NotBlank(message = "Email is required") @Email(message = "Email should be valid") String email,
+			@NotBlank(message = "Password is required") @Size(min = 8, message = "Password must be at least 8 characters") String password,
+			@NotBlank(message = "Full name is required") @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters") String fullName,
+			@Size(max = 20, message = "Phone number must not exceed 20 characters") String phone,
+			@NotNull(message = "Role is required") UserRole role, String profileImageUrl) {
+		super();
+		this.email = email;
+		this.password = password;
+		this.fullName = fullName;
+		this.phone = phone;
+		this.role = role;
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserRegistrationDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import java.time.LocalDateTime;
+
+import com.freelancenexus.userservice.model.UserRole;
+
+public class UserResponseDTO {
+    
+    private Long id;
+    private String email;
+    private String fullName;
+    private String phone;
+    private UserRole role;
+    private Boolean isActive;
+    private String profileImageUrl;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public String getEmail() {
+		return email;
+	}
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	public String getFullName() {
+		return fullName;
+	}
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+	public String getPhone() {
+		return phone;
+	}
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+	public UserRole getRole() {
+		return role;
+	}
+	public void setRole(UserRole role) {
+		this.role = role;
+	}
+	public Boolean getIsActive() {
+		return isActive;
+	}
+	public void setIsActive(Boolean isActive) {
+		this.isActive = isActive;
+	}
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
+	}
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+	public UserResponseDTO(Long id, String email, String fullName, String phone, UserRole role, Boolean isActive,
+			String profileImageUrl, LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.email = email;
+		this.fullName = fullName;
+		this.phone = phone;
+		this.role = role;
+		this.isActive = isActive;
+		this.profileImageUrl = profileImageUrl;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+	public UserResponseDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
+
+package com.freelancenexus.userservice.dto;
+
+import jakarta.validation.constraints.Size;
+
+public class UserUpdateDTO {
+    
+    @Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters")
+    private String fullName;
+    
+    @Size(max = 20, message = "Phone number must not exceed 20 characters")
+    private String phone;
+    
+    private String profileImageUrl;
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public String getPhone() {
+		return phone;
+	}
+
+	public void setPhone(String phone) {
+		this.phone = phone;
+	}
+
+	public String getProfileImageUrl() {
+		return profileImageUrl;
+	}
+
+	public void setProfileImageUrl(String profileImageUrl) {
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserUpdateDTO(
+			@Size(min = 2, max = 255, message = "Full name must be between 2 and 255 characters") String fullName,
+			@Size(max = 20, message = "Phone number must not exceed 20 characters") String phone,
+			String profileImageUrl) {
+		super();
+		this.fullName = fullName;
+		this.phone = phone;
+		this.profileImageUrl = profileImageUrl;
+	}
+
+	public UserUpdateDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+    
+    
+}
