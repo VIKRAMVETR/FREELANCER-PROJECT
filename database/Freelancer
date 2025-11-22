@@ -1,0 +1,1133 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import freelancerService from '../../services/freelancerService';
+import proposalService from '../../services/proposalService';
+import Loader from '../common/Loader';
+
+const FreelancerDashboard = () => {
+  const { user } = useAuth();
+  const [stats, setStats] = useState(null);
+  const [recentProposals, setRecentProposals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDashboardData = useCallback(async () => {
+    if (!user?.id) return; // ✅ guard if user isn't ready yet
+    try {
+      const [statsData, proposalsData] = await Promise.all([
+        freelancerService.getFreelancerStats(user.id),
+        proposalService.getFreelancerProposals(user.id),
+      ]);
+      setStats(statsData);
+      setRecentProposals(proposalsData.slice(0, 5));
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]); // ✅ dependency properly declared
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]); // ✅ ESLint clean, no warnings
+
+  if (loading) return <Loader />;
+
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <h2>Welcome back, {user?.firstName || user?.username}! 👋</h2>
+          <p className="text-muted">Here's your freelance activity overview</p>
+        </div>
+      </div>
+
+{/* Stats Cards */}
+<div className="row g-4 mb-4">
+ 
+  <div className="col-lg">
+<div className="dashboard-card">
+<h3>{stats?.totalProposals || 0}</h3>
+<p>Total Proposals</p>
+</div>
+</div>
+ 
+  <div className="col-lg">
+<div className="dashboard-card">
+<h3>{stats?.acceptedProposals || 0}</h3>
+<p>Accepted</p>
+</div>
+</div>
+ 
+  <div className="col-lg">
+<div className="dashboard-card">
+<h3>{stats?.pendingProposals || 0}</h3>
+<p>Pending</p>
+</div>
+</div>
+ 
+  <div className="col-lg">
+<div className="dashboard-card">
+<h3>₹{stats?.totalEarnings || 0}</h3>
+<p>Total Earnings</p>
+</div>
+</div>
+ 
+  <div className="col-lg">
+<div className="dashboard-card">
+<h3>⭐ {stats?.averageRating ? Number(stats.averageRating).toFixed(1) : "0.0"}</h3>
+<p>Rating</p>
+</div>
+</div>
+ 
+</div>
+
+ 
+      
+
+      {/* AI Recommendations */}
+      <div className="row mb-4">
+        <div className="col">
+          <div className="card shadow-sm ai-feature">
+            <div className="card-body">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h5 className="mb-2">
+                    <span className="ai-badge">AI</span> Project Recommendations
+                  </h5>
+                  <p className="mb-0">
+                    We found projects matching your skills and experience
+                  </p>
+                </div>
+                <Link to="/freelancer/recommendations" className="btn btn-light">
+                  View Recommendations
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Proposals */}
+      <div className="row">
+        <div className="col-md-8">
+          <div className="card shadow-sm">
+            <div className="card-header bg-white">
+              <h5 className="mb-0">Recent Proposals</h5>
+            </div>
+            <div className="card-body">
+              {recentProposals.length === 0 ? (
+                <p className="text-muted text-center py-3">No proposals yet</p>
+              ) : (
+                <div className="list-group list-group-flush">
+                  {recentProposals.map((proposal) => (
+                    <div key={proposal.id} className="list-group-item">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                          <h6 className="mb-1">{proposal.projectTitle}</h6>
+                          <p className="mb-1 text-muted small">
+                            Bid: ₹{proposal.proposedBudget} | Duration: {proposal.deliveryDays} days
+                          </p>
+                          <small className="text-muted">
+                            Submitted: {new Date(proposal.submittedAt).toLocaleDateString()}
+                          </small>
+                        </div>
+                        <span
+                          className={`badge bg-${
+                            proposal.status === 'ACCEPTED'
+                              ? 'success'
+                              : proposal.status === 'REJECTED'
+                              ? 'danger'
+                              : 'warning'
+                          }`}
+                        >
+                          {proposal.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="text-center mt-3">
+                <Link to="/freelancer/proposals" className="btn btn-outline-primary">
+                  View All Proposals
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="col-md-4">
+          <div className="card shadow-sm">
+            <div className="card-header bg-white">
+              <h5 className="mb-0">Quick Actions</h5>
+            </div>
+            <div className="card-body">
+              <div className="d-grid gap-2">
+                <Link to="/projects" className="btn btn-primary">
+                  Browse Projects
+                </Link>
+                <Link to="/freelancer/profile" className="btn btn-outline-primary">
+                  Edit Profile
+                </Link>
+                <Link to="/freelancer/proposals" className="btn btn-outline-secondary">
+                  My Proposals
+                </Link>
+                <Link to="/payment-history" className="btn btn-outline-info">
+                  Payment History
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Profile Completion */}
+          <div className="card shadow-sm mt-3">
+            <div className="card-body">
+              <h6 className="mb-3">Profile Completion</h6>
+              <div className="progress mb-2" style={{ height: '20px' }}>
+                <div
+                  className="progress-bar"
+                  role="progressbar"
+                  style={{ width: `${stats?.profileCompletion || 60}%` }}
+                >
+                  {stats?.profileCompletion || 60}%
+                </div>
+              </div>
+              <small className="text-muted">
+                Complete your profile to get better project matches
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FreelancerDashboard;
+
+
+import React, { useState, useEffect, useCallback } from "react";
+import { useAuth } from "../../context/AuthContext";
+import freelancerService from "../../services/freelancerService";
+import Loader from "../common/Loader";
+
+const FreelancerProfile = () => {
+  const { user } = useAuth();
+
+  const [profile, setProfile] = useState({
+    title: "",           // ✔ Added
+    bio: "",
+    hourlyRate: "",
+    skills: [],
+    portfolio: []
+  });
+
+  const [newSkill, setNewSkill] = useState({
+    skillName: "",
+    proficiencyLevel: "BEGINNER",
+    yearsExperience: 1
+  });
+
+  const [newPortfolio, setNewPortfolio] = useState({
+    title: "",
+    description: "",
+    projectUrl: ""
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: "", text: "" });
+
+
+const fetchProfile = useCallback(async () => {
+  try {
+    const data = await freelancerService.getFreelancerProfile(user.id);
+    const portfolios = await freelancerService.getFreelancerPortfolio(user.id);
+ 
+    setProfile({
+      title: data.title || "",
+      bio: data.bio || "",
+      hourlyRate: data.hourlyRate || "",
+      skills: data.skills || [],
+      portfolio: portfolios || []
+    });
+ 
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+  } finally {
+    setLoading(false);
+  }
+}, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchProfile();
+      console.log(profile)
+    }
+  }, [fetchProfile, user?.id]);
+
+  // ✔ Fix update - include userId + title
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      const payload = {
+        ...profile,
+        userId: user.id,
+        title: profile.title || "Freelancer" // fallback to avoid validation error
+      };
+
+      await freelancerService.updateFreelancerProfile(user.id, payload);
+
+      setMessage({ type: "success", text: "Profile updated successfully!" });
+    } catch (error) {
+      setMessage({ type: "danger", text: "Failed to update profile" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
+  // Add Skill
+  const addSkill = () => {
+    if (!newSkill.skillName.trim()) return;
+
+    setProfile((prev) => ({
+      ...prev,
+      skills: [...prev.skills, { ...newSkill }]
+    }));
+
+    setNewSkill({
+      skillName: "",
+      proficiencyLevel: "BEGINNER",
+      yearsExperience: 1
+    });
+  };
+
+  const removeSkill = (id) => {
+    setProfile((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((s) => s.id !== id)
+    }));
+  };
+
+
+  // Portfolio
+const addPortfolioItem = async () => {
+
+  if (!newPortfolio.title || !newPortfolio.description) return;
+ 
+  try {
+
+    const saved = await freelancerService.addPortfolioItem(user.id, newPortfolio);
+ 
+    setProfile((prev) => ({
+
+      ...prev,
+
+      portfolio: [...prev.portfolio, saved] // backend ID comes here
+
+    }));
+ 
+    setNewPortfolio({ title: "", description: "", projectUrl: "" });
+ 
+  } catch (e) {
+
+    console.log("Portfolio add failed:", e);
+
+  }
+
+};
+
+ 
+
+  const removePortfolioItem = async (id) => {
+  try {
+    await freelancerService.deletePortfolioItem(id);
+ 
+    setProfile((prev) => ({
+      ...prev,
+      portfolio: prev.portfolio.filter((item) => item.id !== id)
+    }));
+ 
+  } catch (e) {
+    console.log("Delete failed:", e);
+  }
+};
+
+
+  if (loading) return <Loader />;
+
+
+  return (
+    <div className="container mt-4">
+      <div className="row">
+        <div className="col-lg-8 mx-auto">
+          <h2 className="mb-4">My Profile</h2>
+
+          {message.text && (
+            <div className={`alert alert-${message.type}`}>{message.text}</div>
+          )}
+
+          <form onSubmit={handleSubmit}>
+
+            {/* BASIC INFO */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-primary text-white">
+                <h5 className="mb-0">Basic Information</h5>
+              </div>
+
+              <div className="card-body">
+
+                {/* ✔ Title */}
+                <div className="mb-3">
+                  <label className="form-label">Profile Title</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    value={profile.title}
+                    onChange={(e) =>
+                      setProfile({ ...profile, title: e.target.value })
+                    }
+                    placeholder="Eg: Full Stack Developer, UI/UX Designer..."
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Bio</label>
+                  <textarea
+                    className="form-control"
+                    rows="4"
+                    value={profile.bio}
+                    onChange={(e) =>
+                      setProfile({ ...profile, bio: e.target.value })
+                    }
+                    placeholder="Tell us about your expertise..."
+                  />
+                </div>
+
+                <div className="mb-3">
+                  <label className="form-label">Hourly Rate (₹)</label>
+                  <input
+                    type="number"
+                    className="form-control"
+                    value={profile.hourlyRate}
+                    onChange={(e) =>
+                      setProfile({ ...profile, hourlyRate: e.target.value })
+                    }
+                    placeholder="Enter your hourly rate"
+                  />
+                </div>
+              </div>
+            </div>
+
+
+            {/* SKILLS */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-success text-white">
+                <h5 className="mb-0">Skills</h5>
+              </div>
+
+              <div className="card-body">
+                <div className="row g-2 align-items-end">
+                  <div className="col-md-4">
+                    <label>Skill Name</label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={newSkill.skillName}
+                      onChange={(e) =>
+                        setNewSkill({ ...newSkill, skillName: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="col-md-4">
+                    <label>Proficiency</label>
+                    <select
+                      className="form-select"
+                      value={newSkill.proficiencyLevel}
+                      onChange={(e) =>
+                        setNewSkill({
+                          ...newSkill,
+                          proficiencyLevel: e.target.value
+                        })
+                      }
+                    >
+                      <option value="BEGINNER">Beginner</option>
+                      <option value="INTERMEDIATE">Intermediate</option>
+                      <option value="ADVANCED">Advanced</option>
+                      <option value="EXPERT">Expert</option>
+                    </select>
+                  </div>
+
+                  <div className="col-md-3">
+                    <label>Years</label>
+                    <input
+                      type="number"
+                      className="form-control"
+                      min="0"
+                      max="50"
+                      value={newSkill.yearsExperience}
+                      onChange={(e) =>
+                        setNewSkill({
+                          ...newSkill,
+                          yearsExperience: Number(e.target.value)
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="col-md-1">
+                    <button
+                      type="button"
+                      className="btn btn-success w-100"
+                      onClick={addSkill}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  {profile.skills.map((skill) => (
+                    <div
+                      key={skill.id}
+                      className="d-flex justify-content-between p-2 border rounded mb-2"
+                    >
+                      <div>
+                        <strong>{skill.skillName}</strong> —{" "}
+                        {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => removeSkill(skill.id)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+
+            {/* PORTFOLIO */}
+            <div className="card shadow-sm mb-4">
+              <div className="card-header bg-info text-white">
+                <h5 className="mb-0">Portfolio</h5>
+              </div>
+              <div className="card-body">
+
+                <div className="row mb-3">
+                  <div className="col-md-6">
+                    <input
+                      type="text"
+                      className="form-control mb-2"
+                      value={newPortfolio.title}
+                      onChange={(e) =>
+                        setNewPortfolio({ ...newPortfolio, title: e.target.value })
+                      }
+                      placeholder="Project Title"
+                    />
+                  </div>
+
+                  <div className="col-md-6">
+                    <input
+                      type="url"
+                      className="form-control mb-2"
+                      value={newPortfolio.projectUrl}
+                      onChange={(e) =>
+                        setNewPortfolio({ ...newPortfolio,projectUrl: e.target.value })
+                      }
+                      placeholder="Project URL"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <textarea
+                      className="form-control mb-2"
+                      rows="2"
+                      value={newPortfolio.description}
+                      onChange={(e) =>
+                        setNewPortfolio({
+                          ...newPortfolio,
+                          description: e.target.value
+                        })
+                      }
+                      placeholder="Project Description"
+                    />
+                  </div>
+
+                  <div className="col-12">
+                    <button
+                      type="button"
+                      className="btn btn-info"
+                      onClick={addPortfolioItem}
+                    >
+                      Add Portfolio Item
+                    </button>
+                  </div>
+                </div>
+
+                {profile.portfolio.map((item) => (
+                  <div
+                    key={item.id}
+                    className="portfolio-item d-flex justify-content-between"
+                  >
+                    <div>
+                      <h6>{item.title}</h6>
+                      <p className="text-muted mb-1">{item.description}</p>
+                      {item.projectUrl && (
+                        <a href={item.projectUrl} target="_blank" rel="noreferrer">
+                          View Project →
+                        </a>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      onClick={() => removePortfolioItem(item.id)}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+
+            <button
+              type="submit"
+              className="btn btn-primary w-100"
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Profile"}
+            </button>
+
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FreelancerProfile;
+
+
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import proposalService from '../../services/proposalService';
+import Loader from '../common/Loader';
+
+const MyProposals = () => {
+  const { user } = useAuth();
+  const [proposals, setProposals] = useState([]);
+  const [filter, setFilter] = useState('ALL');
+  const [loading, setLoading] = useState(true);
+
+  const fetchProposals = useCallback(async () => {
+    try {
+      const data = await proposalService.getFreelancerProposals(user.id);
+      setProposals(data);
+    } catch (error) {
+      console.error('Error fetching proposals:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user.id]);
+
+  useEffect(() => {
+    fetchProposals();
+  }, [fetchProposals]);
+
+  const handleWithdraw = async (proposalId) => {
+    if (window.confirm('Are you sure you want to withdraw this proposal?')) {
+      try {
+        await proposalService.withdrawProposal(proposalId);
+        fetchProposals(); // safe now
+      } catch (error) {
+        alert('Failed to withdraw proposal');
+      }
+    }
+  };
+
+  const filteredProposals = proposals.filter(p => 
+    filter === 'ALL' || p.status === filter
+  );
+
+  if (loading) return <Loader />;
+
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <h2>My Proposals</h2>
+          <p className="text-muted">Track all your submitted proposals</p>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="row mb-4">
+        <div className="col">
+          <div className="btn-group" role="group">
+            <button 
+              className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setFilter('ALL')}
+            >
+              All ({proposals.length})
+            </button>
+            <button 
+              className={`btn ${filter === 'PENDING' ? 'btn-warning' : 'btn-outline-warning'}`}
+              onClick={() => setFilter('PENDING')}
+            >
+              Pending ({proposals.filter(p => p.status === 'PENDING').length})
+            </button>
+            <button 
+              className={`btn ${filter === 'ACCEPTED' ? 'btn-success' : 'btn-outline-success'}`}
+              onClick={() => setFilter('ACCEPTED')}
+            >
+              Accepted ({proposals.filter(p => p.status === 'ACCEPTED').length})
+            </button>
+            <button 
+              className={`btn ${filter === 'REJECTED' ? 'btn-danger' : 'btn-outline-danger'}`}
+              onClick={() => setFilter('REJECTED')}
+            >
+              Rejected ({proposals.filter(p => p.status === 'REJECTED').length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Proposals List */}
+      {filteredProposals.length === 0 ? (
+        <div className="alert alert-info">
+          <h5>No proposals found</h5>
+          <p className="mb-0">
+            Start browsing projects and submit proposals to get started!
+          </p>
+        </div>
+      ) : (
+        <div className="row g-4">
+          {filteredProposals.map((proposal) => (
+            <div key={proposal.id} className="col-12">
+              <div className="card shadow-sm proposal-card">
+                <div className="card-body">
+                  <div className="row">
+                    <div className="col-md-8">
+                      <h5 className="card-title">{proposal.projectTitle}</h5>
+                      <p className="text-muted mb-2">
+                        {proposal.projectDescription?.substring(0, 150)}...
+                      </p>
+                      
+                      <div className="row mb-2">
+                        <div className="col-sm-6">
+                          <strong>Your Bid:</strong> ₹{proposal.proposedBudget}
+                        </div>
+                        <div className="col-sm-6">
+                          <strong>Duration:</strong> {proposal.deliveryDays} days
+                        </div>
+                      </div>
+
+                      <div className="mb-2">
+                        <strong>Cover Letter:</strong>
+                        <p className="text-muted small mt-1">
+                          {proposal.coverLetter?.substring(0, 100)}...
+                        </p>
+                      </div>
+
+                      <small className="text-muted">
+                        Submitted: {new Date(proposal.submittedAt).toLocaleDateString()}
+                      </small>
+                    </div>
+
+                    <div className="col-md-4 text-end">
+                      <span className={`badge bg-${
+                        proposal.status === 'ACCEPTED' ? 'success' :
+                        proposal.status === 'REJECTED' ? 'danger' :
+                        proposal.status === 'WITHDRAWN' ? 'secondary' :
+                        'warning'
+                      } mb-3`}>
+                        {proposal.status}
+                      </span>
+
+                      <div className="d-grid gap-2">
+                        <Link 
+                          to={`/projects/${proposal.projectId}`}
+                          className="btn btn-sm btn-outline-primary"
+                        >
+                          View Project
+                        </Link>
+                        
+                        {proposal.status === 'PENDING' && (
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={() => handleWithdraw(proposal.id)}
+                          >
+                            Withdraw
+                          </button>
+                        )}
+
+                        {proposal.status === 'ACCEPTED' && (
+                          <Link
+                            to={`/payment/${proposal.id}`}
+                            className="btn btn-sm btn-success"
+                          >
+                            View Payment
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default MyProposals;
+
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import aiService from '../../services/aiService';
+import Loader from '../common/Loader';
+
+const ProjectRecommendations = () => {
+  const { user } = useAuth();
+  const [recommendations, setRecommendations] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchRecommendations = useCallback(async () => {
+    try {
+      const data = await aiService.getProjectRecommendations(user.id);
+      setRecommendations(data);
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user.id]);
+
+  useEffect(() => {
+    fetchRecommendations();
+  }, [fetchRecommendations]);
+
+  if (loading) return <Loader />;
+
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <h2>
+            <span className="ai-badge">AI</span> Project Recommendations
+          </h2>
+          <p className="text-muted">
+            Projects matched to your skills and experience using AI
+          </p>
+        </div>
+      </div>
+
+      {recommendations.length === 0 ? (
+        <div className="alert alert-info">
+          <h5>No recommendations yet</h5>
+          <p className="mb-0">
+            Complete your profile and add skills to get personalized project recommendations.
+          </p>
+        </div>
+      ) : (
+        <div className="row g-4">
+          {recommendations.map((rec) => (
+            <div key={rec.project.id} className="col-md-6 col-lg-4">
+              <div className="card h-100 shadow-sm project-card">
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start mb-2">
+                    <h5 className="card-title">{rec.project.title}</h5>
+                    <span className="badge bg-success">{rec.matchScore}% Match</span>
+                  </div>
+
+                  <p className="card-text text-muted">
+                    {rec.project.description?.substring(0, 150)}...
+                  </p>
+
+                  <div className="mb-3">
+                    <strong>Budget:</strong> ₹{rec.project.minBudget} - ₹{rec.project.maxBudget}
+                  </div>
+
+                  <div className="mb-3">
+                    <strong>Required Skills:</strong>
+                    <div className="mt-2">
+                      {rec.project.requiredSkills?.slice(0, 3).map((skill, idx) => (
+                        <span key={idx} className="badge bg-secondary me-1 mb-1">{skill}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="ai-feature p-2 mb-3">
+                    <small className="d-block mb-1">
+                      <strong>Why this matches:</strong>
+                    </small>
+                    <small>{rec.reason}</small>
+                  </div>
+
+                  <div className="d-grid gap-2">
+                    <Link to={`/projects/${rec.project.id}`} className="btn btn-outline-primary">
+                      View Details
+                    </Link>
+                    <Link to={`/freelancer/submit-proposal/${rec.project.id}`} className="btn btn-primary">
+                      Submit Proposal
+                    </Link>
+                  </div>
+                </div>
+                <div className="card-footer bg-transparent">
+                  <small className="text-muted">
+                    Posted: {new Date(rec.project.postedAt).toLocaleDateString()}
+                  </small>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ProjectRecommendations;
+
+
+
+import React, { useState, useEffect, useCallback } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
+import projectService from "../../services/projectService";
+import proposalService from "../../services/proposalService";
+import freelancerService from "../../services/freelancerService";
+import Loader from "../common/Loader";
+ 
+const SubmitProposal = () => {
+  const { projectId } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+ 
+  const [project, setProject] = useState(null);
+  const [freelancerId, setFreelancerId] = useState(null);
+ 
+  const [proposal, setProposal] = useState({
+    proposedBudget: "",
+    durationDays: "",
+    coverLetter: "",
+  });
+ 
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+ 
+  // ---------------- FETCH PROJECT ----------------
+  const fetchProject = useCallback(async () => {
+    try {
+      const data = await projectService.getProjectById(projectId);
+      setProject(data);
+    } catch (err) {
+      setError("Failed to load project details");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
+ 
+  // ---------------- FETCH FREELANCER PROFILE ----------------
+  const fetchFreelancer = useCallback(async () => {
+    try {
+      const data = await freelancerService.getFreelancerByUserId(user.id);
+      setFreelancerId(data.id); // Correct freelancerId
+    } catch (err) {
+      setError("Unable to load freelancer profile.");
+    }
+  }, [user.id]);
+ 
+  useEffect(() => {
+    fetchProject();
+    fetchFreelancer();
+  }, [fetchProject, fetchFreelancer]);
+ 
+  // ---------------- SUBMIT PROPOSAL ----------------
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+ 
+    if (!freelancerId) {
+      setError("Invalid freelancer account.");
+      return;
+    }
+ 
+    if (proposal.coverLetter.length < 50) {
+      setError("Cover letter must be at least 50 characters.");
+      return;
+    }
+ 
+    setSubmitting(true);
+ 
+    try {
+      const payload = {
+        freelancerId: freelancerId,
+        coverLetter: proposal.coverLetter,
+        proposedBudget: Number(proposal.proposedBudget),
+        deliveryDays: Number(proposal.durationDays)
+      };
+ 
+      await proposalService.submitProposal(projectId, payload);
+ 
+      navigate("/freelancer/proposals", {
+        state: { message: "Proposal submitted successfully!" },
+      });
+ 
+    } catch (err) {
+      setError(err.response?.data || "Failed to submit proposal");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+ 
+  if (loading) return <Loader />;
+ 
+  return (
+<div className="container mt-4">
+<div className="row">
+<div className="col-lg-8 mx-auto">
+<h2 className="mb-4">Submit Proposal</h2>
+ 
+          {error && (
+<div className="alert alert-danger">
+
+    {typeof error === "string" ? error : error.message || JSON.stringify(error)}
+</div>
+
+)}
+
+ 
+ 
+          {/* ---------------- PROJECT DETAILS ---------------- */}
+<div className="card shadow-sm mb-4">
+<div className="card-header bg-primary text-white">
+<h5 className="mb-0">Project Details</h5>
+</div>
+<div className="card-body">
+<h4>{project?.title}</h4>
+<p className="text-muted">{project?.description}</p>
+ 
+              <div className="row mt-3">
+<div className="col-md-6">
+<strong>Budget:</strong> ₹{project?.budgetMin} - ₹{project?.budgetMax}
+</div>
+<div className="col-md-6">
+<strong>Duration:</strong> {project?.durationDays} days
+</div>
+</div>
+ 
+              <div className="mt-3">
+<strong>Required Skills:</strong>
+<div className="mt-2">
+                  {project?.requiredSkills?.map((skill, i) => (
+<span key={i} className="badge bg-secondary me-1 mb-1">
+                      {skill}
+</span>
+                  ))}
+</div>
+</div>
+</div>
+</div>
+ 
+          {/* ---------------- PROPOSAL FORM ---------------- */}
+<form onSubmit={handleSubmit}>
+<div className="card shadow-sm mb-4">
+<div className="card-header bg-success text-white">
+<h5 className="mb-0">Your Proposal</h5>
+</div>
+<div className="card-body">
+ 
+                {/* Bid Amount */}
+<div className="mb-3">
+<label className="form-label">Proposed Budget (₹) *</label>
+<input
+                    type="number"
+                    className="form-control"
+                    value={proposal.proposedBudget}
+                    onChange={(e) =>
+                      setProposal({ ...proposal, proposedBudget: e.target.value })
+                    }
+                    min={project?.budgetMin}
+                    max={project?.budgetMax}
+                    required
+                  />
+</div>
+ 
+                {/* Duration */}
+<div className="mb-3">
+<label className="form-label">Duration (Days) *</label>
+<input
+                    type="number"
+                    className="form-control"
+                    value={proposal.durationDays}
+                    onChange={(e) =>
+                      setProposal({ ...proposal, durationDays: e.target.value })
+                    }
+                    min="1"
+                    required
+                  />
+</div>
+ 
+                {/* Cover Letter */}
+<div className="mb-3">
+<label className="form-label">Cover Letter *</label>
+<textarea
+                    className="form-control"
+                    rows="7"
+                    value={proposal.coverLetter}
+                    onChange={(e) =>
+                      setProposal({ ...proposal, coverLetter: e.target.value })
+                    }
+                    placeholder="Explain why you’re the best fit (at least 50 characters)"
+                    required
+                  />
+</div>
+ 
+              </div>
+</div>
+ 
+            {/* Buttons */}
+<div className="d-flex justify-content-end gap-3">
+<button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => navigate(-1)}
+>
+                Cancel
+</button>
+ 
+              <button type="submit" className="btn btn-primary" disabled={submitting}>
+                {submitting ? "Submitting..." : "Submit Proposal"}
+</button>
+</div>
+ 
+          </form>
+</div>
+</div>
+</div>
+  );
+};
+ 
+export default SubmitProposal;
