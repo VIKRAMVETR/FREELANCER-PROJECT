@@ -1,1127 +1,247 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
-import proposalService from '../../services/proposalService';
-import Loader from '../common/Loader';
+2025-11-22T13:59:37.555+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-4] o.s.security.web.FilterChainProxy        : Securing OPTIONS /api/proposals/26/withdraw
+2025-11-22T13:59:37.559+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-5] o.s.security.web.FilterChainProxy        : Securing PUT /api/proposals/26/withdraw
+2025-11-22T13:59:37.560+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-5] o.s.s.w.a.AnonymousAuthenticationFilter  : Set SecurityContextHolder to anonymous SecurityContext
+2025-11-22T13:59:37.561+05:30 DEBUG 44284 --- [user-service] [nio-8081-exec-5] o.s.security.web.FilterChainProxy        : Secured PUT /api/proposals/26/withdraw
+2025-11-22T13:59:37.567+05:30  INFO 44284 --- [user-service] [nio-8081-exec-5] c.f.u.controller.ProposalController      : PUT /api/proposals/26/withdraw - Withdrawing proposal
+2025-11-22T13:59:37.569+05:30  INFO 44284 --- [user-service] [nio-8081-exec-5] c.f.userservice.service.ProposalService  : Withdrawing proposal ID: 26
+Hibernate: 
+    select
+        p1_0.id,
+        p1_0.ai_score,
+        p1_0.cover_letter,
+        p1_0.delivery_days,
+        p1_0.freelancer_id,
+        p1_0.project_id,
+        p1_0.proposed_budget,
+        p1_0.status,
+        p1_0.submitted_at,
+        p1_0.updated_at 
+    from
+        proposals p1_0 
+    where
+        p1_0.id=?
+Hibernate: 
+    select
+        p1_0.id,
+        p1_0.assigned_freelancer,
+        p1_0.budget_max,
+        p1_0.budget_min,
+        p1_0.category,
+        p1_0.client_id,
+        p1_0.created_at,
+        p1_0.deadline,
+        p1_0.description,
+        p1_0.duration_days,
+        p1_0.required_skills,
+        p1_0.status,
+        p1_0.title,
+        p1_0.updated_at 
+    from
+        projects p1_0 
+    where
+        p1_0.id=?
+Hibernate: 
+    update
+        proposals 
+    set
+        ai_score=?,
+        cover_letter=?,
+        delivery_days=?,
+        freelancer_id=?,
+        project_id=?,
+        proposed_budget=?,
+        status=?,
+        updated_at=? 
+    where
+        id=?
+2025-11-22T13:59:37.580+05:30  WARN 44284 --- [user-service] [nio-8081-exec-5] o.h.engine.jdbc.spi.SqlExceptionHelper   : SQL Error: 0, SQLState: 23514
+2025-11-22T13:59:37.580+05:30 ERROR 44284 --- [user-service] [nio-8081-exec-5] o.h.engine.jdbc.spi.SqlExceptionHelper   : ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
+  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).
+2025-11-22T13:59:37.581+05:30 ERROR 44284 --- [user-service] [nio-8081-exec-5] c.f.u.controller.ProposalController      : Error in ProposalController
+
+org.springframework.dao.DataIntegrityViolationException: could not execute statement [ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
+  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).] [update proposals set ai_score=?,cover_letter=?,delivery_days=?,freelancer_id=?,project_id=?,proposed_budget=?,status=?,updated_at=? where id=?]; SQL [update proposals set ai_score=?,cover_letter=?,delivery_days=?,freelancer_id=?,project_id=?,proposed_budget=?,status=?,updated_at=? where id=?]; constraint [proposals_status_check]
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.convertHibernateAccessException(HibernateJpaDialect.java:290) ~[spring-orm-6.1.1.jar:6.1.1]
+	at org.springframework.orm.jpa.vendor.HibernateJpaDialect.translateExceptionIfPossible(HibernateJpaDialect.java:241) ~[spring-orm-6.1.1.jar:6.1.1]
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:565) ~[spring-orm-6.1.1.jar:6.1.1]
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.processCommit(AbstractPlatformTransactionManager.java:794) ~[spring-tx-6.1.1.jar:6.1.1]
+	at org.springframework.transaction.support.AbstractPlatformTransactionManager.commit(AbstractPlatformTransactionManager.java:757) ~[spring-tx-6.1.1.jar:6.1.1]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.commitTransactionAfterReturning(TransactionAspectSupport.java:669) ~[spring-tx-6.1.1.jar:6.1.1]
+	at org.springframework.transaction.interceptor.TransactionAspectSupport.invokeWithinTransaction(TransactionAspectSupport.java:419) ~[spring-tx-6.1.1.jar:6.1.1]
+	at org.springframework.transaction.interceptor.TransactionInterceptor.invoke(TransactionInterceptor.java:119) ~[spring-tx-6.1.1.jar:6.1.1]
+	at org.springframework.aop.framework.ReflectiveMethodInvocation.proceed(ReflectiveMethodInvocation.java:184) ~[spring-aop-6.1.1.jar:6.1.1]
+	at org.springframework.aop.framework.CglibAopProxy$CglibMethodInvocation.proceed(CglibAopProxy.java:765) ~[spring-aop-6.1.1.jar:6.1.1]
+	at org.springframework.aop.framework.CglibAopProxy$DynamicAdvisedInterceptor.intercept(CglibAopProxy.java:717) ~[spring-aop-6.1.1.jar:6.1.1]
+	at com.freelancenexus.userservice.service.ProposalService$$SpringCGLIB$$0.withdrawProposal(<generated>) ~[classes/:na]
+	at com.freelancenexus.userservice.controller.ProposalController.withdrawProposal(ProposalController.java:193) ~[classes/:na]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580) ~[na:na]
+	at org.springframework.web.method.support.InvocableHandlerMethod.doInvoke(InvocableHandlerMethod.java:254) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.method.support.InvocableHandlerMethod.invokeForRequest(InvocableHandlerMethod.java:182) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.mvc.method.annotation.ServletInvocableHandlerMethod.invokeAndHandle(ServletInvocableHandlerMethod.java:118) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.invokeHandlerMethod(RequestMappingHandlerAdapter.java:917) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter.handleInternal(RequestMappingHandlerAdapter.java:829) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.mvc.method.AbstractHandlerMethodAdapter.handle(AbstractHandlerMethodAdapter.java:87) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1089) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at org.springframework.web.servlet.FrameworkServlet.doPut(FrameworkServlet.java:925) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:593) ~[tomcat-embed-core-10.1.16.jar:6.0]
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885) ~[spring-webmvc-6.1.1.jar:6.1.1]
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658) ~[tomcat-embed-core-10.1.16.jar:6.0]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51) ~[tomcat-embed-websocket-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:110) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at com.freelancenexus.userservice.security.JwtAuthenticationFilter.doFilterInternal(JwtAuthenticationFilter.java:57) ~[classes/:na]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.springframework.security.web.FilterChainProxy.lambda$doFilterInternal$3(FilterChainProxy.java:231) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$FilterObservation$SimpleFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:479) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$1(ObservationFilterChainDecorator.java:340) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator.lambda$wrapSecured$0(ObservationFilterChainDecorator.java:82) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:128) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.access.intercept.AuthorizationFilter.doFilter(AuthorizationFilter.java:100) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:126) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.access.ExceptionTranslationFilter.doFilter(ExceptionTranslationFilter.java:120) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:131) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.session.SessionManagementFilter.doFilter(SessionManagementFilter.java:85) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.authentication.AnonymousAuthenticationFilter.doFilter(AnonymousAuthenticationFilter.java:100) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter.doFilter(SecurityContextHolderAwareRequestFilter.java:179) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.savedrequest.RequestCacheAwareFilter.doFilter(RequestCacheAwareFilter.java:63) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:107) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.authentication.logout.LogoutFilter.doFilter(LogoutFilter.java:93) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.web.filter.CorsFilter.doFilterInternal(CorsFilter.java:91) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.header.HeaderWriterFilter.doHeadersAfter(HeaderWriterFilter.java:90) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.header.HeaderWriterFilter.doFilterInternal(HeaderWriterFilter.java:75) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:82) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.context.SecurityContextHolderFilter.doFilter(SecurityContextHolderFilter.java:69) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter.doFilterInternal(WebAsyncManagerIntegrationFilter.java:62) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:227) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.session.DisableEncodeUrlFilter.doFilterInternal(DisableEncodeUrlFilter.java:42) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.wrapFilter(ObservationFilterChainDecorator.java:240) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$AroundFilterObservation$SimpleAroundFilterObservation.lambda$wrap$0(ObservationFilterChainDecorator.java:323) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$ObservationFilter.doFilter(ObservationFilterChainDecorator.java:224) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.ObservationFilterChainDecorator$VirtualFilterChain.doFilter(ObservationFilterChainDecorator.java:137) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.FilterChainProxy.doFilterInternal(FilterChainProxy.java:233) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.security.web.FilterChainProxy.doFilter(FilterChainProxy.java:191) ~[spring-security-web-6.2.0.jar:6.2.0]
+	at org.springframework.web.filter.DelegatingFilterProxy.invokeDelegate(DelegatingFilterProxy.java:352) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.filter.DelegatingFilterProxy.doFilter(DelegatingFilterProxy.java:268) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116) ~[spring-web-6.1.1.jar:6.1.1]
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61) ~[tomcat-embed-core-10.1.16.jar:10.1.16]
+	at java.base/java.lang.Thread.run(Thread.java:1583) ~[na:na]
+Caused by: org.hibernate.exception.ConstraintViolationException: could not execute statement [ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
+  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).] [update proposals set ai_score=?,cover_letter=?,delivery_days=?,freelancer_id=?,project_id=?,proposed_budget=?,status=?,updated_at=? where id=?]
+	at org.hibernate.exception.internal.SQLStateConversionDelegate.convert(SQLStateConversionDelegate.java:97) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.exception.internal.StandardSQLExceptionConverter.convert(StandardSQLExceptionConverter.java:58) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.jdbc.spi.SqlExceptionHelper.convert(SqlExceptionHelper.java:108) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:283) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.performNonBatchedMutation(AbstractMutationExecutor.java:107) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.jdbc.mutation.internal.MutationExecutorSingleNonBatched.performNonBatchedOperations(MutationExecutorSingleNonBatched.java:40) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.jdbc.mutation.internal.AbstractMutationExecutor.execute(AbstractMutationExecutor.java:52) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.doStaticUpdate(UpdateCoordinatorStandard.java:769) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.performUpdate(UpdateCoordinatorStandard.java:325) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.persister.entity.mutation.UpdateCoordinatorStandard.coordinateUpdate(UpdateCoordinatorStandard.java:242) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.persister.entity.AbstractEntityPersister.update(AbstractEntityPersister.java:2802) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.action.internal.EntityUpdateAction.execute(EntityUpdateAction.java:166) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:631) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.spi.ActionQueue.executeActions(ActionQueue.java:498) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.event.internal.AbstractFlushingEventListener.performExecutions(AbstractFlushingEventListener.java:363) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.event.internal.DefaultFlushEventListener.onFlush(DefaultFlushEventListener.java:39) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.event.service.internal.EventListenerGroupImpl.fireEventOnEachListener(EventListenerGroupImpl.java:127) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.internal.SessionImpl.doFlush(SessionImpl.java:1415) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.internal.SessionImpl.managedFlush(SessionImpl.java:496) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.internal.SessionImpl.flushBeforeTransactionCompletion(SessionImpl.java:2325) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.internal.SessionImpl.beforeTransactionCompletion(SessionImpl.java:1988) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.jdbc.internal.JdbcCoordinatorImpl.beforeTransactionCompletion(JdbcCoordinatorImpl.java:439) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl.beforeCompletionCallback(JdbcResourceLocalTransactionCoordinatorImpl.java:169) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.resource.transaction.backend.jdbc.internal.JdbcResourceLocalTransactionCoordinatorImpl$TransactionDriverControlImpl.commit(JdbcResourceLocalTransactionCoordinatorImpl.java:267) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.hibernate.engine.transaction.internal.TransactionImpl.commit(TransactionImpl.java:101) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	at org.springframework.orm.jpa.JpaTransactionManager.doCommit(JpaTransactionManager.java:561) ~[spring-orm-6.1.1.jar:6.1.1]
+	... 138 common frames omitted
+Caused by: org.postgresql.util.PSQLException: ERROR: new row for relation "proposals" violates check constraint "proposals_status_check"
+  Detail: Failing row contains (26, null, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..., 61, 4, 200.00, WITHDRAWN, 2025-11-22 12:37:00.820412, 2025-11-22 13:59:37.576187, 21).
+	at org.postgresql.core.v3.QueryExecutorImpl.receiveErrorResponse(QueryExecutorImpl.java:2713) ~[postgresql-42.6.0.jar:42.6.0]
+	at org.postgresql.core.v3.QueryExecutorImpl.processResults(QueryExecutorImpl.java:2401) ~[postgresql-42.6.0.jar:42.6.0]
+	at org.postgresql.core.v3.QueryExecutorImpl.execute(QueryExecutorImpl.java:368) ~[postgresql-42.6.0.jar:42.6.0]
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:498) ~[postgresql-42.6.0.jar:42.6.0]
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:415) ~[postgresql-42.6.0.jar:42.6.0]
+	at org.postgresql.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:190) ~[postgresql-42.6.0.jar:42.6.0]
+	at org.postgresql.jdbc.PgPreparedStatement.executeUpdate(PgPreparedStatement.java:152) ~[postgresql-42.6.0.jar:42.6.0]
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeUpdate(ProxyPreparedStatement.java:61) ~[HikariCP-5.0.1.jar:na]
+	at com.zaxxer.hikari.pool.HikariProxyPreparedStatement.executeUpdate(HikariProxyPreparedStatement.java) ~[HikariCP-5.0.1.jar:na]
+	at org.hibernate.engine.jdbc.internal.ResultSetReturnImpl.executeUpdate(ResultSetReturnImpl.java:280) ~[hibernate-core-6.3.1.Final.jar:6.3.1.Final]
+	... 160 common frames omitted
 
-const MyProposals = () => {
-  const { user } = useAuth();
-  const [proposals, setProposals] = useState([]);
-  const [filter, setFilter] = useState('ALL');
-  const [loading, setLoading] = useState(true);
-
-  const fetchProposals = useCallback(async () => {
-    try {
-      const data = await proposalService.getFreelancerProposals(user.id);
-      setProposals(data);
-    } catch (error) {
-      console.error('Error fetching proposals:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [user.id]);
-
-  useEffect(() => {
-    fetchProposals();
-  }, [fetchProposals]);
-
-  const handleWithdraw = async (proposalId) => {
-    if (window.confirm('Are you sure you want to withdraw this proposal?')) {
-      try {
-        await proposalService.withdrawProposal(proposalId);
-        fetchProposals(); // safe now
-      } catch (error) {
-        alert('Failed to withdraw proposal');
-      }
-    }
-  };
-
-  const filteredProposals = proposals.filter(p => 
-    filter === 'ALL' || p.status === filter
-  );
-
-  if (loading) return <Loader />;
-
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <h2>My Proposals</h2>
-          <p className="text-muted">Track all your submitted proposals</p>
-        </div>
-      </div>
-
-      {/* Filter */}
-      <div className="row mb-4">
-        <div className="col">
-          <div className="btn-group" role="group">
-            <button 
-              className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => setFilter('ALL')}
-            >
-              All ({proposals.length})
-            </button>
-            <button 
-              className={`btn ${filter === 'PENDING' ? 'btn-warning' : 'btn-outline-warning'}`}
-              onClick={() => setFilter('PENDING')}
-            >
-              Pending ({proposals.filter(p => p.status === 'PENDING').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'ACCEPTED' ? 'btn-success' : 'btn-outline-success'}`}
-              onClick={() => setFilter('ACCEPTED')}
-            >
-              Accepted ({proposals.filter(p => p.status === 'ACCEPTED').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'REJECTED' ? 'btn-danger' : 'btn-outline-danger'}`}
-              onClick={() => setFilter('REJECTED')}
-            >
-              Rejected ({proposals.filter(p => p.status === 'REJECTED').length})
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Proposals List */}
-      {filteredProposals.length === 0 ? (
-        <div className="alert alert-info">
-          <h5>No proposals found</h5>
-          <p className="mb-0">
-            Start browsing projects and submit proposals to get started!
-          </p>
-        </div>
-      ) : (
-        <div className="row g-4">
-          {filteredProposals.map((proposal) => (
-            <div key={proposal.id} className="col-12">
-              <div className="card shadow-sm proposal-card">
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-8">
-                      <h5 className="card-title">{proposal.projectTitle}</h5>
-                      <p className="text-muted mb-2">
-                        {proposal.projectDescription?.substring(0, 150)}...
-                      </p>
-                      
-                      <div className="row mb-2">
-                        <div className="col-sm-6">
-                          <strong>Your Bid:</strong> ₹{proposal.proposedBudget}
-                        </div>
-                        <div className="col-sm-6">
-                          <strong>Duration:</strong> {proposal.deliveryDays} days
-                        </div>
-                      </div>
-
-                      <div className="mb-2">
-                        <strong>Cover Letter:</strong>
-                        <p className="text-muted small mt-1">
-                          {proposal.coverLetter?.substring(0, 100)}...
-                        </p>
-                      </div>
-
-                      <small className="text-muted">
-                        Submitted: {new Date(proposal.submittedAt).toLocaleDateString()}
-                      </small>
-                    </div>
-
-                    <div className="col-md-4 text-end">
-                      <span className={`badge bg-${
-                        proposal.status === 'ACCEPTED' ? 'success' :
-                        proposal.status === 'REJECTED' ? 'danger' :
-                        proposal.status === 'WITHDRAWN' ? 'secondary' :
-                        'warning'
-                      } mb-3`}>
-                        {proposal.status}
-                      </span>
-
-                      <div className="d-grid gap-2">
-                        <Link 
-                          to={`/projects/${proposal.projectId}`}
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          View Project
-                        </Link>
-                        
-                        {proposal.status === 'PENDING' && (
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleWithdraw(proposal.id)}
-                          >
-                            Withdraw
-                          </button>
-                        )}
-
-                        {proposal.status === 'ACCEPTED' && (
-                          <Link
-                            to={`/payment/${proposal.id}`}
-                            className="btn btn-sm btn-success"
-                          >
-                            View Payment
-                          </Link>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default MyProposals;
-
-
-
-
-
-
-
-import api from './api';
-
-const proposalService = {
-
-  getProposalById: async (proposalId) => {
-    const response = await api.get(`/api/proposals/${proposalId}`);
-    return response.data;
-  },
-
-  getProposalsByProject: async (projectId) => {
-    const response = await api.get(`/api/proposals/project/${projectId}`);
-    return response.data;
-  },
-
-  getFreelancerProposals: async (freelancerId) => {
-    const response = await api.get(`/api/proposals/freelancer/${freelancerId}`);
-    return response.data;
-  },
-
-  updateProposal: async (proposalId, proposalData) => {
-    const response = await api.put(`/api/proposals/${proposalId}`, proposalData);
-    return response.data;
-  },
-
-  deleteProposal: async (proposalId) => {
-    const response = await api.delete(`/api/proposals/${proposalId}`);
-    return response.data;
-  },
-
-  acceptProposal: async (proposalId) => {
-    const response = await api.post(`/api/proposals/${proposalId}/accept`);
-    return response.data;
-  },
-
-  rejectProposal: async (proposalId) => {
-    const response = await api.post(`api/proposals/${proposalId}/reject`);
-    return response.data;
-  },
-
-  withdrawProposal: async (proposalId) => {
-    const response = await api.post(`/api/proposals/${proposalId}/withdraw`);
-    return response.data;
-  },
-   
-  submitProposal: async (projectId, payload) => {
-    const response = await api.post(`/api/projects/${projectId}/proposals`,payload);
-    return response.data;
-  }
-};
-
-export default proposalService;
-
-
-
-
-
-
-
-
-
-
-
-package com.freelancenexus.userservice.controller;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-
-import com.freelancenexus.userservice.dto.ProposalDTO;
-import com.freelancenexus.userservice.dto.ProposalSubmitDTO;
-import com.freelancenexus.userservice.model.ProposalStatus;
-import com.freelancenexus.userservice.repository.ProposalRepository;
-import com.freelancenexus.userservice.service.ProposalService;
-
-import jakarta.validation.Valid;
-
-/**
- * ProposalController
- *
- * <p>REST API controller for proposal management in the Project Service.
- * Provides endpoints for freelancers to submit proposals, clients to view and accept/reject proposals,
- * and both roles to retrieve proposal information. Implements role-based access control for sensitive operations.</p>
- *
- * <p>Endpoints are categorized by operation type:
- * <ul>
- *   <li><strong>Submission</strong> — freelancers submit proposals for projects</li>
- *   <li><strong>Retrieval</strong> — view proposals by project, freelancer, or id</li>
- *   <li><strong>Ranking</strong> — clients can request AI-ranked proposals</li>
- *   <li><strong>Decision</strong> — clients accept or reject proposals</li>
- * </ul>
- * </p>
- *
- * @since 1.0
- */
-@RestController
-@RequestMapping("/api")
-public class ProposalController {
-	@Autowired
-    private ProposalService proposalService;
-	@Autowired
-    private  ProposalRepository proposalRepository;
-    private final Logger log= LoggerFactory.getLogger(ProposalController.class);
-   
-
-	/**
-     * Submit a new proposal for a project.
-     *
-     * <p>Requires FREELANCER role. Allows a freelancer to submit their proposal
-     * (including bid amount, cover letter, etc.) for a specific project.</p>
-     *
-     * @param projectId the unique identifier of the project
-     * @param submitDTO proposal submission details
-     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProposalDTO}
-     */
-    @PostMapping("/projects/{projectId}/proposals")
-    @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<ProposalDTO> submitProposal(
-            @PathVariable Long projectId,
-            @Valid @RequestBody ProposalSubmitDTO submitDTO) {
-        log.info("POST /api/projects/{}/proposals - Submitting proposal", projectId);
-        ProposalDTO proposal = proposalService.submitProposal(projectId, submitDTO);
-        return ResponseEntity.status(HttpStatus.CREATED).body(proposal);
-    }
-
-    /**
-     * Retrieve all proposals for a specific project.
-     *
-     * <p>Requires CLIENT role. Optionally returns AI-ranked proposals if the
-     * {@code ranked} query parameter is set to true.</p>
-     *
-     * @param projectId the unique identifier of the project
-     * @param ranked if true, returns proposals ranked by AI; otherwise returns in submission order
-     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProposalDTO}
-     */
-    @GetMapping("/projects/{projectId}/proposals")
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<List<ProposalDTO>> getProjectProposals(
-            @PathVariable Long projectId,
-            @RequestParam(defaultValue = "false") boolean ranked) {
-        log.info("GET /api/projects/{}/proposals - Fetching proposals", projectId);
-        
-        List<ProposalDTO> proposals;
-        if (ranked) {
-            proposals = proposalService.getRankedProposalsByProjectId(projectId);
-        } else {
-            proposals = proposalService.getProposalsByProjectId(projectId);
-        }
-        
-        return ResponseEntity.ok(proposals);
-    }
-
-    /**
-     * Retrieve a specific proposal by id.
-     *
-     * <p>Requires CLIENT or FREELANCER role. Returns detailed proposal information.</p>
-     *
-     * @param id the unique identifier of the proposal
-     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProposalDTO}
-     */
-    @GetMapping("/proposals/{id}")
-    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
-    public ResponseEntity<ProposalDTO> getProposal(@PathVariable Long id) {
-        log.info("GET /api/proposals/{} - Fetching proposal", id);
-        ProposalDTO proposal = proposalService.getProposalById(id);
-        return ResponseEntity.ok(proposal);
-    }
-
-    /**
-     * Retrieve all proposals submitted by a specific freelancer.
-     *
-     * <p>Requires FREELANCER role. Returns the freelancer's submission history.</p>
-     *
-     * @param freelancerId the unique identifier of the freelancer
-     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProposalDTO}
-     */
-    @GetMapping("/proposals/freelancer/{freelancerId}")
-    @PreAuthorize("hasRole('FREELANCER')")
-    public ResponseEntity<List<ProposalDTO>> getFreelancerProposals(@PathVariable Long freelancerId) {
-        log.info("GET /api/proposals/freelancer/{} - Fetching freelancer proposals", freelancerId);
-        List<ProposalDTO> proposals = proposalService.getProposalsByFreelancerId(freelancerId);
-        return ResponseEntity.ok(proposals);
-    }
-
-    /**
-     * Accept a proposal for a project.
-     *
-     * <p>Requires CLIENT role. Only the client who created the project can accept proposals.
-     * Accepting a proposal typically results in the freelancer being assigned to the project.</p>
-     *
-     * @param id the unique identifier of the proposal to accept
-     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProposalDTO}
-     */
-    @PutMapping("/proposals/{id}/accept")
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<ProposalDTO> acceptProposal(@PathVariable Long id) {
-        log.info("PUT /api/proposals/{}/accept - Accepting proposal", id);
-        ProposalDTO proposal = proposalService.acceptProposal(id);
-        return ResponseEntity.ok(proposal);
-    }
-
-    /**
-     * Reject a proposal for a project.
-     *
-     * <p>Requires CLIENT role. Only the client who created the project can reject proposals.
-     * Rejected proposals will not be further considered for the project.</p>
-     *
-     * @param id the unique identifier of the proposal to reject
-     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProposalDTO}
-     */
-    @PutMapping("/proposals/{id}/reject")
-    @PreAuthorize("hasRole('CLIENT')")
-    public ResponseEntity<ProposalDTO> rejectProposal(@PathVariable Long id) {
-        log.info("PUT /api/proposals/{}/reject - Rejecting proposal", id);
-        ProposalDTO proposal = proposalService.rejectProposal(id);
-        return ResponseEntity.ok(proposal);
-    }
-
-    @GetMapping("/freelancers/{freelancerId}/stats")
-    public ResponseEntity<Map<String, Object>> getFreelancerStats(@PathVariable Long freelancerId) {
-     
-        long total = proposalRepository.countByFreelancerId(freelancerId);
-        long accepted = proposalRepository.countByFreelancerIdAndStatus(freelancerId, ProposalStatus.ACCEPTED);
-        long pending = proposalRepository.countByFreelancerIdAndStatus(freelancerId, ProposalStatus.PENDING);
-     
-        Map<String, Object> stats = new HashMap<>();
-        stats.put("totalProposals", total);
-        stats.put("acceptedProposals", accepted);
-        stats.put("pendingProposals", pending);
-        stats.put("totalEarnings", 0); // optional
-        stats.put("profileCompletion", 70); // any logic you want
-     
-        return ResponseEntity.ok(stats);
-    }
-    /**
-     * Global exception handler for RuntimeException in this controller.
-     *
-     * @param ex the thrown {@link RuntimeException}
-     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
-     */
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
-        log.error("Error in ProposalController", ex);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.freelancenexus.userservice.service;
-
-import java.util.List;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.ProposalDTO;
-import com.freelancenexus.userservice.dto.ProposalSubmitDTO;
-import com.freelancenexus.userservice.model.Project;
-import com.freelancenexus.userservice.model.ProjectStatus;
-import com.freelancenexus.userservice.model.Proposal;
-import com.freelancenexus.userservice.model.ProposalStatus;
-import com.freelancenexus.userservice.repository.ProjectRepository;
-import com.freelancenexus.userservice.repository.ProposalRepository;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-/**
- * Service class for managing proposals in the project service.
- * Handles operations such as submitting, accepting, rejecting, and retrieving proposals.
- */
-@Service
-@RequiredArgsConstructor
-@Slf4j
-public class ProposalService {
-	@Autowired
-    private ProposalRepository proposalRepository;
-	@Autowired
-    private ProjectRepository projectRepository;
-	@Autowired
-    private RabbitTemplate rabbitTemplate;
-    private final Logger log= LoggerFactory.getLogger(ProposalService.class);
-
-	@Value("${rabbitmq.exchange.project}")
-    private String projectExchange;
-
-    @Value("${rabbitmq.routing.proposal.submitted}")
-    private String proposalSubmittedRoutingKey;
-
-    /**
-     * Submits a proposal for a given project.
-     *
-     * @param projectId the ID of the project for which the proposal is submitted
-     * @param submitDTO the data transfer object containing proposal details
-     * @return the submitted proposal as a DTO
-     * @throws RuntimeException if the project does not exist, is not open, or if the freelancer has already submitted a proposal
-     */
-    @Transactional
-    public ProposalDTO submitProposal(Long projectId, ProposalSubmitDTO submitDTO) {
-        log.info("Submitting proposal for project ID: {} by freelancer: {}", projectId, submitDTO.getFreelancerId());
-
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
-
-        if (project.getStatus() != ProjectStatus.OPEN) {
-            throw new RuntimeException("Project is not accepting proposals");
-        }
-
-        if (proposalRepository.existsByProjectIdAndFreelancerId(projectId, submitDTO.getFreelancerId())) {
-            throw new RuntimeException("Freelancer already submitted a proposal for this project");
-        }
-
-        Proposal proposal = new Proposal();
-        proposal.setProject(project);
-        proposal.setFreelancerId(submitDTO.getFreelancerId());
-        proposal.setCoverLetter(submitDTO.getCoverLetter());
-        proposal.setProposedBudget(submitDTO.getProposedBudget());
-        proposal.setDeliveryDays(submitDTO.getDeliveryDays());
-        proposal.setStatus(ProposalStatus.PENDING);
-
-        Proposal savedProposal = proposalRepository.save(proposal);
-        log.info("Proposal created with ID: {}", savedProposal.getId());
-
-        publishProposalSubmittedEvent(savedProposal);
-
-        return convertToDTO(savedProposal);
-    }
-
-    /**
-     * Retrieves all proposals for a specific project.
-     *
-     * @param projectId the ID of the project
-     * @return a list of proposals as DTOs
-     */
-    public List<ProposalDTO> getProposalsByProjectId(Long projectId) {
-        log.info("Fetching proposals for project ID: {}", projectId);
-        return proposalRepository.findByProjectId(projectId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves all proposals submitted by a specific freelancer.
-     *
-     * @param freelancerId the ID of the freelancer
-     * @return a list of proposals as DTOs
-     */
-
-    
-    public List<ProposalDTO> getProposalsByFreelancerId(Long freelancerId) {
-        List<Proposal> proposals = proposalRepository.findByFreelancerIdFetchProject(freelancerId);
-        return proposals.stream().map(this::convertToDTO).collect(Collectors.toList());
-    }
-
-    /**
-     * Retrieves a proposal by its ID.
-     *
-     * @param id the ID of the proposal
-     * @return the proposal as a DTO
-     * @throws RuntimeException if the proposal does not exist
-     */
-    public ProposalDTO getProposalById(Long id) {
-        log.info("Fetching proposal by ID: {}", id);
-        Proposal proposal = proposalRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + id));
-        return convertToDTO(proposal);
-    }
-
-    
-  
-    /**
-     * Accepts a proposal and updates the project and other proposals accordingly.
-     *
-     * @param proposalId the ID of the proposal to accept
-     * @return the accepted proposal as a DTO
-     * @throws RuntimeException if the proposal does not exist or is not in pending status
-     */
-    @Transactional
-    public ProposalDTO acceptProposal(Long proposalId) {
-        log.info("Accepting proposal ID: {}", proposalId);
-
-        Proposal proposal = proposalRepository.findById(proposalId)
-                .orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + proposalId));
-
-        if (proposal.getStatus() != ProposalStatus.PENDING) {
-            throw new RuntimeException("Proposal is not in pending status");
-        }
-
-        proposal.setStatus(ProposalStatus.ACCEPTED);
-
-        List<Proposal> otherProposals = proposalRepository.findByProjectIdAndStatus(
-                proposal.getProject().getId(), ProposalStatus.PENDING);
-
-        otherProposals.stream()
-                .filter(p -> !p.getId().equals(proposalId))
-                .forEach(p -> {
-                    p.setStatus(ProposalStatus.REJECTED);
-                    proposalRepository.save(p);
-                });
-
-        Proposal acceptedProposal = proposalRepository.save(proposal);
-
-        Project project = proposal.getProject();
-        project.setAssignedFreelancer(proposal.getFreelancerId());
-        project.setStatus(ProjectStatus.IN_PROGRESS);
-        projectRepository.save(project);
-
-        return convertToDTO(acceptedProposal);
-    }
-
-    /**
-     * Rejects a proposal.
-     *
-     * @param proposalId the ID of the proposal to reject
-     * @return the rejected proposal as a DTO
-     * @throws RuntimeException if the proposal does not exist or is not in pending status
-     */
-    @Transactional
-    public ProposalDTO rejectProposal(Long proposalId) {
-        log.info("Rejecting proposal ID: {}", proposalId);
-
-        Proposal proposal = proposalRepository.findById(proposalId)
-                .orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + proposalId));
-
-        if (proposal.getStatus() != ProposalStatus.PENDING) {
-            throw new RuntimeException("Proposal is not in pending status");
-        }
-
-        proposal.setStatus(ProposalStatus.REJECTED);
-        Proposal rejectedProposal = proposalRepository.save(proposal);
-
-        return convertToDTO(rejectedProposal);
-    }
-
-    /**
-     * Retrieves ranked proposals for a specific project, ordered by AI score in descending order.
-     *
-     * @param projectId the ID of the project
-     * @return a list of ranked proposals as DTOs
-     */
-    public List<ProposalDTO> getRankedProposalsByProjectId(Long projectId) {
-        log.info("Fetching ranked proposals for project ID: {}", projectId);
-        return proposalRepository.findByProjectIdOrderByAiScoreDesc(projectId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Converts a Proposal entity to a ProposalDTO.
-     *
-     * @param proposal the Proposal entity
-     * @return the ProposalDTO
-     */
-    private ProposalDTO convertToDTO(Proposal proposal) {
-        ProposalDTO dto = new ProposalDTO();
-        dto.setId(proposal.getId());
-        dto.setProjectId(proposal.getProject().getId());
-        dto.setProjectTitle(proposal.getProject().getTitle());
-        dto.setFreelancerId(proposal.getFreelancerId());
-        dto.setCoverLetter(proposal.getCoverLetter());
-        dto.setProposedBudget(proposal.getProposedBudget());
-        dto.setDeliveryDays(proposal.getDeliveryDays());
-        dto.setAiScore(proposal.getAiScore());
-        dto.setStatus(proposal.getStatus());
-        dto.setSubmittedAt(proposal.getSubmittedAt());
-        dto.setUpdatedAt(proposal.getUpdatedAt());
-        dto.setProjectDescription(proposal.getProject().getDescription());
-        return dto;
-    }
-
-    /**
-     * Publishes a proposal submitted event to RabbitMQ.
-     *
-     * @param proposal the Proposal entity
-     */
-    private void publishProposalSubmittedEvent(Proposal proposal) {
-        try {
-            ProposalDTO dto = convertToDTO(proposal);
-            rabbitTemplate.convertAndSend(projectExchange, proposalSubmittedRoutingKey, dto);
-            log.info("Published proposal.submitted event for proposal ID: {}", proposal.getId());
-        } catch (Exception e) {
-            log.error("Error publishing proposal.submitted event", e);
-        }
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-package com.freelancenexus.userservice.dto;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-import com.freelancenexus.userservice.model.ProposalStatus;
-
-/**
- * Data Transfer Object (DTO) for transferring proposal data.
- * Contains all the fields required for representing a proposal.
- */
-
-public class ProposalDTO {
-
-    /**
-     * The unique identifier of the proposal.
-     */
-    private Long id;
-
-    /**
-     * The ID of the project associated with the proposal.
-     */
-    private Long projectId;
-
-    /**
-     * The title of the project associated with the proposal.
-     */
-    private String projectTitle;
-
-    /**
-     * The ID of the freelancer who submitted the proposal.
-     */
-    private Long freelancerId;
-
-    /**
-     * The cover letter submitted with the proposal.
-     */
-    private String coverLetter;
-
-    /**
-     * The budget proposed by the freelancer.
-     */
-    private BigDecimal proposedBudget;
-
-    /**
-     * The number of days proposed for delivery.
-     */
-    private Integer deliveryDays;
-
-    /**
-     * The AI-generated score for the proposal (0-100).
-     */
-    private BigDecimal aiScore;
-
-    /**
-     * The current status of the proposal.
-     */
-    private ProposalStatus status;
-
-    /**
-     * The timestamp when the proposal was submitted.
-     */
-    private LocalDateTime submittedAt;
-
-    /**
-     * The timestamp when the proposal was last updated.
-     */
-    private LocalDateTime updatedAt;
-
-    private String projectDescription;
-     
-    
-	public String getProjectDescription() {
-		return projectDescription;
-	}
-
-	public void setProjectDescription(String projectDescription) {
-		this.projectDescription = projectDescription;
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public Long getProjectId() {
-		return projectId;
-	}
-
-	public void setProjectId(Long projectId) {
-		this.projectId = projectId;
-	}
-
-	public String getProjectTitle() {
-		return projectTitle;
-	}
-
-	public void setProjectTitle(String projectTitle) {
-		this.projectTitle = projectTitle;
-	}
-
-	public Long getFreelancerId() {
-		return freelancerId;
-	}
-
-	public void setFreelancerId(Long freelancerId) {
-		this.freelancerId = freelancerId;
-	}
-
-	public String getCoverLetter() {
-		return coverLetter;
-	}
-
-	public void setCoverLetter(String coverLetter) {
-		this.coverLetter = coverLetter;
-	}
-
-	public BigDecimal getProposedBudget() {
-		return proposedBudget;
-	}
-
-	public void setProposedBudget(BigDecimal proposedBudget) {
-		this.proposedBudget = proposedBudget;
-	}
-
-	public Integer getDeliveryDays() {
-		return deliveryDays;
-	}
-
-	public void setDeliveryDays(Integer deliveryDays) {
-		this.deliveryDays = deliveryDays;
-	}
-
-	public BigDecimal getAiScore() {
-		return aiScore;
-	}
-
-	public void setAiScore(BigDecimal aiScore) {
-		this.aiScore = aiScore;
-	}
-
-	public ProposalStatus getStatus() {
-		return status;
-	}
-
-	public void setStatus(ProposalStatus status) {
-		this.status = status;
-	}
-
-	public LocalDateTime getSubmittedAt() {
-		return submittedAt;
-	}
-
-	public void setSubmittedAt(LocalDateTime submittedAt) {
-		this.submittedAt = submittedAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-
-	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
-			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
-			LocalDateTime submittedAt, LocalDateTime updatedAt, String projectDescription) {
-		super();
-		this.id = id;
-		this.projectId = projectId;
-		this.projectTitle = projectTitle;
-		this.freelancerId = freelancerId;
-		this.coverLetter = coverLetter;
-		this.proposedBudget = proposedBudget;
-		this.deliveryDays = deliveryDays;
-		this.aiScore = aiScore;
-		this.status = status;
-		this.submittedAt = submittedAt;
-		this.updatedAt = updatedAt;
-		this.projectDescription = projectDescription;
-	}
-
-	public ProposalDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-    
-    
-    
-}
-
-
-
-
-
-
-
-
-package com.freelancenexus.userservice.dto;
-
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
-
-/**
- * Data Transfer Object (DTO) for submitting a proposal.
- * Contains all the necessary fields and validation constraints for proposal submission.
- */
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class ProposalSubmitDTO {
-
-    /**
-     * The ID of the freelancer submitting the proposal.
-     */
-    @NotNull(message = "Freelancer ID is required")
-    private Long freelancerId;
-
-    /**
-     * The cover letter submitted with the proposal.
-     */
-    @NotBlank(message = "Cover letter is required")
-    @Size(min = 50, message = "Cover letter must be at least 50 characters")
-    private String coverLetter;
-
-    /**
-     * The budget proposed by the freelancer.
-     */
-    @NotNull(message = "Proposed budget is required")
-    @DecimalMin(value = "0.0", inclusive = false, message = "Proposed budget must be greater than 0")
-    private BigDecimal proposedBudget;
-
-    /**
-     * The number of days proposed for delivery.
-     */
-    @NotNull(message = "Delivery days is required")
-    @Min(value = 1, message = "Delivery days must be at least 1")
-    private Integer deliveryDays;
-
-	public Long getFreelancerId() {
-		return freelancerId;
-	}
-
-	public void setFreelancerId(Long freelancerId) {
-		this.freelancerId = freelancerId;
-	}
-
-	public String getCoverLetter() {
-		return coverLetter;
-	}
-
-	public void setCoverLetter(String coverLetter) {
-		this.coverLetter = coverLetter;
-	}
-
-	public BigDecimal getProposedBudget() {
-		return proposedBudget;
-	}
-
-	public void setProposedBudget(BigDecimal proposedBudget) {
-		this.proposedBudget = proposedBudget;
-	}
-
-	public Integer getDeliveryDays() {
-		return deliveryDays;
-	}
-
-	public void setDeliveryDays(Integer deliveryDays) {
-		this.deliveryDays = deliveryDays;
-	}
-
-	public ProposalSubmitDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-
-	public ProposalSubmitDTO(@NotNull(message = "Freelancer ID is required") Long freelancerId,
-			@NotBlank(message = "Cover letter is required") @Size(min = 50, message = "Cover letter must be at least 50 characters") String coverLetter,
-			@NotNull(message = "Proposed budget is required") @DecimalMin(value = "0.0", inclusive = false, message = "Proposed budget must be greater than 0") BigDecimal proposedBudget,
-			@NotNull(message = "Delivery days is required") @Min(value = 1, message = "Delivery days must be at least 1") Integer deliveryDays) {
-		super();
-		this.freelancerId = freelancerId;
-		this.coverLetter = coverLetter;
-		this.proposedBudget = proposedBudget;
-		this.deliveryDays = deliveryDays;
-	}
-    
-    
-}
-
-
-
-
-
-
-
-
-
-
-
-
-package com.freelancenexus.userservice.repository;
-
-import java.util.List;
-import java.util.Optional;
-
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
-
-import com.freelancenexus.userservice.model.Proposal;
-import com.freelancenexus.userservice.model.ProposalStatus;
-
-/**
- * ProposalRepository
- *
- * <p>Spring Data JPA repository for performing CRUD and query operations on {@link Proposal} entities.
- * Provides convenience query methods for filtering proposals by project, freelancer, and status.
- * Includes custom JPQL queries for ranking proposals by AI score and retrieval by various criteria.
- * Implementations are provided automatically by Spring Data at runtime.</p>
- *
- * @since 1.0
- */
-@Repository
-public interface ProposalRepository extends JpaRepository<Proposal, Long> {
-
-    /**
-     * Find all proposals submitted for a specific project.
-     *
-     * @param projectId the unique identifier of the project
-     * @return a list of proposals for the project (may be empty)
-     */
-    List<Proposal> findByProjectId(Long projectId);
-
-    /**
-     * Find all proposals submitted by a specific freelancer.
-     *
-     * @param freelancerId the unique identifier of the freelancer
-     * @return a list of proposals submitted by the freelancer (may be empty)
-     */
-    List<Proposal> findByFreelancerId(Long freelancerId);
-
-    @Query("""
-    	    SELECT p FROM Proposal p
-    	    JOIN FETCH p.project
-    	    WHERE p.freelancerId = :freelancerId
-    	""")
-    List<Proposal> findByFreelancerIdFetchProject(Long freelancerId);
-    /**
-     * Find all proposals for a specific project filtered by status.
-     *
-     * @param projectId the unique identifier of the project
-     * @param status the {@link ProposalStatus} to filter by
-     * @return a list of proposals matching the criteria (may be empty)
-     */
-    List<Proposal> findByProjectIdAndStatus(Long projectId, ProposalStatus status);
-
-    /**
-     * Find a unique proposal from a specific freelancer for a specific project.
-     *
-     * @param projectId the unique identifier of the project
-     * @param freelancerId the unique identifier of the freelancer
-     * @return an {@link Optional} containing the proposal if found, or empty if not
-     */
-    Optional<Proposal> findByProjectIdAndFreelancerId(Long projectId, Long freelancerId);
-
-    /**
-     * Find all proposals for a project ranked by AI score in descending order,
-     * with older submissions prioritized when scores are equal.
-     *
-     * @param projectId the unique identifier of the project
-     * @return a list of proposals sorted by AI score (highest first) and submission time (oldest first)
-     */
-    @Query("SELECT p FROM Proposal p WHERE p.project.id = :projectId ORDER BY p.aiScore DESC, p.submittedAt ASC")
-    List<Proposal> findByProjectIdOrderByAiScoreDesc(@Param("projectId") Long projectId);
-
-    /**
-     * Check whether a specific freelancer has submitted a proposal for a specific project.
-     *
-     * @param projectId the unique identifier of the project
-     * @param freelancerId the unique identifier of the freelancer
-     * @return true if a proposal exists, false otherwise
-     */
-    boolean existsByProjectIdAndFreelancerId(Long projectId, Long freelancerId);
-
-    /**
-     * Count the total number of proposals submitted for a specific project.
-     *
-     * @param projectId the unique identifier of the project
-     * @return the count of proposals for the project
-     */
-    long countByProjectId(Long projectId);
-    
-    long countByFreelancerId(Long freelancerId);
-    
-    long countByFreelancerIdAndStatus(Long freelancerId, ProposalStatus status);
-}
