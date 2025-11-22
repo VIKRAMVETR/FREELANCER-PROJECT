@@ -1,410 +1,847 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useAuth } from "../../context/AuthContext";
-import { useParams } from "react-router-dom";
-import freelancerService from "../../services/freelancerService";
-import Loader from "../common/Loader";
+package com.freelancenexus.userservice.model;
 
-const FreelancerProfile = () => {
-  const { user } = useAuth();
-  const { freelancerId } = useParams();
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
-  // Determine whose profile to load
-  const effectiveId = freelancerId || user?.id;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-  // Detect if a CLIENT is viewing someone else's profile
-  const isClientViewing = !!freelancerId;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
-  const [profile, setProfile] = useState({
-    title: "",
-    bio: "",
-    hourlyRate: "",
-    skills: [],
-    portfolio: []
-  });
-
-  const [newSkill, setNewSkill] = useState({
-    skillName: "",
-    proficiencyLevel: "BEGINNER",
-    yearsExperience: 1
-  });
-
-  const [newPortfolio, setNewPortfolio] = useState({
-    title: "",
-    description: "",
-    projectUrl: ""
-  });
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: "", text: "" });
-
-  const fetchProfile = useCallback(async () => {
-    try {
-      const data = await freelancerService.getFreelancerProfile(effectiveId);
-      const portfolios = await freelancerService.getFreelancerPortfolio(effectiveId);
-
-      setProfile({
-        title: data.title || "",
-        bio: data.bio || "",
-        hourlyRate: data.hourlyRate || "",
-        skills: data.skills || [],
-        portfolio: portfolios || []
-      });
-
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    } finally {
-      setLoading(false);
+/**
+ * Entity representing a freelancer.
+ */
+@Entity
+@Table(name = "freelancers")
+public class Freelancer {
+    
+    /**
+     * The unique identifier of the freelancer.
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    /**
+     * The user ID associated with the freelancer.
+     */
+    @Column(name = "user_id", unique = true, nullable = false)
+    private Long userId;
+    
+//    @OneToOne
+//    @JoinColumn(name = "userId")
+//    private User user;
+  
+    
+    /**
+     * The title or headline of the freelancer profile.
+     */
+    @Column(nullable = false, length = 255)
+    private String title;
+    
+    /**
+     * The biography or description of the freelancer.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String bio;
+    
+    /**
+     * The hourly rate of the freelancer.
+     */
+    @Column(name = "hourly_rate", precision = 10, scale = 2)
+    private BigDecimal hourlyRate;
+    
+    /**
+     * The availability status of the freelancer.
+     */
+    @Column(length = 50)
+    private String availability;
+    
+    /**
+     * The total earnings of the freelancer.
+     */
+    @Column(name = "total_earnings", precision = 12, scale = 2)
+    private BigDecimal totalEarnings = BigDecimal.ZERO;
+    
+    /**
+     * The number of completed projects by the freelancer.
+     */
+    @Column(name = "completed_projects")
+    private Integer completedProjects = 0;
+    
+    /**
+     * The average rating of the freelancer.
+     */
+    @Column(name = "average_rating", precision = 3, scale = 2)
+    private BigDecimal averageRating = BigDecimal.ZERO;
+    
+    /**
+     * The list of skills associated with the freelancer.
+     */
+    @JsonIgnore
+    @OneToMany(mappedBy = "freelancer", fetch = FetchType.LAZY)
+    private List<Skill> skills;
+    
+    /**
+     * The list of portfolio items associated with the freelancer.
+     */
+    @OneToMany(mappedBy = "freelancer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Portfolio> portfolios = new ArrayList<>();
+    
+    /**
+     * The list of ratings received by the freelancer.
+     */
+    @OneToMany(mappedBy = "freelancer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Rating> ratings = new ArrayList<>();
+    
+    /**
+     * The timestamp when the freelancer profile was created.
+     */
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    /**
+     * The timestamp when the freelancer profile was last updated.
+     */
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Sets the creation and update timestamps before persisting the entity.
+     */
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
-  }, [effectiveId]);
-
-  useEffect(() => {
-    if (effectiveId) {
-      fetchProfile();
+    
+    /**
+     * Sets the update timestamp before updating the entity.
+     */
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
     }
-  }, [fetchProfile, effectiveId]);
-
-  // Save profile (Freelancer only)
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (isClientViewing) return; // prevent clients from saving
-
-    setSaving(true);
-
-    try {
-      const payload = {
-        ...profile,
-        userId: user.id,
-        title: profile.title || "Freelancer"
-      };
-
-      await freelancerService.updateFreelancerProfile(user.id, payload);
-
-      setMessage({ type: "success", text: "Profile updated successfully!" });
-    } catch (error) {
-      setMessage({ type: "danger", text: "Failed to update profile" });
-    } finally {
-      setSaving(false);
+    
+    /**
+     * Adds a skill to the freelancer.
+     *
+     * @param skill the skill to add
+     */
+    public void addSkill(Skill skill) {
+        skills.add(skill);
+        skill.setFreelancer(this);
     }
-  };
-
-  // Add Skill
-  const addSkill = () => {
-    if (isClientViewing) return;
-    if (!newSkill.skillName.trim()) return;
-
-    setProfile((prev) => ({
-      ...prev,
-      skills: [...prev.skills, { ...newSkill }]
-    }));
-
-    setNewSkill({
-      skillName: "",
-      proficiencyLevel: "BEGINNER",
-      yearsExperience: 1
-    });
-  };
-
-  const removeSkill = (id) => {
-    if (isClientViewing) return;
-    setProfile((prev) => ({
-      ...prev,
-      skills: prev.skills.filter((s) => s.id !== id)
-    }));
-  };
-
-  // Portfolio
-  const addPortfolioItem = async () => {
-    if (isClientViewing) return;
-    if (!newPortfolio.title || !newPortfolio.description) return;
-
-    try {
-      const saved = await freelancerService.addPortfolioItem(user.id, newPortfolio);
-
-      setProfile((prev) => ({
-        ...prev,
-        portfolio: [...prev.portfolio, saved]
-      }));
-
-      setNewPortfolio({ title: "", description: "", projectUrl: "" });
-    } catch (e) {
-      console.log("Portfolio add failed:", e);
+    
+    /**
+     * Removes a skill from the freelancer.
+     *
+     * @param skill the skill to remove
+     */
+    public void removeSkill(Skill skill) {
+        skills.remove(skill);
+        skill.setFreelancer(null);
     }
-  };
-
-  const removePortfolioItem = async (id) => {
-    if (isClientViewing) return;
-
-    try {
-      await freelancerService.deletePortfolioItem(id);
-
-      setProfile((prev) => ({
-        ...prev,
-        portfolio: prev.portfolio.filter((item) => item.id !== id)
-      }));
-    } catch (e) {
-      console.log("Delete failed:", e);
+    
+    /**
+     * Adds a portfolio item to the freelancer.
+     *
+     * @param portfolio the portfolio item to add
+     */
+    public void addPortfolio(Portfolio portfolio) {
+        portfolios.add(portfolio);
+        portfolio.setFreelancer(this);
     }
-  };
+    
+    /**
+     * Removes a portfolio item from the freelancer.
+     *
+     * @param portfolio the portfolio item to remove
+     */
+    public void removePortfolio(Portfolio portfolio) {
+        portfolios.remove(portfolio);
+        portfolio.setFreelancer(null);
+    }
+    
+    /**
+     * Adds a rating to the freelancer.
+     *
+     * @param rating the rating to add
+     */
+    public void addRating(Rating rating) {
+        ratings.add(rating);
+        rating.setFreelancer(this);
+    }
 
-  if (loading) return <Loader />;
+	public Long getId() {
+		return id;
+	}
 
-  return (
-    <div className="container mt-4">
-      <div className="row">
-        <div className="col-lg-8 mx-auto">
-          <h2 className="mb-4">
-            {isClientViewing ? "Freelancer Profile" : "My Profile"}
-          </h2>
+	public void setId(Long id) {
+		this.id = id;
+	}
 
-          {message.text && (
-            <div className={`alert alert-${message.type}`}>{message.text}</div>
-          )}
 
-          <form onSubmit={handleSubmit}>
-            {/* BASIC INFO */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-primary text-white">
-                <h5 className="mb-0">Basic Information</h5>
-              </div>
+	public String getTitle() {
+		return title;
+	}
 
-              <div className="card-body">
-                <div className="mb-3">
-                  <label className="form-label">Profile Title</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    disabled={isClientViewing}
-                    value={profile.title}
-                    onChange={(e) =>
-                      setProfile({ ...profile, title: e.target.value })
-                    }
-                  />
-                </div>
+	public void setTitle(String title) {
+		this.title = title;
+	}
 
-                <div className="mb-3">
-                  <label className="form-label">Bio</label>
-                  <textarea
-                    className="form-control"
-                    rows="4"
-                    disabled={isClientViewing}
-                    value={profile.bio}
-                    onChange={(e) =>
-                      setProfile({ ...profile, bio: e.target.value })
-                    }
-                  />
-                </div>
+	public String getBio() {
+		return bio;
+	}
 
-                <div className="mb-3">
-                  <label className="form-label">Hourly Rate (₹)</label>
-                  <input
-                    type="number"
-                    className="form-control"
-                    disabled={isClientViewing}
-                    value={profile.hourlyRate}
-                    onChange={(e) =>
-                      setProfile({ ...profile, hourlyRate: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
+	public void setBio(String bio) {
+		this.bio = bio;
+	}
 
-            {/* SKILLS */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-success text-white">
-                <h5 className="mb-0">Skills</h5>
-              </div>
+	public BigDecimal getHourlyRate() {
+		return hourlyRate;
+	}
 
-              <div className="card-body">
-                {!isClientViewing && (
-                  <div className="row g-2 align-items-end">
-                    <div className="col-md-4">
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={newSkill.skillName}
-                        onChange={(e) =>
-                          setNewSkill({ ...newSkill, skillName: e.target.value })
-                        }
-                      />
-                    </div>
+	public void setHourlyRate(BigDecimal hourlyRate) {
+		this.hourlyRate = hourlyRate;
+	}
 
-                    <div className="col-md-4">
-                      <select
-                        className="form-select"
-                        value={newSkill.proficiencyLevel}
-                        onChange={(e) =>
-                          setNewSkill({
-                            ...newSkill,
-                            proficiencyLevel: e.target.value
-                          })
-                        }
-                      >
-                        <option value="BEGINNER">Beginner</option>
-                        <option value="INTERMEDIATE">Intermediate</option>
-                        <option value="ADVANCED">Advanced</option>
-                        <option value="EXPERT">Expert</option>
-                      </select>
-                    </div>
+	public String getAvailability() {
+		return availability;
+	}
 
-                    <div className="col-md-3">
-                      <input
-                        type="number"
-                        className="form-control"
-                        min="0"
-                        max="50"
-                        value={newSkill.yearsExperience}
-                        onChange={(e) =>
-                          setNewSkill({
-                            ...newSkill,
-                            yearsExperience: Number(e.target.value)
-                          })
-                        }
-                      />
-                    </div>
+	public void setAvailability(String availability) {
+		this.availability = availability;
+	}
 
-                    <div className="col-md-1">
-                      <button
-                        type="button"
-                        className="btn btn-success w-100"
-                        onClick={addSkill}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                )}
+	public BigDecimal getTotalEarnings() {
+		return totalEarnings;
+	}
 
-                <div className="mt-3">
-                  {profile.skills.map((skill) => (
-                    <div
-                      key={skill.id || skill.skillName}
-                      className="d-flex justify-content-between p-2 border rounded mb-2"
-                    >
-                      <div>
-                        <strong>{skill.skillName}</strong> —{" "}
-                        {skill.proficiencyLevel} ({skill.yearsExperience} yrs)
-                      </div>
+	public void setTotalEarnings(BigDecimal totalEarnings) {
+		this.totalEarnings = totalEarnings;
+	}
 
-                      {!isClientViewing && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => removeSkill(skill.id)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+	public Long getUserId() {
+		return userId;
+	}
 
-            {/* PORTFOLIO */}
-            <div className="card shadow-sm mb-4">
-              <div className="card-header bg-info text-white">
-                <h5 className="mb-0">Portfolio</h5>
-              </div>
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
 
-              <div className="card-body">
-                {!isClientViewing && (
-                  <div className="row mb-3">
-                    <div className="col-md-6">
-                      <input
-                        type="text"
-                        className="form-control mb-2"
-                        value={newPortfolio.title}
-                        onChange={(e) =>
-                          setNewPortfolio({ ...newPortfolio, title: e.target.value })
-                        }
-                        placeholder="Project Title"
-                      />
-                    </div>
+	public Integer getCompletedProjects() {
+		return completedProjects;
+	}
 
-                    <div className="col-md-6">
-                      <input
-                        type="url"
-                        className="form-control mb-2"
-                        value={newPortfolio.projectUrl}
-                        onChange={(e) =>
-                          setNewPortfolio({ ...newPortfolio, projectUrl: e.target.value })
-                        }
-                        placeholder="Project URL"
-                      />
-                    </div>
+	public void setCompletedProjects(Integer completedProjects) {
+		this.completedProjects = completedProjects;
+	}
 
-                    <div className="col-12">
-                      <textarea
-                        className="form-control mb-2"
-                        rows="2"
-                        value={newPortfolio.description}
-                        onChange={(e) =>
-                          setNewPortfolio({
-                            ...newPortfolio,
-                            description: e.target.value
-                          })
-                        }
-                        placeholder="Project Description"
-                      />
-                    </div>
+	public BigDecimal getAverageRating() {
+		return averageRating;
+	}
 
-                    <div className="col-12">
-                      <button
-                        type="button"
-                        className="btn btn-info"
-                        onClick={addPortfolioItem}
-                      >
-                        Add Portfolio Item
-                      </button>
-                    </div>
-                  </div>
-                )}
+	public void setAverageRating(BigDecimal averageRating) {
+		this.averageRating = averageRating;
+	}
 
-                {profile.portfolio.map((item) => (
-                  <div
-                    key={item.id}
-                    className="portfolio-item d-flex justify-content-between"
-                  >
-                    <div>
-                      <h6>{item.title}</h6>
-                      <p className="text-muted mb-1">{item.description}</p>
-                      {item.projectUrl && (
-                        <a href={item.projectUrl} target="_blank" rel="noreferrer">
-                          View Project →
-                        </a>
-                      )}
-                    </div>
+	public List<Skill> getSkills() {
+		return skills;
+	}
 
-                    {!isClientViewing && (
-                      <button
-                        type="button"
-                        className="btn btn-sm btn-outline-danger"
-                        onClick={() => removePortfolioItem(item.id)}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+	public void setSkills(List<Skill> skills) {
+		this.skills = skills;
+	}
 
-            {!isClientViewing && (
-              <button
-                type="submit"
-                className="btn btn-primary w-100"
-                disabled={saving}
-              >
-                {saving ? "Saving..." : "Save Profile"}
-              </button>
-            )}
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-};
+	public List<Portfolio> getPortfolios() {
+		return portfolios;
+	}
 
-export default FreelancerProfile;
+	public void setPortfolios(List<Portfolio> portfolios) {
+		this.portfolios = portfolios;
+	}
+
+	public List<Rating> getRatings() {
+		return ratings;
+	}
+
+	public void setRatings(List<Rating> ratings) {
+		this.ratings = ratings;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+//	public Freelancer(Long id,String title, String bio, BigDecimal hourlyRate, String availability,
+//			BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating, List<Skill> skills,
+//			List<Portfolio> portfolios, List<Rating> ratings, LocalDateTime createdAt, LocalDateTime updatedAt) {
+//		super();
+//		this.id = id;
+//		this.title = title;
+//		this.bio = bio;
+//		this.hourlyRate = hourlyRate;
+//		this.availability = availability;
+//		this.totalEarnings = totalEarnings;
+//		this.completedProjects = completedProjects;
+//		this.averageRating = averageRating;
+//		this.skills = skills;
+//		this.portfolios = portfolios;
+//		this.ratings = ratings;
+//		this.createdAt = createdAt;
+//		this.updatedAt = updatedAt;
+//	}
+	
+	
+
+	public Freelancer() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Freelancer(Long id, Long userId, String title, String bio, BigDecimal hourlyRate, String availability,
+			BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating, List<Skill> skills,
+			List<Portfolio> portfolios, List<Rating> ratings, LocalDateTime createdAt, LocalDateTime updatedAt) {
+		super();
+		this.id = id;
+		this.userId = userId;
+		this.title = title;
+		this.bio = bio;
+		this.hourlyRate = hourlyRate;
+		this.availability = availability;
+		this.totalEarnings = totalEarnings;
+		this.completedProjects = completedProjects;
+		this.averageRating = averageRating;
+		this.skills = skills;
+		this.portfolios = portfolios;
+		this.ratings = ratings;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+    
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.freelancenexus.userservice.model.ProposalStatus;
+import com.freelancenexus.userservice.model.Skill;
+
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+
+/**
+ * Data Transfer Object (DTO) for transferring proposal data.
+ * Contains all the fields required for representing a proposal.
+ */
+
+public class ProposalDTO {
+
+    /**
+     * The unique identifier of the proposal.
+     */
+    private Long id;
+
+    /**
+     * The ID of the project associated with the proposal.
+     */
+    private Long projectId;
+
+    /**
+     * The title of the project associated with the proposal.
+     */
+    private String projectTitle;
+
+    /**
+     * The ID of the freelancer who submitted the proposal.
+     */
+    private Long freelancerId;
+
+    /**
+     * The cover letter submitted with the proposal.
+     */
+    private String coverLetter;
+
+    /**
+     * The budget proposed by the freelancer.
+     */
+    private BigDecimal proposedBudget;
+
+    /**
+     * The number of days proposed for delivery.
+     */
+    private Integer deliveryDays;
+
+    /**
+     * The AI-generated score for the proposal (0-100).
+     */
+    private BigDecimal aiScore;
+
+    /**
+     * The current status of the proposal.
+     */
+    @Enumerated(EnumType.STRING)
+    private ProposalStatus status;
+
+    /**
+     * The timestamp when the proposal was submitted.
+     */
+    private LocalDateTime submittedAt;
+
+    /**
+     * The timestamp when the proposal was last updated.
+     */
+    private LocalDateTime updatedAt;
+
+    private String projectDescription;
+    
+    
+	private String freelancerName;
+    private List<String> freelancerSkills;
+    private BigDecimal freelancerRating;
+    
+    
+    public String getFreelancerName() {
+		return freelancerName;
+	}
+
+	public void setFreelancerName(String freelancerName) {
+		this.freelancerName = freelancerName;
+	}
+
+	public List<String> getFreelancerSkills() {
+		return freelancerSkills;
+	}
+	
+	
+
+	public void setFreelancerSkills(List<String> list) {
+		this.freelancerSkills = list;
+	}
+
+	public BigDecimal getFreelancerRating() {
+		return freelancerRating;
+	}
+
+	public void setFreelancerRating(BigDecimal freelancerRating) {
+		this.freelancerRating = freelancerRating;
+	}
+
+
+	public String getProjectDescription() {
+		return projectDescription;
+	}
+
+	public void setProjectDescription(String projectDescription) {
+		this.projectDescription = projectDescription;
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getProjectId() {
+		return projectId;
+	}
+
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
+	}
+
+	public String getProjectTitle() {
+		return projectTitle;
+	}
+
+	public void setProjectTitle(String projectTitle) {
+		this.projectTitle = projectTitle;
+	}
+
+	public Long getFreelancerId() {
+		return freelancerId;
+	}
+
+	public void setFreelancerId(Long freelancerId) {
+		this.freelancerId = freelancerId;
+	}
+
+	public String getCoverLetter() {
+		return coverLetter;
+	}
+
+	public void setCoverLetter(String coverLetter) {
+		this.coverLetter = coverLetter;
+	}
+
+	public BigDecimal getProposedBudget() {
+		return proposedBudget;
+	}
+
+	public void setProposedBudget(BigDecimal proposedBudget) {
+		this.proposedBudget = proposedBudget;
+	}
+
+	public Integer getDeliveryDays() {
+		return deliveryDays;
+	}
+
+	public void setDeliveryDays(Integer deliveryDays) {
+		this.deliveryDays = deliveryDays;
+	}
+
+	public BigDecimal getAiScore() {
+		return aiScore;
+	}
+
+	public void setAiScore(BigDecimal aiScore) {
+		this.aiScore = aiScore;
+	}
+
+	public ProposalStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ProposalStatus status) {
+		this.status = status;
+	}
+
+	public LocalDateTime getSubmittedAt() {
+		return submittedAt;
+	}
+
+	public void setSubmittedAt(LocalDateTime submittedAt) {
+		this.submittedAt = submittedAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+
+	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
+			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
+			LocalDateTime submittedAt, LocalDateTime updatedAt, String projectDescription) {
+		super();
+		this.id = id;
+		this.projectId = projectId;
+		this.projectTitle = projectTitle;
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+		this.aiScore = aiScore;
+		this.status = status;
+		this.submittedAt = submittedAt;
+		this.updatedAt = updatedAt;
+		this.projectDescription = projectDescription;
+	}
+
+	public ProposalDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
+			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
+			LocalDateTime submittedAt, LocalDateTime updatedAt, String projectDescription, String freelancerName,
+			List<String> freelancerSkills, BigDecimal freelancerRating) {
+		super();
+		this.id = id;
+		this.projectId = projectId;
+		this.projectTitle = projectTitle;
+		this.freelancerId = freelancerId;
+		this.coverLetter = coverLetter;
+		this.proposedBudget = proposedBudget;
+		this.deliveryDays = deliveryDays;
+		this.aiScore = aiScore;
+		this.status = status;
+		this.submittedAt = submittedAt;
+		this.updatedAt = updatedAt;
+		this.projectDescription = projectDescription;
+		this.freelancerName = freelancerName;
+		this.freelancerSkills = freelancerSkills;
+		this.freelancerRating = freelancerRating;
+	}
+    
+    
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.ProposalDTO;
+import com.freelancenexus.userservice.dto.ProposalSubmitDTO;
+import com.freelancenexus.userservice.model.ProposalStatus;
+import com.freelancenexus.userservice.repository.ProposalRepository;
+import com.freelancenexus.userservice.service.ProposalService;
+
+import jakarta.validation.Valid;
+
+/**
+ * ProposalController
+ *
+ * <p>REST API controller for proposal management in the Project Service.
+ * Provides endpoints for freelancers to submit proposals, clients to view and accept/reject proposals,
+ * and both roles to retrieve proposal information. Implements role-based access control for sensitive operations.</p>
+ *
+ * <p>Endpoints are categorized by operation type:
+ * <ul>
+ *   <li><strong>Submission</strong> — freelancers submit proposals for projects</li>
+ *   <li><strong>Retrieval</strong> — view proposals by project, freelancer, or id</li>
+ *   <li><strong>Ranking</strong> — clients can request AI-ranked proposals</li>
+ *   <li><strong>Decision</strong> — clients accept or reject proposals</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@RestController
+@RequestMapping("/api")
+public class ProposalController {
+	@Autowired
+    private ProposalService proposalService;
+	@Autowired
+    private  ProposalRepository proposalRepository;
+    private final Logger log= LoggerFactory.getLogger(ProposalController.class);
+   
+
+	/**
+     * Submit a new proposal for a project.
+     *
+     * <p>Requires FREELANCER role. Allows a freelancer to submit their proposal
+     * (including bid amount, cover letter, etc.) for a specific project.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param submitDTO proposal submission details
+     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProposalDTO}
+     */
+    @PostMapping("/projects/{projectId}/proposals")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<ProposalDTO> submitProposal(
+            @PathVariable Long projectId,
+            @Valid @RequestBody ProposalSubmitDTO submitDTO) {
+        log.info("POST /api/projects/{}/proposals - Submitting proposal", projectId);
+        ProposalDTO proposal = proposalService.submitProposal(projectId, submitDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(proposal);
+    }
+
+    /**
+     * Retrieve all proposals for a specific project.
+     *
+     * <p>Requires CLIENT role. Optionally returns AI-ranked proposals if the
+     * {@code ranked} query parameter is set to true.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param ranked if true, returns proposals ranked by AI; otherwise returns in submission order
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProposalDTO}
+     */
+    @GetMapping("/projects/{projectId}/proposals")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<ProposalDTO>> getProjectProposals(
+            @PathVariable Long projectId,
+            @RequestParam(defaultValue = "false") boolean ranked) {
+        log.info("GET /api/projects/{}/proposals - Fetching proposals", projectId);
+        
+        List<ProposalDTO> proposals;
+        if (ranked) {
+            proposals = proposalService.getRankedProposalsByProjectId(projectId);
+        } else {
+            proposals = proposalService.getProposalsByProjectId(projectId);
+        }
+        
+        return ResponseEntity.ok(proposals);
+    }
+
+    /**
+     * Retrieve a specific proposal by id.
+     *
+     * <p>Requires CLIENT or FREELANCER role. Returns detailed proposal information.</p>
+     *
+     * @param id the unique identifier of the proposal
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProposalDTO}
+     */
+    @GetMapping("/proposals/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'FREELANCER')")
+    public ResponseEntity<ProposalDTO> getProposal(@PathVariable Long id) {
+        log.info("GET /api/proposals/{} - Fetching proposal", id);
+        ProposalDTO proposal = proposalService.getProposalById(id);
+        return ResponseEntity.ok(proposal);
+    }
+
+    /**
+     * Retrieve all proposals submitted by a specific freelancer.
+     *
+     * <p>Requires FREELANCER role. Returns the freelancer's submission history.</p>
+     *
+     * @param freelancerId the unique identifier of the freelancer
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProposalDTO}
+     */
+    @GetMapping("/proposals/freelancer/{freelancerId}")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<List<ProposalDTO>> getFreelancerProposals(@PathVariable Long freelancerId) {
+        log.info("GET /api/proposals/freelancer/{} - Fetching freelancer proposals", freelancerId);
+        List<ProposalDTO> proposals = proposalService.getProposalsByFreelancerId(freelancerId);
+        return ResponseEntity.ok(proposals);
+    }
+
+    /**
+     * Accept a proposal for a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can accept proposals.
+     * Accepting a proposal typically results in the freelancer being assigned to the project.</p>
+     *
+     * @param id the unique identifier of the proposal to accept
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProposalDTO}
+     */
+    @PutMapping("/proposals/{id}/accept")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProposalDTO> acceptProposal(@PathVariable Long id) {
+        log.info("PUT /api/proposals/{}/accept - Accepting proposal", id);
+        ProposalDTO proposal = proposalService.acceptProposal(id);
+        return ResponseEntity.ok(proposal);
+    }
+
+    /**
+     * Reject a proposal for a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can reject proposals.
+     * Rejected proposals will not be further considered for the project.</p>
+     *
+     * @param id the unique identifier of the proposal to reject
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProposalDTO}
+     */
+    @PutMapping("/proposals/{id}/reject")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProposalDTO> rejectProposal(@PathVariable Long id) {
+        log.info("PUT /api/proposals/{}/reject - Rejecting proposal", id);
+        ProposalDTO proposal = proposalService.rejectProposal(id);
+        return ResponseEntity.ok(proposal);
+    }
+
+    @GetMapping("/freelancers/{freelancerId}/stats")
+    public ResponseEntity<Map<String, Object>> getFreelancerStats(@PathVariable Long freelancerId) {
+     
+        long total = proposalRepository.countByFreelancerId(freelancerId);
+        long accepted = proposalRepository.countByFreelancerIdAndStatus(freelancerId, ProposalStatus.ACCEPTED);
+        long pending = proposalRepository.countByFreelancerIdAndStatus(freelancerId, ProposalStatus.PENDING);
+     
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalProposals", total);
+        stats.put("acceptedProposals", accepted);
+        stats.put("pendingProposals", pending);
+        stats.put("totalEarnings", 0); // optional
+        stats.put("profileCompletion", 70); // any logic you want
+     
+        return ResponseEntity.ok(stats);
+    }
+    
+    @PutMapping("/proposals/{id}/withdraw")
+    @PreAuthorize("hasRole('FREELANCER')")
+    public ResponseEntity<ProposalDTO> withdrawProposal(@PathVariable Long id) {
+        log.info("PUT /api/proposals/{}/withdraw - Withdrawing proposal", id);
+        ProposalDTO proposal = proposalService.withdrawProposal(id);
+        return ResponseEntity.ok(proposal);
+    }
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in ProposalController", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
