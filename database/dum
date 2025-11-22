@@ -1,214 +1,1539 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+
+import { Link } from 'react-router-dom';
+
 import { useAuth } from '../../context/AuthContext';
+
 import projectService from '../../services/projectService';
-import aiService from '../../services/aiService';
+
 import Loader from '../common/Loader';
+ 
+const MyProjects = () => {
 
-const ProjectDetails = () => {
-  const { id } = useParams();
-  const { user, authenticated } = useAuth();
-  const navigate = useNavigate();
-  const [project, setProject] = useState(null);
-  const [summary, setSummary] = useState(null);
+  const { user } = useAuth();
+
+  const [projects, setProjects] = useState([]);
+
+  const [filter, setFilter] = useState('ALL');
+
   const [loading, setLoading] = useState(true);
-
+ 
   useEffect(() => {
-    const fetchProject = async () => {
+
+    const fetchProjects = async () => {
+
       try {
-        const data = await projectService.getProjectById(id);
-        setProject(data);
+
+        const data = await projectService.getClientProjects(user.id);
+
+        setProjects(data);
+
       } catch (error) {
-        console.error('Error fetching project:', error);
+
+        console.error('Error fetching projects:', error);
+
       } finally {
+
         setLoading(false);
-      }
-    };
 
-    const fetchSummary = async () => {
+      }
+
+    };
+ 
+    fetchProjects();
+
+  }, [user.id]);
+ 
+  const handleDelete = async (projectId) => {
+
+    if (window.confirm('Are you sure you want to delete this project?')) {
+
       try {
-        const data = await aiService.generateProjectSummary(id);
-        setSummary(data);
+
+        await projectService.deleteProject(projectId);
+
+        setProjects(projects.filter(p => p.id !== projectId));
+
       } catch (error) {
-        console.error('Error fetching AI summary:', error);
+
+        alert('Failed to delete project');
+
       }
-    };
 
-    fetchProject();
-    fetchSummary();
-  }, [id]);
+    }
 
-  if (loading) return <Loader />;
+  };
+ 
+  // ⭐ NEW — update project status
 
-  if (!project) {
-    return (
-      <div className="container mt-4">
-        <div className="alert alert-danger">Project not found</div>
-      </div>
-    );
-  }
+  const updateStatus = async (projectId, status) => {
 
-  return (
-    <div className="container mt-4">
-      <div className="row mb-4">
-        <div className="col">
-          <button 
-            className="btn btn-outline-secondary mb-3"
-            onClick={() => navigate(-1)}
-          >
-            ← Back
-          </button>
-          <h2>{project.title}</h2>
-          <p className="text-muted">
-            Posted by {project.clientName} on {new Date(project.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-      </div>
+    if (!window.confirm(`Mark this project as ${status}?`)) return;
+ 
+    try {
 
-      <div className="row">
-        <div className="col-lg-8">
-          {/* AI Summary */}
-          {summary && (
-            <div className="card shadow-sm mb-4 ai-feature">
-              <div className="card-body">
-                <h5 className="mb-3">
-                  <span className="ai-badge">AI</span> Project Summary
-                </h5>
-                <p>{summary.summary}</p>
-                <div className="mt-3">
-                  <strong>Key Requirements:</strong>
-                  <ul className="mt-2">
-                    {summary.keyRequirements?.map((req, idx) => (
-                      <li key={idx}>{req}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
+      await projectService.updateStatus(projectId, status);
 
-          {/* Project Description */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-primary text-white">
-              <h5 className="mb-0">Project Description</h5>
-            </div>
-            <div className="card-body">
-              <p style={{ whiteSpace: 'pre-wrap' }}>{project.description}</p>
-            </div>
-          </div>
+      const updated = await projectService.getClientProjects(user.id);
 
-          {/* Required Skills */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-success text-white">
-              <h5 className="mb-0">Required Skills</h5>
-            </div>
-            <div className="card-body">
-              {project.requiredSkills?.map((skill, idx) => (
-                <span key={idx} className="badge bg-secondary me-2 mb-2">
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
+      setProjects(updated);
+ 
+    } catch (error) {
 
-        <div className="col-lg-4">
-          {/* Project Info */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-header bg-info text-white">
-              <h5 className="mb-0">Project Details</h5>
-            </div>
-            <div className="card-body">
-              <div className="mb-3">
-                <strong>Budget:</strong>
-                <div className="mt-1">₹{project.budgetMin} - ₹{project.budgetMax}</div>
-              </div>
+      alert("Failed to update status");
 
-              <div className="mb-3">
-                <strong>Duration:</strong>
-                <div className="mt-1">{project.durationDays} days</div>
-              </div>
+    }
 
-              <div className="mb-3">
-                <strong>Category:</strong>
-                <div className="mt-1">
-                  <span className="badge bg-primary">{project.category}</span>
-                </div>
-              </div>
+  };
+ 
+  const filteredProjects = projects.filter(p =>
 
-              <div className="mb-3">
-                <strong>Status:</strong>
-                <div className="mt-1">
-                  <span className={`badge bg-${
-                    project.status === 'OPEN' ? 'success' :
-                    project.status === 'IN_PROGRESS' ? 'warning' :
-                    project.status === 'COMPLETED' ? 'info' : 'secondary'
-                  }`}>
-                    {project.status}
-                  </span>
-                </div>
-              </div>
+    filter === 'ALL' || p.status === filter
 
-              <div className="mb-3">
-                <strong>Proposals:</strong>
-                <div className="mt-1">{project.proposalCount || 0}</div>
-              </div>
-
-              {authenticated && user.role === "FREELANCER" && project.status === 'OPEN' && (
-                <div className="d-grid gap-2 mt-4">
-                  <Link 
-                    to={`/freelancer/submit-proposal/${project.id}`}
-                    className="btn btn-primary"
-                  >
-                    Submit Proposal
-                  </Link>
-                </div>
-              )}
-
-              {authenticated && user.role === "CLIENT" && user?.id === project.clientId && (
-                <div className="d-grid gap-2 mt-4">
-                  <Link 
-                    to={`/client/proposals/${project.id}`}
-                    className="btn btn-primary"
-                  >
-                    View Proposals
-                  </Link>
-                  <Link 
-                    to={`/client/ai-ranking/${project.id}`}
-                    className="btn btn-info"
-                  >
-                    <span className="ai-badge">AI</span> Rank Proposals
-                  </Link>
-                </div>
-              )}
-
-              {!authenticated && (
-                <div className="alert alert-info mt-4">
-                  <small>
-                    <Link to="/login">Login</Link> or <Link to="/register">Register</Link> to submit a proposal
-                  </small>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Client Info */}
-          <div className="card shadow-sm">
-            <div className="card-header bg-secondary text-white">
-              <h5 className="mb-0">About the Client</h5>
-            </div>
-            <div className="card-body">
-              <h6>{project.clientName}</h6>
-              <p className="text-muted mb-2">Member since {new Date(project.clientJoinDate).getFullYear()}</p>
-              <div className="mb-2">
-                <strong>Projects Posted:</strong> {project.clientProjectCount || 0}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   );
+ 
+  if (loading) return <Loader />;
+ 
+  return (
+<div className="container mt-4">
+<div className="row mb-4">
+<div className="col">
+<h2>My Projects</h2>
+<p className="text-muted">Manage all your posted projects</p>
+</div>
+<div className="col-auto">
+<Link to="/client/post-project" className="btn btn-primary">
+
+            Post New Project
+</Link>
+</div>
+</div>
+ 
+      <div className="row mb-4">
+<div className="col">
+<div className="btn-group" role="group">
+<button
+
+              className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
+
+              onClick={() => setFilter('ALL')}
+>
+
+              All ({projects.length})
+</button>
+<button
+
+              className={`btn ${filter === 'OPEN' ? 'btn-success' : 'btn-outline-success'}`}
+
+              onClick={() => setFilter('OPEN')}
+>
+
+              Open ({projects.filter(p => p.status === 'OPEN').length})
+</button>
+<button
+
+              className={`btn ${filter === 'IN_PROGRESS' ? 'btn-warning' : 'btn-outline-warning'}`}
+
+              onClick={() => setFilter('IN_PROGRESS')}
+>
+
+              In Progress ({projects.filter(p => p.status === 'IN_PROGRESS').length})
+</button>
+<button
+
+              className={`btn ${filter === 'COMPLETED' ? 'btn-info' : 'btn-outline-info'}`}
+
+              onClick={() => setFilter('COMPLETED')}
+>
+
+              Completed ({projects.filter(p => p.status === 'COMPLETED').length})
+</button>
+</div>
+</div>
+</div>
+ 
+      {filteredProjects.length === 0 ? (
+<div className="alert alert-info">
+<h5>No projects found</h5>
+<p className="mb-0">Start by posting your first project!</p>
+</div>
+
+      ) : (
+<div className="row g-4">
+
+          {filteredProjects.map((project) => (
+<div key={project.id} className="col-12">
+<div className="card shadow-sm project-card">
+<div className="card-body">
+<div className="row">
+
+                    {/* LEFT SIDE */}
+<div className="col-md-8">
+<h5 className="card-title">{project.title}</h5>
+<p className="text-muted mb-2">
+
+                        {project.description?.substring(0, 200)}...
+</p>
+ 
+                      <div className="row mb-2">
+<div className="col-sm-6">
+<strong>Budget:</strong> ₹{project.budgetMin} - ₹{project.budgetMax}
+</div>
+<div className="col-sm-6">
+<strong>Duration:</strong> {project.durationDays} days
+</div>
+</div>
+ 
+                      <div className="mb-2">
+<strong>Proposals:</strong> {project.proposalCount || 0}
+</div>
+ 
+                      <small className="text-muted">
+
+                        Posted: {new Date(project.createdAt).toLocaleDateString()}
+</small>
+ 
+                      {/* ⭐ NEW — Assigned Freelancer */}
+
+                      {project.assignedFreelancer && (
+<div className="mt-2">
+<strong>Assigned To:</strong> Freelancer #{project.assignedFreelancer}
+<br />
+<Link
+
+                            to={`/freelancer/profile/${project.assignedFreelancer}`}
+
+                            className="btn btn-sm btn-outline-info mt-2"
+>
+
+                            View Assigned Freelancer
+</Link>
+</div>
+
+                      )}
+</div>
+ 
+                    {/* RIGHT SIDE */}
+<div className="col-md-4 text-end">
+<span className={`badge bg-${
+
+                        project.status === 'COMPLETED' ? 'success' :
+
+                        project.status === 'IN_PROGRESS' ? 'warning' :
+
+                        project.status === 'CANCELLED' ? 'danger' :
+
+                        'primary'
+
+                      } mb-3`}>
+
+                        {project.status}
+</span>
+ 
+                      <div className="d-grid gap-2">
+ 
+                        <Link
+
+                          to={`/projects/${project.id}`}
+
+                          className="btn btn-sm btn-outline-primary"
+>
+
+                          View Details
+</Link>
+ 
+                        <Link
+
+                          to={`/client/proposals/${project.id}`}
+
+                          className="btn btn-sm btn-primary"
+>
+
+                          View Proposals ({project.proposalCount || 0})
+</Link>
+ 
+                        {project.proposalCount > 0 && (
+<Link
+
+                            to={`/client/ai-ranking/${project.id}`}
+
+                            className="btn btn-sm btn-info"
+>
+<span className="ai-badge">AI</span> Rank Proposals
+</Link>
+
+                        )}
+ 
+                        {project.status === 'OPEN' && (
+<button
+
+                            className="btn btn-sm btn-outline-danger"
+
+                            onClick={() => handleDelete(project.id)}
+>
+
+                            Delete
+</button>
+
+                        )}
+ 
+                        {/* ⭐ NEW — Mark Completed */}
+
+                        {project.status === 'IN_PROGRESS' && (
+<button
+
+                            className="btn btn-sm btn-success"
+
+                            onClick={() => updateStatus(project.id, 'COMPLETED')}
+>
+
+                            Mark as Completed
+</button>
+
+                        )}
+ 
+                      </div>
+</div>
+ 
+                  </div>
+</div>
+</div>
+</div>
+
+          ))}
+</div>
+
+      )}
+ 
+    </div>
+
+  );
+
+};
+ 
+export default MyProjects;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+import api from './api';
+
+const projectService = {
+ 
+
+getAllProjects: async (filters = {}) => {
+
+  const params = new URLSearchParams();
+ 
+  if (filters.keyword) params.append("keyword", filters.keyword);
+
+  if (filters.category) params.append("category", filters.category);
+
+  if (filters.status) params.append("status", filters.status);
+ 
+  const response = await api.get(`/api/projects?${params.toString()}`);
+
+  return response.data;
+
+},
+ 
+
+  getProjectById: async (projectId) => {
+    const response = await api.get(`/api/projects/${projectId}`);
+    return response.data;
+  },
+
+  createProject: async (projectData) => {
+    const response = await api.post('/api/projects', projectData);
+    return response.data;
+  },
+
+  updateProject: async (projectId, projectData) => {
+    const response = await api.put(`/api/projects/${projectId}`, projectData);
+    return response.data;
+  },
+
+  deleteProject: async (projectId) => {
+    const response = await api.delete(`/api/projects/${projectId}`);
+    return response.data;
+  },
+
+  getClientProjects: async (clientId) => {
+    const response = await api.get(`/api/projects/client/${clientId}`);
+    return response.data;
+  },
+
+  getProjectsByStatus: async (status) => {
+    const response = await api.get(`/api/projects/status/${status}`);
+    return response.data;
+  },
+
+ searchProjects: async (query) => {
+  const response = await api.get(`/api/projects?keyword=${query}`);
+  return response.data;
+}
 };
 
-export default ProjectDetails;
+export default projectService;
+
+
+
+
+
+
+
+
+
+import api from "./api";
+
+const freelancerService = {
+  // Get full profile (skills + portfolio + ratings)
+  getFreelancerProfile: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}`);
+    return res.data;
+  },
+
+  // UPDATE freelancer profile - FIXED ✔
+  updateFreelancerProfile: async (id, profileData) => {
+    const payload = {
+      ...profileData,
+      userId: id,                        // backend requires userId
+      title: profileData.title || "Freelancer"     // backend requires title
+    };
+
+    const res = await api.put(`/api/freelancers/${id}`, payload);
+    return res.data;
+  },
+
+  // Portfolio functions (these match your backend)
+  getFreelancerPortfolio: async (freelancerId) => {
+    const res = await api.get(`/api/freelancers/${freelancerId}/portfolio`);
+    return res.data;
+  },
+
+  getFreelancerByUserId: async (userId) => {
+  const res = await api.get(`/api/freelancers/user/${userId}`);
+  return res.data;
+  },
+
+  addPortfolioItem: async (freelancerId, item) => {
+    const res = await api.post(`/api/freelancers/${freelancerId}/portfolio`, item);
+    return res.data;
+  },
+
+  deletePortfolioItem: async (itemId) => {
+    const res = await api.delete(`/api/freelancers/portfolio/${itemId}`);
+    return res.data;
+  },
+  getFreelancerStats: async (freelancerId) => {
+  const res = await api.get(`/api/freelancers/${freelancerId}/stats`);
+  return res.data;
+}
+};
+
+export default freelancerService;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.controller;
+
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.model.ProjectStatus;
+import com.freelancenexus.userservice.service.ProjectService;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * ProjectController
+ *
+ * <p>REST API controller for project management in the Project Service.
+ * Provides endpoints for creating, retrieving, updating, and deleting projects.
+ * Implements role-based access control to restrict operations by user role.</p>
+ *
+ * <p>Endpoints are categorized by operation type:
+ * <ul>
+ *   <li><strong>Creation</strong> — clients create new projects</li>
+ *   <li><strong>Retrieval</strong> — authenticated users view projects</li>
+ *   <li><strong>Updates</strong> — clients update their projects</li>
+ *   <li><strong>Deletion</strong> — clients and admins delete projects</li>
+ *   <li><strong>Search/Filter</strong> — keyword, category, and status filtering</li>
+ *   <li><strong>Assignment</strong> — clients assign freelancers to projects</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@RestController
+@RequestMapping("/api/projects")
+@RequiredArgsConstructor
+@Slf4j
+public class ProjectController {
+	private final Logger log= LoggerFactory.getLogger(ProjectController.class);
+    private final ProjectService projectService;
+    
+    public ProjectController(ProjectService projectService) {
+		super();
+		this.projectService = projectService;
+	}
+
+	/**
+     * Create a new project.
+     *
+     * <p>Requires CLIENT role. Accepts validated project creation details and
+     * persists the new project to the database.</p>
+     *
+     * @param createDTO project creation details
+     * @return ResponseEntity with HTTP 201 (Created) status and the created {@link ProjectDTO}
+     */
+    @PostMapping
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> createProject(@Valid @RequestBody ProjectCreateDTO createDTO) {
+        log.info("POST /api/projects - Creating project: {}", createDTO.getTitle());
+        ProjectDTO createdProject = projectService.createProject(createDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdProject);
+    }
+
+    /**
+     * Retrieve a project by id.
+     *
+     * <p>Requires authentication. Any authenticated user can view project details.</p>
+     *
+     * @param id the unique identifier of the project
+     * @return ResponseEntity with HTTP 200 (OK) status and the {@link ProjectDTO}
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ProjectDTO> getProject(@PathVariable Long id) {
+        log.info("GET /api/projects/{} - Fetching project", id);
+        ProjectDTO project = projectService.getProjectById(id);
+        return ResponseEntity.ok(project);
+    }
+
+    @PutMapping("/{projectId}/status")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> updateProjectStatus(
+            @PathVariable Long projectId,
+            @RequestParam String status) {
+     
+        ProjectStatus newStatus = ProjectStatus.valueOf(status.toUpperCase());
+        ProjectDTO updated = projectService.updateProjectStatus(projectId, newStatus);
+        return ResponseEntity.ok(updated);
+    }
+    /**
+     * Update an existing project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can update it.</p>
+     *
+     * @param id the unique identifier of the project to update
+     * @param updateDTO updated project details
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> updateProject(
+            @PathVariable Long id,
+            @Valid @RequestBody ProjectCreateDTO updateDTO) {
+        log.info("PUT /api/projects/{} - Updating project", id);
+        ProjectDTO updatedProject = projectService.updateProject(id, updateDTO);
+        return ResponseEntity.ok(updatedProject);
+    }
+
+    /**
+     * Delete a project by id.
+     *
+     * <p>Requires CLIENT or ADMIN role. Only the project owner (client) or an admin can delete.</p>
+     *
+     * @param id the unique identifier of the project to delete
+     * @return ResponseEntity with HTTP 204 (No Content) status
+     */
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
+    public ResponseEntity<Void> deleteProject(@PathVariable Long id) {
+        log.info("DELETE /api/projects/{} - Deleting project", id);
+        projectService.deleteProject(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Retrieve all projects with optional filtering.
+     *
+     * <p>Requires authentication. Supports filtering by keyword, status, and category.
+     * Returns open projects by default if status="OPEN" is specified.</p>
+     *
+     * @param keyword optional keyword for searching project titles/descriptions
+     * @param status optional status filter (e.g., "OPEN", "IN_PROGRESS")
+     * @param category optional category filter
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProjectDTO>> getAllProjects(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String category) {
+        log.info("GET /api/projects - Fetching projects with filters");
+        
+        List<ProjectDTO> projects;
+        
+        if (keyword != null && !keyword.isEmpty()) {
+            projects = projectService.searchProjects(keyword, status);
+        } else if (category != null && !category.isEmpty()) {
+            projects = projectService.getProjectsByCategory(category);
+        } else if ("OPEN".equalsIgnoreCase(status)) {
+            projects = projectService.getOpenProjects();
+        } else {
+            projects = projectService.getAllProjects();
+        }
+        
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * Retrieve all projects created by a specific client.
+     *
+     * <p>Requires CLIENT role.</p>
+     *
+     * @param clientId the unique identifier of the client
+     * @return ResponseEntity with HTTP 200 (OK) status and a list of {@link ProjectDTO}
+     */
+    @GetMapping("/client/{clientId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<List<ProjectDTO>> getClientProjects(@PathVariable Long clientId) {
+        log.info("GET /api/projects/client/{} - Fetching client projects", clientId);
+        List<ProjectDTO> projects = projectService.getProjectsByClientId(clientId);
+        return ResponseEntity.ok(projects);
+    }
+
+    /**
+     * Assign a freelancer to a project.
+     *
+     * <p>Requires CLIENT role. Only the client who created the project can assign a freelancer.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @param freelancerId the unique identifier of the freelancer to assign
+     * @return ResponseEntity with HTTP 200 (OK) status and the updated {@link ProjectDTO}
+     */
+    @PutMapping("/{projectId}/assign/{freelancerId}")
+    @PreAuthorize("hasRole('CLIENT')")
+    public ResponseEntity<ProjectDTO> assignFreelancer(
+            @PathVariable Long projectId,
+            @PathVariable Long freelancerId) {
+        log.info("PUT /api/projects/{}/assign/{} - Assigning freelancer", projectId, freelancerId);
+        ProjectDTO project = projectService.assignFreelancer(projectId, freelancerId);
+        return ResponseEntity.ok(project);
+    }
+
+    /**
+     * Global exception handler for RuntimeException in this controller.
+     *
+     * @param ex the thrown {@link RuntimeException}
+     * @return ResponseEntity with HTTP 400 (Bad Request) status and error message
+     */
+    @ExceptionHandler(RuntimeException.class)
+    public ResponseEntity<String> handleRuntimeException(RuntimeException ex) {
+        log.error("Error in ProjectController", ex);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
+}
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.model;
+
+/**
+ * ProjectStatus
+ *
+ * <p>Enumeration representing the lifecycle status of a project in the Freelance Nexus system.
+ * Tracks the progression of a project from creation through completion or cancellation.</p>
+ *
+ * @since 1.0
+ */
+public enum ProjectStatus {
+    /**
+     * Project has been posted and is accepting proposals from freelancers.
+     * Clients can still modify project details and no freelancer has been assigned yet.
+     */
+    OPEN,
+    
+    /**
+     * Project is actively being worked on by an assigned freelancer.
+     * Payment milestones may be released as work progresses.
+     */
+    IN_PROGRESS,
+    
+    /**
+     * Project has been completed and all deliverables accepted.
+     * Final payment has been released to the freelancer.
+     */
+    COMPLETED,
+    
+    /**
+     * Project has been cancelled and will not proceed.
+     * No further work is expected and participants are notified.
+     */
+    CANCELLED
+}
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.service;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.model.Project;
+import com.freelancenexus.userservice.model.ProjectStatus;
+import com.freelancenexus.userservice.model.User;
+import com.freelancenexus.userservice.repository.ProjectRepository;
+import com.freelancenexus.userservice.repository.ProposalRepository;
+import com.freelancenexus.userservice.repository.UserRepository;
+
+/**
+ * ProjectService
+ *
+ * <p>Core service layer for project management. Handles creation, retrieval, update,
+ * assignment and soft-deletion (cancellation) of projects. Coordinates persistence
+ * via {@link ProjectRepository}, proposal counting via {@link ProposalRepository},
+ * and event publication to RabbitMQ. Methods that modify state are annotated with
+ * {@link Transactional} to ensure data consistency.</p>
+ *
+ * <p>Typical responsibilities:
+ * <ul>
+ *   <li>Persist new projects</li>
+ *   <li>Update existing projects</li>
+ *   <li>Soft-delete (cancel) projects</li>
+ *   <li>Assign freelancers to projects</li>
+ *   <li>Convert between entity and DTO representations</li>
+ *   <li>Publish domain events for downstream consumers</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@Service
+public class ProjectService {
+	private final Logger log= LoggerFactory.getLogger(ProjectService.class);
+    /**
+     * Repository for project CRUD operations.
+     */
+	@Autowired
+    private ProjectRepository projectRepository;
+
+    /**
+     * Repository for proposal access used to compute proposal counts and queries.
+     */
+	@Autowired
+    private ProposalRepository proposalRepository;
+
+    /**
+     * RabbitTemplate used to publish project-related events to RabbitMQ.
+     */
+	@Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    /**
+     * Jackson ObjectMapper used to serialize/deserialize skill lists.
+     */
+	@Autowired
+    private ObjectMapper objectMapper;
+
+	@Autowired
+	private UserRepository userRepository;
+    /**
+     * Exchange name for publishing project events (injected from configuration).
+     */
+    @Value("${rabbitmq.exchange.project}")
+    private String projectExchange;
+
+    /**
+     * Routing key used for project.created events (injected from configuration).
+     */
+    @Value("${rabbitmq.routing.project.created}")
+    private String projectCreatedRoutingKey;
+
+   
+
+	/**
+     * Create a new project.
+     *
+     * <p>Persists the project entity, publishes a project.created event, and returns
+     * a {@link ProjectDTO} representing the persisted project.</p>
+     *
+     * @param createDTO validated DTO containing project creation details
+     * @return the created project's {@link ProjectDTO}
+     */
+    @Transactional
+    public ProjectDTO createProject(ProjectCreateDTO createDTO) {
+        log.info("Creating new project: {}", createDTO.getTitle());
+
+        Project project = new Project();
+        project.setClientId(createDTO.getClientId());
+        project.setTitle(createDTO.getTitle());
+        project.setDescription(createDTO.getDescription());
+        project.setBudgetMin(createDTO.getBudgetMin());
+        project.setBudgetMax(createDTO.getBudgetMax());
+        project.setDurationDays(createDTO.getDurationDays());
+        project.setRequiredSkills(convertSkillsToJson(createDTO.getRequiredSkills()));
+        project.setCategory(createDTO.getCategory());
+        project.setStatus(ProjectStatus.OPEN);
+        project.setDeadline(createDTO.getDeadline());
+
+        Project savedProject = projectRepository.save(project);
+        log.info("Project created with ID: {}", savedProject.getId());
+
+        // Publish event to RabbitMQ
+        publishProjectCreatedEvent(savedProject);
+
+        return convertToDTO(savedProject);
+    }
+
+    /**
+     * Retrieve a project by its id.
+     *
+     * @param id unique identifier of the project
+     * @return the project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    public ProjectDTO getProjectById(Long id) {
+        log.info("Fetching project by ID: {}", id);
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+        return convertToDTO(project);
+    }
+
+    /**
+     * Update an existing project.
+     *
+     * <p>Only fields present in {@link ProjectCreateDTO} are updated. The method
+     * validates existence and persists changes within a transaction.</p>
+     *
+     * @param id unique identifier of the project to update
+     * @param updateDTO DTO containing updated project fields
+     * @return the updated project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public ProjectDTO updateProject(Long id, ProjectCreateDTO updateDTO) {
+        log.info("Updating project ID: {}", id);
+
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+
+        project.setTitle(updateDTO.getTitle());
+        project.setDescription(updateDTO.getDescription());
+        project.setBudgetMin(updateDTO.getBudgetMin());
+        project.setBudgetMax(updateDTO.getBudgetMax());
+        project.setDurationDays(updateDTO.getDurationDays());
+        project.setRequiredSkills(convertSkillsToJson(updateDTO.getRequiredSkills()));
+        project.setCategory(updateDTO.getCategory());
+        project.setDeadline(updateDTO.getDeadline());
+
+        Project updatedProject = projectRepository.save(project);
+        return convertToDTO(updatedProject);
+    }
+
+    /**
+     * Soft-delete (cancel) a project.
+     *
+     * <p>Marks the project's status as {@link ProjectStatus#CANCELLED} rather than
+     * removing it from the database, allowing historical data and associated proposals
+     * to remain for audit and reporting.</p>
+     *
+     * @param id unique identifier of the project to cancel
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public void deleteProject(Long id) {
+        log.info("Deleting project ID: {}", id);
+        
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+        
+        project.setStatus(ProjectStatus.CANCELLED);
+        projectRepository.save(project);
+    }
+
+    /**
+     * Retrieve all projects.
+     *
+     * @return list of {@link ProjectDTO} for all projects
+     */
+    public List<ProjectDTO> getAllProjects() {
+        log.info("Fetching all projects");
+        return projectRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve projects created by a specific client.
+     *
+     * @param clientId unique identifier of the client
+     * @return list of {@link ProjectDTO} for that client
+     */
+    public List<ProjectDTO> getProjectsByClientId(Long clientId) {
+        log.info("Fetching projects for client ID: {}", clientId);
+        return projectRepository.findByClientId(clientId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve all open projects available for bidding.
+     *
+     * @return list of open {@link ProjectDTO}
+     */
+    public List<ProjectDTO> getOpenProjects() {
+        log.info("Fetching all open projects");
+        return projectRepository.findAllOpenProjects().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Search projects by keyword and optional status.
+     *
+     * <p>Performs a case-insensitive keyword search against title and description,
+     * filtering by provided status (defaults to OPEN when status is null).</p>
+     *
+     * @param keyword search keyword
+     * @param status optional status string (e.g., "OPEN")
+     * @return list of matching {@link ProjectDTO}
+     * @throws IllegalArgumentException if provided status is invalid
+     */
+    public List<ProjectDTO> searchProjects(String keyword, String status) {
+        log.info("Searching projects with keyword: {} and status: {}", keyword, status);
+        
+        ProjectStatus projectStatus = status != null ? ProjectStatus.valueOf(status.toUpperCase()) : ProjectStatus.OPEN;
+        
+        return projectRepository.searchByKeywordAndStatus(keyword, projectStatus).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve projects by category.
+     *
+     * @param category the project category
+     * @return list of {@link ProjectDTO} in the specified category
+     */
+    public List<ProjectDTO> getProjectsByCategory(String category) {
+        log.info("Fetching projects by category: {}", category);
+        return projectRepository.findByCategory(category).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Assign a freelancer to a project and transition the project to IN_PROGRESS.
+     *
+     * @param projectId the project id
+     * @param freelancerId the freelancer id to assign
+     * @return the updated project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public ProjectDTO assignFreelancer(Long projectId, Long freelancerId) {
+        log.info("Assigning freelancer {} to project {}", freelancerId, projectId);
+        
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
+        
+        project.setAssignedFreelancer(freelancerId);
+        project.setStatus(ProjectStatus.IN_PROGRESS);
+        
+        Project updatedProject = projectRepository.save(project);
+        return convertToDTO(updatedProject);
+    }
+
+    @Transactional
+    public ProjectDTO updateProjectStatus(Long projectId, ProjectStatus status) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+     
+        project.setStatus(status);
+        return convertToDTO(projectRepository.save(project));
+    }
+    /**
+     * Convert a {@link Project} entity to a {@link ProjectDTO}.
+     *
+     * <p>Maps entity fields to the DTO and computes the current proposal count.</p>
+     *
+     * @param project the entity to convert
+     * @return the mapped {@link ProjectDTO}
+     */
+    private ProjectDTO convertToDTO(Project project) {
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(project.getId());
+        dto.setClientId(project.getClientId());
+        dto.setTitle(project.getTitle());
+        dto.setDescription(project.getDescription());
+        dto.setBudgetMin(project.getBudgetMin());
+        dto.setBudgetMax(project.getBudgetMax());
+        dto.setDurationDays(project.getDurationDays());
+        dto.setRequiredSkills(parseSkillsFromJson(project.getRequiredSkills()));
+        dto.setCategory(project.getCategory());
+        dto.setStatus(project.getStatus());
+        dto.setDeadline(project.getDeadline());
+        dto.setAssignedFreelancer(project.getAssignedFreelancer());
+        dto.setCreatedAt(project.getCreatedAt());
+        dto.setUpdatedAt(project.getUpdatedAt());
+        dto.setProposalCount((int) proposalRepository.countByProjectId(project.getId()));
+        User client = userRepository.findById(project.getClientId()).orElse(null);
+        
+        if (client != null) {
+            dto.setClientName(client.getFullName());
+            dto.setClientJoinDate(client.getCreatedAt());
+            dto.setClientProjectCount(
+                projectRepository.countByClientId(project.getClientId())
+            );
+        }
+        return dto;
+    }
+
+    /**
+     * Serialize a list of skills to a JSON string for storage.
+     *
+     * @param skills list of skill strings
+     * @return JSON string representation of skills, or "[]" on error
+     */
+    private String convertSkillsToJson(List<String> skills) {
+        try {
+            return objectMapper.writeValueAsString(skills);
+        } catch (Exception e) {
+            log.error("Error converting skills to JSON", e);
+            return "[]";
+        }
+    }
+
+    /**
+     * Parse a stored skills JSON string back into a list of skills.
+     *
+     * <p>Attempts JSON parsing and falls back to comma-splitting on error.</p>
+     *
+     * @param skillsJson the stored skills string
+     * @return list of skill strings
+     */
+    private List<String> parseSkillsFromJson(String skillsJson) {
+        try {
+            return objectMapper.readValue(skillsJson, List.class);
+        } catch (Exception e) {
+            log.error("Error parsing skills from JSON", e);
+            return Arrays.asList(skillsJson.split(","));
+        }
+    }
+
+    /**
+     * Publish a project.created event to RabbitMQ.
+     *
+     * <p>Converts the project to {@link ProjectDTO} and sends it to the configured exchange
+     * with the configured routing key. Exceptions are logged but do not prevent the caller
+     * from continuing.</p>
+     *
+     * @param project the project that was created
+     */
+    private void publishProjectCreatedEvent(Project project) {
+        try {
+            ProjectDTO dto = convertToDTO(project);
+            rabbitTemplate.convertAndSend(projectExchange, projectCreatedRoutingKey, dto);
+            log.info("Published project.created event for project ID: {}", project.getId());
+        } catch (Exception e) {
+            log.error("Error publishing project.created event", e);
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import com.freelancenexus.userservice.model.Project;
+import com.freelancenexus.userservice.model.ProjectStatus;
+
+/**
+ * ProjectRepository
+ *
+ * <p>Spring Data JPA repository for performing CRUD and query operations on {@link Project} entities.
+ * Provides convenience query methods for filtering projects by client, status, category, and search criteria.
+ * Includes custom JPQL queries for complex filtering and retrieval scenarios.
+ * Implementations are provided automatically by Spring Data at runtime.</p>
+ *
+ * @since 1.0
+ */
+@Repository
+public interface ProjectRepository extends JpaRepository<Project, Long> {
+
+    /**
+     * Find all projects created by a specific client.
+     *
+     * @param clientId the unique identifier of the client
+     * @return a list of projects created by the client (may be empty)
+     */
+    List<Project> findByClientId(Long clientId);
+
+    Long countByClientId(Long clientId);
+    /**	
+     * Find all projects with a specific status.
+     *
+     * @param status the {@link ProjectStatus} to filter by
+     * @return a list of projects with the specified status (may be empty)
+     */
+    List<Project> findByStatus(ProjectStatus status);
+
+    /**
+     * Find all projects in a specific category.
+     *
+     * @param category the project category to filter by
+     * @return a list of projects in the specified category (may be empty)
+     */
+    List<Project> findByCategory(String category);
+
+    /**
+     * Search for projects by keyword in title or description with optional status filter.
+     *
+     * <p>Performs case-insensitive partial matching on title and description fields.</p>
+     *
+     * @param keyword the search keyword
+     * @param status the {@link ProjectStatus} to filter by
+     * @return a list of matching projects (may be empty)
+     */
+    @Query("SELECT p FROM Project p WHERE p.status = :status AND " +
+           "(LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+           "LOWER(p.description) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<Project> searchByKeywordAndStatus(@Param("keyword") String keyword, 
+                                           @Param("status") ProjectStatus status);
+
+    /**
+     * Find all open projects ordered by creation date (newest first).
+     *
+     * <p>Returns projects available for freelancers to bid on.</p>
+     *
+     * @return a list of open projects sorted by creation date descending
+     */
+    @Query("SELECT p FROM Project p WHERE p.status = 'OPEN' ORDER BY p.createdAt DESC")
+    List<Project> findAllOpenProjects();
+
+    /**
+     * Find all projects assigned to a specific freelancer.
+     *
+     * @param freelancerId the unique identifier of the freelancer
+     * @return a list of projects assigned to the freelancer (may be empty)
+     */
+    @Query("SELECT p FROM Project p WHERE p.assignedFreelancer = :freelancerId")
+    List<Project> findByAssignedFreelancer(@Param("freelancerId") Long freelancerId);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+package com.freelancenexus.userservice.dto;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import com.freelancenexus.userservice.model.ProjectStatus;
+
+/**
+ * ProjectDTO
+ *
+ * <p>Data Transfer Object representing project information returned by API endpoints.
+ * Contains project details, status, budget information, required skills, and metadata.
+ * Excludes sensitive information and is used for transferring project data to clients.</p>
+ *
+ * <p>Typically returned by project retrieval, creation, and update endpoints.</p>
+ *
+ * @since 1.0
+ */
+public class ProjectDTO {
+    
+    /**
+     * Unique identifier of the project.
+     */
+    private Long id;
+    
+    /**
+     * Unique identifier of the client who created the project.
+     */
+    private Long clientId;
+    
+    /**
+     * Project title.
+     */
+    private String title;
+    
+    /**
+     * Detailed description of the project and its requirements.
+     */
+    private String description;
+    
+    /**
+     * Minimum budget amount for the project.
+     */
+    private BigDecimal budgetMin;
+    
+    /**
+     * Maximum budget amount for the project.
+     */
+    private BigDecimal budgetMax;
+    
+    /**
+     * Estimated project duration in days.
+     */
+    private Integer durationDays;
+    
+    /**
+     * List of required skills to complete the project.
+     */
+    private List<String> requiredSkills;
+    
+    /**
+     * Project category (e.g., "Web Development", "Mobile App", "Design").
+     */
+    private String category;
+    
+    /**
+     * Current status of the project (e.g., OPEN, IN_PROGRESS, COMPLETED).
+     *
+     * @see ProjectStatus
+     */
+    private ProjectStatus status;
+    
+    /**
+     * Project deadline date.
+     */
+    private LocalDate deadline;
+    
+    /**
+     * Unique identifier of the freelancer assigned to the project (if any).
+     * {@code null} if no freelancer is assigned.
+     */
+    private Long assignedFreelancer;
+    
+    /**
+     * Timestamp when the project was created.
+     */
+    private LocalDateTime createdAt;
+    
+    /**
+     * Timestamp when the project was last updated.
+     */
+    private LocalDateTime updatedAt;
+    
+    /**
+     * Number of proposals submitted for this project.
+     */
+    private Integer proposalCount;
+
+    private String clientName;
+    
+    private LocalDateTime clientJoinDate;
+    
+    private Long clientProjectCount;
+   
+    
+	public String getClientName() {
+		return clientName;
+	}
+
+
+	public void setClientName(String clientName) {
+		this.clientName = clientName;
+	}
+
+
+	public LocalDateTime getClientJoinDate() {
+		return clientJoinDate;
+	}
+
+
+	public void setClientJoinDate(LocalDateTime clientJoinDate) {
+		this.clientJoinDate = clientJoinDate;
+	}
+
+
+	public Long getClientProjectCount() {
+		return clientProjectCount;
+	}
+
+
+	public void setClientProjectCount(Long clientProjectCount) {
+		this.clientProjectCount = clientProjectCount;
+	}
+
+
+	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
+			ProjectStatus status, LocalDate deadline, Long assignedFreelancer,
+			LocalDateTime createdAt, LocalDateTime updatedAt, Integer proposalCount) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposalCount = proposalCount;
+	}
+
+	
+	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
+			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
+			ProjectStatus status, LocalDate deadline, Long assignedFreelancer, LocalDateTime createdAt,
+			LocalDateTime updatedAt, Integer proposalCount, String clientName, LocalDateTime clientJoinDate,
+			Long clientProjectCount) {
+		super();
+		this.id = id;
+		this.clientId = clientId;
+		this.title = title;
+		this.description = description;
+		this.budgetMin = budgetMin;
+		this.budgetMax = budgetMax;
+		this.durationDays = durationDays;
+		this.requiredSkills = requiredSkills;
+		this.category = category;
+		this.status = status;
+		this.deadline = deadline;
+		this.assignedFreelancer = assignedFreelancer;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.proposalCount = proposalCount;
+		this.clientName = clientName;
+		this.clientJoinDate = clientJoinDate;
+		this.clientProjectCount = clientProjectCount;
+	}
+
+
+	public ProjectDTO() {
+		super();
+		// TODO Auto-generated constructor stub
+	}
+
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public Long getClientId() {
+		return clientId;
+	}
+
+	public void setClientId(Long clientId) {
+		this.clientId = clientId;
+	}
+
+	public String getTitle() {
+		return title;
+	}
+
+	public void setTitle(String title) {
+		this.title = title;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public BigDecimal getBudgetMin() {
+		return budgetMin;
+	}
+
+	public void setBudgetMin(BigDecimal budgetMin) {
+		this.budgetMin = budgetMin;
+	}
+
+	public BigDecimal getBudgetMax() {
+		return budgetMax;
+	}
+
+	public void setBudgetMax(BigDecimal budgetMax) {
+		this.budgetMax = budgetMax;
+	}
+
+	public Integer getDurationDays() {
+		return durationDays;
+	}
+
+	public void setDurationDays(Integer durationDays) {
+		this.durationDays = durationDays;
+	}
+
+	public List<String> getRequiredSkills() {
+		return requiredSkills;
+	}
+
+	public void setRequiredSkills(List<String> requiredSkills) {
+		this.requiredSkills = requiredSkills;
+	}
+
+	public String getCategory() {
+		return category;
+	}
+
+	public void setCategory(String category) {
+		this.category = category;
+	}
+
+	public ProjectStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(ProjectStatus status) {
+		this.status = status;
+	}
+
+	public LocalDate getDeadline() {
+		return deadline;
+	}
+
+	public void setDeadline(LocalDate deadline) {
+		this.deadline = deadline;
+	}
+
+	public Long getAssignedFreelancer() {
+		return assignedFreelancer;
+	}
+
+	public void setAssignedFreelancer(Long assignedFreelancer) {
+		this.assignedFreelancer = assignedFreelancer;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Integer getProposalCount() {
+		return proposalCount;
+	}
+
+	public void setProposalCount(Integer proposalCount) {
+		this.proposalCount = proposalCount;
+	}
+	
+	
+    
+    
+}
