@@ -1,181 +1,214 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import projectService from '../../services/projectService';
+import aiService from '../../services/aiService';
 import Loader from '../common/Loader';
 
-const MyProjects = () => {
-  const { user } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [filter, setFilter] = useState('ALL');
+const ProjectDetails = () => {
+  const { id } = useParams();
+  const { user, authenticated } = useAuth();
+  const navigate = useNavigate();
+  const [project, setProject] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchProject = async () => {
       try {
-        const data = await projectService.getClientProjects(user.id);
-        setProjects(data);
+        const data = await projectService.getProjectById(id);
+        setProject(data);
       } catch (error) {
-        console.error('Error fetching projects:', error);
+        console.error('Error fetching project:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProjects();
-  }, [user.id]);
-
-  const handleDelete = async (projectId) => {
-    if (window.confirm('Are you sure you want to delete this project?')) {
+    const fetchSummary = async () => {
       try {
-        await projectService.deleteProject(projectId);
-        setProjects(projects.filter(p => p.id !== projectId));
+        const data = await aiService.generateProjectSummary(id);
+        setSummary(data);
       } catch (error) {
-        alert('Failed to delete project');
+        console.error('Error fetching AI summary:', error);
       }
-    }
-  };
+    };
 
-  const filteredProjects = projects.filter(p => 
-    filter === 'ALL' || p.status === filter
-  );
+    fetchProject();
+    fetchSummary();
+  }, [id]);
 
   if (loading) return <Loader />;
+
+  if (!project) {
+    return (
+      <div className="container mt-4">
+        <div className="alert alert-danger">Project not found</div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-4">
       <div className="row mb-4">
         <div className="col">
-          <h2>My Projects</h2>
-          <p className="text-muted">Manage all your posted projects</p>
-        </div>
-        <div className="col-auto">
-          <Link to="/client/post-project" className="btn btn-primary">
-            Post New Project
-          </Link>
-        </div>
-      </div>
-
-      <div className="row mb-4">
-        <div className="col">
-          <div className="btn-group" role="group">
-            <button 
-              className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
-              onClick={() => setFilter('ALL')}
-            >
-              All ({projects.length})
-            </button>
-            <button 
-              className={`btn ${filter === 'OPEN' ? 'btn-success' : 'btn-outline-success'}`}
-              onClick={() => setFilter('OPEN')}
-            >
-              Open ({projects.filter(p => p.status === 'OPEN').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'IN_PROGRESS' ? 'btn-warning' : 'btn-outline-warning'}`}
-              onClick={() => setFilter('IN_PROGRESS')}
-            >
-              In Progress ({projects.filter(p => p.status === 'IN_PROGRESS').length})
-            </button>
-            <button 
-              className={`btn ${filter === 'COMPLETED' ? 'btn-info' : 'btn-outline-info'}`}
-              onClick={() => setFilter('COMPLETED')}
-            >
-              Completed ({projects.filter(p => p.status === 'COMPLETED').length})
-            </button>
-          </div>
+          <button 
+            className="btn btn-outline-secondary mb-3"
+            onClick={() => navigate(-1)}
+          >
+            ← Back
+          </button>
+          <h2>{project.title}</h2>
+          <p className="text-muted">
+            Posted by {project.clientName} on {new Date(project.createdAt).toLocaleDateString()}
+          </p>
         </div>
       </div>
 
-      {filteredProjects.length === 0 ? (
-        <div className="alert alert-info">
-          <h5>No projects found</h5>
-          <p className="mb-0">Start by posting your first project!</p>
-        </div>
-      ) : (
-        <div className="row g-4">
-          {filteredProjects.map((project) => (
-            <div key={project.id} className="col-12">
-              <div className="card shadow-sm project-card">
-                <div className="card-body">
-                  <div className="row">
-                    <div className="col-md-8">
-                      <h5 className="card-title">{project.title}</h5>
-                      <p className="text-muted mb-2">
-                        {project.description?.substring(0, 200)}...
-                      </p>
-                      
-                      <div className="row mb-2">
-                        <div className="col-sm-6">
-                          <strong>Budget:</strong> ₹{project.budgetMin} - ₹{project.budgetMax}
-                        </div>
-                        <div className="col-sm-6">
-                          <strong>durationDays:</strong> {project.durationDays} days
-                        </div>
-                      </div>
-
-                      <div className="mb-2">
-                        <strong>Proposals:</strong> {project.proposalCount || 0}
-                      </div>
-
-                      <small className="text-muted">
-                        Posted: {new Date(project.createdAt).toLocaleDateString()}
-                      </small>
-                    </div>
-
-                    <div className="col-md-4 text-end">
-                      <span className={`badge bg-${
-                        project.status === 'COMPLETED' ? 'success' :
-                        project.status === 'IN_PROGRESS' ? 'warning' :
-                        project.status === 'CANCELLED' ? 'danger' :
-                        'primary'
-                      } mb-3`}>
-                        {project.status}
-                      </span>
-
-                      <div className="d-grid gap-2">
-                        <Link 
-                          to={`/projects/${project.id}`}
-                          className="btn btn-sm btn-outline-primary"
-                        >
-                          View Details
-                        </Link>
-                        
-                        <Link 
-                          to={`/client/proposals/${project.id}`}
-                          className="btn btn-sm btn-primary"
-                        >
-                          View Proposals ({project.proposalCount || 0})
-                        </Link>
-
-                        {project.proposalCount > 0 && (
-                          <Link 
-                            to={`/client/ai-ranking/${project.id}`}
-                            className="btn btn-sm btn-info"
-                          >
-                            <span className="ai-badge">AI</span> Rank Proposals
-                          </Link>
-                        )}
-
-                        {project.status === 'OPEN' && (
-                          <button
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() => handleDelete(project.id)}
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+      <div className="row">
+        <div className="col-lg-8">
+          {/* AI Summary */}
+          {summary && (
+            <div className="card shadow-sm mb-4 ai-feature">
+              <div className="card-body">
+                <h5 className="mb-3">
+                  <span className="ai-badge">AI</span> Project Summary
+                </h5>
+                <p>{summary.summary}</p>
+                <div className="mt-3">
+                  <strong>Key Requirements:</strong>
+                  <ul className="mt-2">
+                    {summary.keyRequirements?.map((req, idx) => (
+                      <li key={idx}>{req}</li>
+                    ))}
+                  </ul>
                 </div>
               </div>
             </div>
-          ))}
+          )}
+
+          {/* Project Description */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-primary text-white">
+              <h5 className="mb-0">Project Description</h5>
+            </div>
+            <div className="card-body">
+              <p style={{ whiteSpace: 'pre-wrap' }}>{project.description}</p>
+            </div>
+          </div>
+
+          {/* Required Skills */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-success text-white">
+              <h5 className="mb-0">Required Skills</h5>
+            </div>
+            <div className="card-body">
+              {project.requiredSkills?.map((skill, idx) => (
+                <span key={idx} className="badge bg-secondary me-2 mb-2">
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="col-lg-4">
+          {/* Project Info */}
+          <div className="card shadow-sm mb-4">
+            <div className="card-header bg-info text-white">
+              <h5 className="mb-0">Project Details</h5>
+            </div>
+            <div className="card-body">
+              <div className="mb-3">
+                <strong>Budget:</strong>
+                <div className="mt-1">₹{project.budgetMin} - ₹{project.budgetMax}</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Duration:</strong>
+                <div className="mt-1">{project.durationDays} days</div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Category:</strong>
+                <div className="mt-1">
+                  <span className="badge bg-primary">{project.category}</span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Status:</strong>
+                <div className="mt-1">
+                  <span className={`badge bg-${
+                    project.status === 'OPEN' ? 'success' :
+                    project.status === 'IN_PROGRESS' ? 'warning' :
+                    project.status === 'COMPLETED' ? 'info' : 'secondary'
+                  }`}>
+                    {project.status}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <strong>Proposals:</strong>
+                <div className="mt-1">{project.proposalCount || 0}</div>
+              </div>
+
+              {authenticated && user.role === "FREELANCER" && project.status === 'OPEN' && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/freelancer/submit-proposal/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    Submit Proposal
+                  </Link>
+                </div>
+              )}
+
+              {authenticated && user.role === "CLIENT" && user?.id === project.clientId && (
+                <div className="d-grid gap-2 mt-4">
+                  <Link 
+                    to={`/client/proposals/${project.id}`}
+                    className="btn btn-primary"
+                  >
+                    View Proposals
+                  </Link>
+                  <Link 
+                    to={`/client/ai-ranking/${project.id}`}
+                    className="btn btn-info"
+                  >
+                    <span className="ai-badge">AI</span> Rank Proposals
+                  </Link>
+                </div>
+              )}
+
+              {!authenticated && (
+                <div className="alert alert-info mt-4">
+                  <small>
+                    <Link to="/login">Login</Link> or <Link to="/register">Register</Link> to submit a proposal
+                  </small>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Client Info */}
+          <div className="card shadow-sm">
+            <div className="card-header bg-secondary text-white">
+              <h5 className="mb-0">About the Client</h5>
+            </div>
+            <div className="card-body">
+              <h6>{project.clientName}</h6>
+              <p className="text-muted mb-2">Member since {new Date(project.clientJoinDate).getFullYear()}</p>
+              <div className="mb-2">
+                <strong>Projects Posted:</strong> {project.clientProjectCount || 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
 
-export default MyProjects;
+export default ProjectDetails;
