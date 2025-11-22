@@ -1,0 +1,2797 @@
+package com.freelancenexus.userservice.service;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.freelancenexus.userservice.dto.AIRecommendationDTO;
+import com.freelancenexus.userservice.dto.ProjectSummaryDTO;
+import com.freelancenexus.userservice.dto.RankedProposalDTO;
+import com.freelancenexus.userservice.model.Project;
+import com.freelancenexus.userservice.model.Proposal;
+import com.freelancenexus.userservice.repository.ProjectRepository;
+import com.freelancenexus.userservice.repository.ProposalRepository;
+
+/**
+ * AIService
+ *
+ * <p>Service layer for AI-powered features in the Project Service. Integrates with the Gemini AI
+ * to provide project recommendations for freelancers, proposal ranking for clients, and AI-generated
+ * project summaries. Handles prompt construction, response parsing, and graceful fallback behavior
+ * when AI operations fail.</p>
+ *
+ * <p>Key responsibilities:
+ * <ul>
+ *   <li>Generate AI-based project recommendations for freelancers</li>
+ *   <li>Rank proposals using AI analysis and scoring</li>
+ *   <li>Generate natural language project summaries</li>
+ *   <li>Parse and transform AI responses into DTOs</li>
+ *   <li>Persist AI scores and maintain data consistency</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@Service
+public class AIService {
+	private final Logger log= LoggerFactory.getLogger(AIService.class);
+    private final GeminiIntegrationService geminiService;
+    private final ProjectRepository projectRepository;
+    private final ProposalRepository proposalRepository;
+    private final ObjectMapper objectMapper;
+    
+    
+
+    public AIService(GeminiIntegrationService geminiService,
+		ProjectRepository projectRepository,
+		ProposalRepository proposalRepository, ObjectMapper objectMapper) {
+		super();
+		this.geminiService = geminiService;
+		this.projectRepository = projectRepository;
+		this.proposalRepository = proposalRepository;
+		this.objectMapper = objectMapper;
+	}
+
+	/**
+     * Generate AI-recommended projects for a freelancer based on their skills and profile.
+     *
+     * <p>Analyzes the freelancer's skills and biography against all open projects and returns
+     * the top matches with match scores and reasons. Falls back gracefully to an empty list
+     * if AI processing fails.</p>
+     *
+     * @param freelancerId the unique identifier of the freelancer
+     * @param freelancerSkills list of skills the freelancer possesses
+     * @param freelancerBio optional biography or description of the freelancer
+     * @return a list of {@link AIRecommendationDTO} sorted by relevance
+     */
+    public List<AIRecommendationDTO> recommendProjectsForFreelancer(Long freelancerId, List<String> freelancerSkills, String freelancerBio) {
+        try {
+            log.info("Getting AI recommendations for freelancer: {}", freelancerId);
+
+            // Get all open projects
+            List<Project> openProjects = projectRepository.findAllOpenProjects();
+            
+            if (openProjects.isEmpty()) {
+                log.info("No open projects available");
+                return Collections.emptyList();
+            }
+
+            // Build prompt for AI
+            String prompt = buildRecommendationPrompt(freelancerSkills, freelancerBio, openProjects);
+            
+            // Call Gemini AI
+            JsonNode aiResponse = geminiService.callGeminiForJson(prompt);
+            
+            // Parse and return recommendations
+            return parseRecommendations(aiResponse, openProjects);
+
+        } catch (Exception e) {
+            log.error("Error getting AI recommendations", e);
+            return fallbackRecommendations(freelancerId, freelancerSkills);
+        }
+    }
+
+    /**
+     * Rank all proposals for a project using AI analysis.
+     *
+     * <p>Evaluates each proposal based on budget alignment, delivery time, cover letter quality,
+     * and professionalism. Updates proposal AI scores in the database and returns ranked results.
+     * Falls back to an empty list if AI processing fails.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @return a list of {@link RankedProposalDTO} sorted by rank (best first)
+     * @throws RuntimeException if the project is not found
+     */
+    public List<RankedProposalDTO> rankProposalsForProject(Long projectId) {
+        try {
+            log.info("Ranking proposals for project: {}", projectId);
+
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+
+            List<Proposal> proposals = proposalRepository.findByProjectId(projectId);
+            
+            if (proposals.isEmpty()) {
+                log.info("No proposals to rank");
+                return Collections.emptyList();
+            }
+
+            // Build prompt for AI
+            String prompt = buildRankingPrompt(project, proposals);
+            
+            // Call Gemini AI
+            JsonNode aiResponse = geminiService.callGeminiForJson(prompt);
+            
+            // Parse rankings and update proposal scores
+            List<RankedProposalDTO> rankedProposals = parseRankings(aiResponse, proposals);
+            
+            // Update AI scores in database
+            updateProposalScores(rankedProposals);
+            
+            return rankedProposals;
+
+        } catch (Exception e) {
+            log.error("Error ranking proposals", e);
+            return fallbackRanking(projectId);
+        }
+    }
+
+    /**
+     * Generate an AI-powered natural language summary of a project.
+     *
+     * <p>Creates a comprehensive summary including overview, key requirements, ideal candidate profile,
+     * complexity assessment, and suggested skills. Falls back to a placeholder summary if AI processing fails.</p>
+     *
+     * @param projectId the unique identifier of the project
+     * @return a {@link ProjectSummaryDTO} with AI-generated content
+     * @throws RuntimeException if the project is not found
+     */
+    public ProjectSummaryDTO generateProjectSummary(Long projectId) {
+        try {
+            log.info("Generating summary for project: {}", projectId);
+
+            Project project = projectRepository.findById(projectId)
+                    .orElseThrow(() -> new RuntimeException("Project not found"));
+
+            String prompt = buildSummaryPrompt(project);
+            
+            JsonNode aiResponse = geminiService.callGeminiForJson(prompt);
+            
+            return parseSummary(aiResponse, projectId);
+
+        } catch (Exception e) {
+            log.error("Error generating project summary", e);
+            return fallbackSummary(projectId);
+        }
+    }
+
+    // ==================== Private Helper Methods ====================
+
+    /**
+     * Build a structured prompt for the Gemini AI to recommend projects for a freelancer.
+     *
+     * @param skills the freelancer's skills
+     * @param bio optional freelancer biography
+     * @param projects available open projects to consider
+     * @return formatted prompt string for the AI
+     */
+    private String buildRecommendationPrompt(List<String> skills, String bio, List<Project> projects) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are an AI assistant helping match freelancers with projects.\n\n");
+        prompt.append("Freelancer Profile:\n");
+        prompt.append("Skills: ").append(String.join(", ", skills)).append("\n");
+        prompt.append("Bio: ").append(bio != null ? bio : "Not provided").append("\n\n");
+        prompt.append("Available Projects:\n");
+
+        for (int i = 0; i < Math.min(projects.size(), 20); i++) {
+            Project p = projects.get(i);
+            prompt.append(String.format("%d. %s (ID: %d)\n", i + 1, p.getTitle(), p.getId()));
+            prompt.append("   Category: ").append(p.getCategory()).append("\n");
+            prompt.append("   Budget: $").append(p.getBudgetMin()).append(" - $").append(p.getBudgetMax()).append("\n");
+            prompt.append("   Duration: ").append(p.getDurationDays()).append(" days\n");
+            prompt.append("   Required Skills: ").append(p.getRequiredSkills()).append("\n");
+            prompt.append("   Description: ").append(p.getDescription().substring(0, Math.min(200, p.getDescription().length()))).append("...\n\n");
+        }
+
+        prompt.append("\nAnalyze the freelancer's skills and recommend the top 5 best-matching projects. ");
+        prompt.append("For each recommendation, provide:\n");
+        prompt.append("1. projectId\n");
+        prompt.append("2. matchScore (0-100)\n");
+        prompt.append("3. matchReason (brief explanation)\n");
+        prompt.append("4. matchingSkills (array of skills that match)\n");
+        prompt.append("5. skillMatchPercentage\n\n");
+        prompt.append("Return your response as a JSON array with this structure:\n");
+        prompt.append("```json\n");
+        prompt.append("[{\"projectId\": 1, \"matchScore\": 95, \"matchReason\": \"...\", \"matchingSkills\": [...], \"skillMatchPercentage\": 80}]\n");
+        prompt.append("```");
+
+        return prompt.toString();
+    }
+
+    /**
+     * Build a structured prompt for the Gemini AI to rank proposals for a project.
+     *
+     * @param project the project for which proposals are being ranked
+     * @param proposals the proposals to rank
+     * @return formatted prompt string for the AI
+     */
+    private String buildRankingPrompt(Project project, List<Proposal> proposals) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are an AI assistant helping rank freelancer proposals for a project.\n\n");
+        prompt.append("Project Details:\n");
+        prompt.append("Title: ").append(project.getTitle()).append("\n");
+        prompt.append("Description: ").append(project.getDescription()).append("\n");
+        prompt.append("Budget Range: $").append(project.getBudgetMin()).append(" - $").append(project.getBudgetMax()).append("\n");
+        prompt.append("Duration: ").append(project.getDurationDays()).append(" days\n");
+        prompt.append("Required Skills: ").append(project.getRequiredSkills()).append("\n\n");
+
+        prompt.append("Proposals:\n");
+        for (int i = 0; i < proposals.size(); i++) {
+            Proposal prop = proposals.get(i);
+            prompt.append(String.format("%d. Proposal ID: %d\n", i + 1, prop.getId()));
+            prompt.append("   Freelancer ID: ").append(prop.getFreelancerId()).append("\n");
+            prompt.append("   Proposed Budget: $").append(prop.getProposedBudget()).append("\n");
+            prompt.append("   Delivery Days: ").append(prop.getDeliveryDays()).append("\n");
+            prompt.append("   Cover Letter: ").append(prop.getCoverLetter()).append("\n\n");
+        }
+
+        prompt.append("\nRank these proposals from best to worst. For each proposal, provide:\n");
+        prompt.append("1. proposalId\n");
+        prompt.append("2. aiScore (0-100, higher is better)\n");
+        prompt.append("3. rank (1 being best)\n");
+        prompt.append("4. aiAnalysis (brief analysis)\n");
+        prompt.append("5. strengths (array of positive points)\n");
+        prompt.append("6. concerns (array of potential issues)\n\n");
+        prompt.append("Consider: budget alignment, delivery time, cover letter quality, professionalism.\n\n");
+        prompt.append("Return your response as a JSON array:\n");
+        prompt.append("```json\n");
+        prompt.append("[{\"proposalId\": 1, \"aiScore\": 95, \"rank\": 1, \"aiAnalysis\": \"...\", \"strengths\": [...], \"concerns\": [...]}]\n");
+        prompt.append("```");
+
+        return prompt.toString();
+    }
+
+    /**
+     * Build a structured prompt for the Gemini AI to generate a project summary.
+     *
+     * @param project the project to summarize
+     * @return formatted prompt string for the AI
+     */
+    private String buildSummaryPrompt(Project project) {
+        return String.format("""
+            You are an AI assistant summarizing a freelance project.
+            
+            Project Details:
+            Title: %s
+            Description: %s
+            Category: %s
+            Budget: $%s - $%s
+            Duration: %d days
+            Required Skills: %s
+            
+            Provide a comprehensive summary with:
+            1. summary (2-3 sentence overview)
+            2. keyRequirements (main project requirements)
+            3. idealCandidate (description of ideal freelancer)
+            4. estimatedComplexity (Low/Medium/High with reasoning)
+            5. suggestedSkills (array of recommended skills)
+            
+            Return as JSON:
+            ```json
+            {
+              "summary": "...",
+              "keyRequirements": "...",
+              "idealCandidate": "...",
+              "estimatedComplexity": "...",
+              "suggestedSkills": [...]
+            }
+            ```
+            """,
+            project.getTitle(),
+            project.getDescription(),
+            project.getCategory(),
+            project.getBudgetMin(),
+            project.getBudgetMax(),
+            project.getDurationDays(),
+            project.getRequiredSkills()
+        );
+    }
+
+    /**
+     * Parse AI response JSON into a list of project recommendations.
+     *
+     * @param response the JSON response from the AI service
+     * @param projects the available projects for enrichment
+     * @return list of {@link AIRecommendationDTO}
+     */
+    private List<AIRecommendationDTO> parseRecommendations(JsonNode response, List<Project> projects) {
+        List<AIRecommendationDTO> recommendations = new ArrayList<>();
+        
+        try {
+            if (response.isArray()) {
+                Map<Long, Project> projectMap = projects.stream()
+                        .collect(Collectors.toMap(Project::getId, p -> p));
+
+                for (JsonNode node : response) {
+                    Long projectId = node.get("projectId").asLong();
+                    Project project = projectMap.get(projectId);
+                    
+                    if (project != null) {
+                        AIRecommendationDTO dto = new AIRecommendationDTO();
+                        dto.setProjectId(projectId);
+                        dto.setProjectTitle(project.getTitle());
+                        dto.setCategory(project.getCategory());
+                        dto.setBudgetMin(project.getBudgetMin());
+                        dto.setBudgetMax(project.getBudgetMax());
+                        dto.setDurationDays(project.getDurationDays());
+                        dto.setRequiredSkills(parseSkills(project.getRequiredSkills()));
+                        dto.setMatchScore(BigDecimal.valueOf(node.get("matchScore").asDouble()));
+                        dto.setMatchReason(node.get("matchReason").asText());
+                        dto.setMatchingSkills(parseJsonArray(node.get("matchingSkills")));
+                        dto.setSkillMatchPercentage(node.get("skillMatchPercentage").asInt());
+                        
+                        recommendations.add(dto);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error parsing recommendations", e);
+        }
+        
+        return recommendations;
+    }
+
+    /**
+     * Parse AI response JSON into ranked proposals and sort by rank.
+     *
+     * @param response the JSON response from the AI service
+     * @param proposals the proposals being ranked
+     * @return sorted list of {@link RankedProposalDTO}
+     */
+    private List<RankedProposalDTO> parseRankings(JsonNode response, List<Proposal> proposals) {
+        List<RankedProposalDTO> rankings = new ArrayList<>();
+        
+        try {
+            if (response.isArray()) {
+                Map<Long, Proposal> proposalMap = proposals.stream()
+                        .collect(Collectors.toMap(Proposal::getId, p -> p));
+
+                for (JsonNode node : response) {
+                    Long proposalId = node.get("proposalId").asLong();
+                    Proposal proposal = proposalMap.get(proposalId);
+                    
+                    if (proposal != null) {
+                        RankedProposalDTO dto = new RankedProposalDTO();
+                        dto.setId(proposalId);
+                        dto.setFreelancerId(proposal.getFreelancerId());
+                        dto.setCoverLetter(proposal.getCoverLetter());
+                        dto.setProposedBudget(proposal.getProposedBudget());
+                        dto.setDeliveryDays(proposal.getDeliveryDays());
+                        dto.setAiScore(BigDecimal.valueOf(node.get("aiScore").asDouble()));
+                        dto.setRank(node.get("rank").asInt());
+                        dto.setAiAnalysis(node.get("aiAnalysis").asText());
+                        dto.setStrengths(parseJsonArray(node.get("strengths")));
+                        dto.setConcerns(parseJsonArray(node.get("concerns")));
+                        dto.setSubmittedAt(proposal.getSubmittedAt());
+                        
+                        rankings.add(dto);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error parsing rankings", e);
+        }
+        
+        rankings.sort(Comparator.comparing(RankedProposalDTO::getRank));
+        return rankings;
+    }
+
+    /**
+     * Parse AI response JSON into a project summary.
+     *
+     * @param response the JSON response from the AI service
+     * @param projectId the id of the project being summarized
+     * @return {@link ProjectSummaryDTO}
+     */
+    private ProjectSummaryDTO parseSummary(JsonNode response, Long projectId) {
+        ProjectSummaryDTO dto = new ProjectSummaryDTO();
+        dto.setProjectId(projectId);
+        
+        try {
+            dto.setSummary(response.get("summary").asText());
+            dto.setKeyRequirements(response.get("keyRequirements").asText());
+            dto.setIdealCandidate(response.get("idealCandidate").asText());
+            dto.setEstimatedComplexity(response.get("estimatedComplexity").asText());
+            dto.setSuggestedSkills(parseJsonArray(response.get("suggestedSkills")));
+        } catch (Exception e) {
+            log.error("Error parsing summary", e);
+        }
+        
+        return dto;
+    }
+
+    /**
+     * Update proposal entities with AI scores from ranking results.
+     *
+     * @param rankings the ranked proposal results containing AI scores
+     */
+    private void updateProposalScores(List<RankedProposalDTO> rankings) {
+        for (RankedProposalDTO ranking : rankings) {
+            try {
+                Proposal proposal = proposalRepository.findById(ranking.getId()).orElse(null);
+                if (proposal != null) {
+                    proposal.setAiScore(ranking.getAiScore());
+                    proposalRepository.save(proposal);
+                }
+            } catch (Exception e) {
+                log.error("Error updating proposal score for ID: {}", ranking.getId(), e);
+            }
+        }
+    }
+
+    /**
+     * Parse a skill string (JSON or comma-separated) into a list.
+     *
+     * @param skillsJson the skills string to parse
+     * @return list of skill strings
+     */
+    private List<String> parseSkills(String skillsJson) {
+        try {
+            JsonNode node = objectMapper.readTree(skillsJson);
+            List<String> skills = new ArrayList<>();
+            node.forEach(skill -> skills.add(skill.asText()));
+            return skills;
+        } catch (Exception e) {
+            return Arrays.asList(skillsJson.split(","));
+        }
+    }
+
+    /**
+     * Parse a JSON array node into a list of strings.
+     *
+     * @param arrayNode the JSON array to parse
+     * @return list of string values
+     */
+    private List<String> parseJsonArray(JsonNode arrayNode) {
+        List<String> result = new ArrayList<>();
+        if (arrayNode != null && arrayNode.isArray()) {
+            arrayNode.forEach(node -> result.add(node.asText()));
+        }
+        return result;
+    }
+
+    /**
+     * Fallback method returning empty recommendations when AI processing fails.
+     *
+     * @param freelancerId the freelancer id
+     * @param skills the freelancer's skills
+     * @return empty list
+     */
+    private List<AIRecommendationDTO> fallbackRecommendations(Long freelancerId, List<String> skills) {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Fallback method returning empty rankings when AI processing fails.
+     *
+     * @param projectId the project id
+     * @return empty list
+     */
+    private List<RankedProposalDTO> fallbackRanking(Long projectId) {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Fallback method returning a placeholder summary when AI processing fails.
+     *
+     * @param projectId the project id
+     * @return {@link ProjectSummaryDTO} with minimal content
+     */
+    private ProjectSummaryDTO fallbackSummary(Long projectId) {
+        ProjectSummaryDTO dto = new ProjectSummaryDTO();
+        dto.setProjectId(projectId);
+        dto.setSummary("Summary generation failed");
+        return dto;
+    }
+}
+
+
+package com.freelancenexus.userservice.service;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.FreelancerDTO;
+import com.freelancenexus.userservice.dto.FreelancerProfileDTO;
+import com.freelancenexus.userservice.dto.PortfolioDTO;
+import com.freelancenexus.userservice.dto.RatingDTO;
+import com.freelancenexus.userservice.dto.SkillDTO;
+import com.freelancenexus.userservice.exception.FreelancerAlreadyExistsException;
+import com.freelancenexus.userservice.exception.ResourceNotFoundException;
+import com.freelancenexus.userservice.model.Freelancer;
+import com.freelancenexus.userservice.model.Skill;
+import com.freelancenexus.userservice.model.User;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
+import com.freelancenexus.userservice.repository.RatingRepository;
+import com.freelancenexus.userservice.repository.UserRepository;
+
+
+/**
+ * Service class for managing freelancer profiles.
+ * Provides operations to create, update, retrieve, and search freelancers.
+ *
+ * <p>This class interacts with {@link FreelancerRepository} and {@link RatingRepository}
+ * to perform database operations and manage freelancer details including skills and ratings.</p>
+ *
+ * @author YourName
+ * @version 1.0
+ */
+
+@Service
+public class FreelancerService {
+	private final Logger log= LoggerFactory.getLogger(FreelancerService.class);
+    private final FreelancerRepository freelancerRepository;
+    private final RatingRepository ratingRepository;
+
+    public FreelancerService(FreelancerRepository freelancerRepository, RatingRepository ratingRepository) {
+		super();
+		this.freelancerRepository = freelancerRepository;
+		this.ratingRepository = ratingRepository;
+	}
+
+    @Autowired
+    private UserRepository userRepository;
+	/**
+     * Creates a new freelancer profile.
+     *
+     * @param freelancerDTO the freelancer details to create
+     * @return the created freelancer as {@link FreelancerDTO}
+     * @throws FreelancerAlreadyExistsException if a freelancer profile already exists for the given user ID
+     */
+
+    @Transactional
+    public FreelancerDTO createFreelancer(FreelancerDTO freelancerDTO) {
+        log.info("Creating freelancer profile for user ID: {}", freelancerDTO.getUserId());
+        
+        if (freelancerRepository.existsByUserId(freelancerDTO.getUserId())) {
+            throw new FreelancerAlreadyExistsException("Freelancer profile already exists for user ID: " + freelancerDTO.getUserId());
+        }
+        
+        Freelancer freelancer = mapToEntity(freelancerDTO);
+        
+        // Add skills if provided
+        if (freelancerDTO.getSkills() != null) {
+            for (SkillDTO skillDTO : freelancerDTO.getSkills()) {
+                Skill skill = new Skill();
+                skill.setSkillName(skillDTO.getSkillName());
+                skill.setProficiencyLevel(skillDTO.getProficiencyLevel());
+                skill.setYearsExperience(skillDTO.getYearsExperience());
+                freelancer.addSkill(skill);
+            }
+        }
+        
+        Freelancer saved = freelancerRepository.save(freelancer);
+        log.info("Freelancer profile created with ID: {}", saved.getId());
+        
+        return mapToDTO(saved);
+    }
+
+    /**
+     * Retrieves a freelancer by ID along with their skills.
+     *
+     * @param id the freelancer ID
+     * @return the freelancer details as {@link FreelancerDTO}
+     * @throws ResourceNotFoundException if the freelancer does not exist
+     */
+
+    @Transactional(readOnly = true)
+    public FreelancerDTO getFreelancerById(Long id) {
+        log.info("Fetching freelancer by ID: {}", id);
+        Freelancer freelancer = freelancerRepository.findByIdWithSkills(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + id));
+        return mapToDTO(freelancer);
+    }
+
+    /**
+     * Retrieves a complete freelancer profile including details, skills, and ratings.
+     *
+     * @param id the freelancer ID
+     * @return the freelancer profile as {@link FreelancerProfileDTO}
+     * @throws ResourceNotFoundException if the freelancer does not exist
+     */
+
+    @Transactional(readOnly = true)
+    public FreelancerProfileDTO getFreelancerProfile(Long id) {
+        log.info("Fetching complete freelancer profile for ID: {}", id);
+        Freelancer freelancer = freelancerRepository.findByIdWithDetails(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + id));
+        
+        return mapToProfileDTO(freelancer);
+    }
+
+    /**
+     * Retrieves a freelancer by user ID.
+     *
+     * @param userId the user ID
+     * @return the freelancer details as {@link FreelancerDTO}
+     * @throws ResourceNotFoundException if the freelancer does not exist
+     */
+
+    @Transactional(readOnly = true)
+    public FreelancerDTO getFreelancerByUserId(Long userId) {
+        log.info("Fetching freelancer by user ID: {}", userId);
+        Freelancer freelancer = freelancerRepository.findByUserId(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found for user ID: " + userId));
+        return mapToDTO(freelancer);
+    }
+
+    /**
+     * Updates an existing freelancer profile.
+     *
+     * @param id the freelancer ID
+     * @param freelancerDTO the updated freelancer details
+     * @return the updated freelancer as {@link FreelancerDTO}
+     * @throws ResourceNotFoundException if the freelancer does not exist
+     */
+
+    @Transactional
+    public FreelancerDTO updateFreelancer(Long id, FreelancerDTO freelancerDTO) {
+        log.info("Updating freelancer with ID: {}", id);
+        
+        Freelancer freelancer = freelancerRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + id));
+        
+        // Update basic fields
+        if (freelancerDTO.getTitle() != null) {
+            freelancer.setTitle(freelancerDTO.getTitle());
+        }
+        if (freelancerDTO.getBio() != null) {
+            freelancer.setBio(freelancerDTO.getBio());
+        }
+        if (freelancerDTO.getHourlyRate() != null) {
+            freelancer.setHourlyRate(freelancerDTO.getHourlyRate());
+        }
+        if (freelancerDTO.getAvailability() != null) {
+            freelancer.setAvailability(freelancerDTO.getAvailability());
+        }
+        
+        // Update skills if provided
+        if (freelancerDTO.getSkills() != null) {
+            freelancer.getSkills().clear();
+            for (SkillDTO skillDTO : freelancerDTO.getSkills()) {
+                Skill skill = new Skill();
+                skill.setSkillName(skillDTO.getSkillName());
+                skill.setProficiencyLevel(skillDTO.getProficiencyLevel());
+                skill.setYearsExperience(skillDTO.getYearsExperience());
+                freelancer.addSkill(skill);
+            }
+        }
+        
+        Freelancer updated = freelancerRepository.save(freelancer);
+        log.info("Freelancer updated successfully: {}", id);
+        
+        return mapToDTO(updated);
+    }
+
+    /**
+     * Searches freelancers based on filters like hourly rate, rating, and availability.
+     *
+     * @param minRate minimum hourly rate
+     * @param maxRate maximum hourly rate
+     * @param minRating minimum average rating
+     * @param availability availability status
+     * @return a list of matching freelancers as {@link FreelancerDTO}
+     */
+
+    @Transactional(readOnly = true)
+    public List<FreelancerDTO> searchFreelancers(BigDecimal minRate, BigDecimal maxRate, 
+                                                   BigDecimal minRating, String availability) {
+        log.info("Searching freelancers with filters - minRate: {}, maxRate: {}, minRating: {}, availability: {}", 
+                 minRate, maxRate, minRating, availability);
+        
+        List<Freelancer> freelancers = freelancerRepository.searchFreelancers(minRate, maxRate, minRating, availability);
+        
+        return freelancers.stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves freelancers who have specific skills.
+     *
+     * @param skills list of skill names
+     * @return a list of freelancers as {@link FreelancerDTO}
+     */
+
+    @Transactional(readOnly = true)
+    public List<FreelancerDTO> getFreelancersBySkills(List<String> skills) {
+        log.info("Finding freelancers with skills: {}", skills);
+        
+        List<String> lowerCaseSkills = skills.stream()
+            .map(String::toLowerCase)
+            .collect(Collectors.toList());
+        
+        List<Freelancer> freelancers = freelancerRepository.findBySkills(lowerCaseSkills);
+        
+        return freelancers.stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves all freelancers.
+     *
+     * @return a list of all freelancers as {@link FreelancerDTO}
+     */
+
+    @Transactional(readOnly = true)
+    public List<FreelancerDTO> getAllFreelancers() {
+        log.info("Fetching all freelancers");
+        return freelancerRepository.findAll().stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Updates freelancer statistics such as average rating.
+     *
+     * @param freelancerId the ID of the freelancer whose stats need to be updated
+     * @throws ResourceNotFoundException if the freelancer does not exist
+     */
+
+    @Transactional
+    public void updateFreelancerStats(Long freelancerId) {
+        log.info("Updating stats for freelancer: {}", freelancerId);
+        
+        Freelancer freelancer = freelancerRepository.findById(freelancerId)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
+        
+        // Recalculate average rating
+        BigDecimal avgRating = ratingRepository.calculateAverageRating(freelancerId);
+        freelancer.setAverageRating(avgRating != null ? avgRating : BigDecimal.ZERO);
+        
+        freelancerRepository.save(freelancer);
+        log.info("Stats updated for freelancer: {}", freelancerId);
+    }
+
+    /**
+     * Converts a {@link Freelancer} entity to a {@link FreelancerDTO}.
+     *
+     * @param freelancer the freelancer entity
+     * @return the corresponding {@link FreelancerDTO}
+     */
+
+    private FreelancerDTO mapToDTO(Freelancer freelancer) {
+    	
+    	
+
+    	
+        FreelancerDTO dto = new FreelancerDTO();
+        dto.setId(freelancer.getId());
+        dto.setUserId(freelancer.getId());
+        dto.setTitle(freelancer.getTitle());
+        dto.setBio(freelancer.getBio());
+        dto.setHourlyRate(freelancer.getHourlyRate());
+        dto.setAvailability(freelancer.getAvailability());
+        dto.setTotalEarnings(freelancer.getTotalEarnings());
+        dto.setCompletedProjects(freelancer.getCompletedProjects());
+        dto.setAverageRating(freelancer.getAverageRating());
+        dto.setCreatedAt(freelancer.getCreatedAt());
+        dto.setUpdatedAt(freelancer.getUpdatedAt());
+        
+        if (freelancer.getSkills() != null) {
+            List<SkillDTO> skillDTOs = freelancer.getSkills().stream()
+                .map(this::mapSkillToDTO)
+                .collect(Collectors.toList());
+            dto.setSkills(skillDTOs);
+        }
+        
+        return dto;
+    }
+
+    /**
+     * Converts a {@link Freelancer} entity to a detailed {@link FreelancerProfileDTO},
+     * including skills, portfolios, and recent ratings.
+     *
+     * @param freelancer the freelancer entity
+     * @return the corresponding {@link FreelancerProfileDTO}
+     */
+
+    private FreelancerProfileDTO mapToProfileDTO(Freelancer freelancer) {
+        FreelancerProfileDTO dto = new FreelancerProfileDTO();
+        dto.setId(freelancer.getId());
+        dto.setUserId(freelancer.getId());
+        dto.setTitle(freelancer.getTitle());
+        dto.setBio(freelancer.getBio());
+        dto.setHourlyRate(freelancer.getHourlyRate());
+        dto.setAvailability(freelancer.getAvailability());
+        dto.setTotalEarnings(freelancer.getTotalEarnings());
+        dto.setCompletedProjects(freelancer.getCompletedProjects());
+        dto.setAverageRating(freelancer.getAverageRating());
+        dto.setCreatedAt(freelancer.getCreatedAt());
+        dto.setUpdatedAt(freelancer.getUpdatedAt());
+        
+        if (freelancer.getSkills() != null) {
+            dto.setSkills(freelancer.getSkills().stream()
+                .map(this::mapSkillToDTO)
+                .collect(Collectors.toList()));
+        }
+        
+        if (freelancer.getPortfolios() != null) {
+            dto.setPortfolios(freelancer.getPortfolios().stream()
+                .map(portfolio -> {
+                    PortfolioDTO pDto = new PortfolioDTO();
+                    pDto.setId(portfolio.getId());
+                    pDto.setTitle(portfolio.getTitle());
+                    pDto.setDescription(portfolio.getDescription());
+                    pDto.setProjectUrl(portfolio.getProjectUrl());
+                    pDto.setImageUrl(portfolio.getImageUrl());
+                    pDto.setTechnologiesUsed(portfolio.getTechnologiesUsed());
+                    pDto.setCompletionDate(portfolio.getCompletionDate());
+                    pDto.setCreatedAt(portfolio.getCreatedAt());
+                    return pDto;
+                })
+                .collect(Collectors.toList()));
+        }
+        
+        if (freelancer.getRatings() != null) {
+            dto.setRecentRatings(freelancer.getRatings().stream()
+                .sorted((r1, r2) -> r2.getCreatedAt().compareTo(r1.getCreatedAt()))
+                .limit(5)
+                .map(rating -> {
+                    RatingDTO rDto = new RatingDTO();
+                    rDto.setId(rating.getId());
+                    rDto.setClientId(rating.getClientId());
+                    rDto.setProjectId(rating.getProjectId());
+                    rDto.setRating(rating.getRating());
+                    rDto.setReview(rating.getReview());
+                    rDto.setCreatedAt(rating.getCreatedAt());
+                    return rDto;
+                })
+                .collect(Collectors.toList()));
+        }
+        
+        return dto;
+    }
+
+    /**
+     * Converts a {@link Skill} entity to a {@link SkillDTO}.
+     *
+     * @param skill the skill entity
+     * @return the corresponding {@link SkillDTO}
+     */
+
+    private SkillDTO mapSkillToDTO(Skill skill) {
+        SkillDTO dto = new SkillDTO();
+        dto.setId(skill.getId());
+        dto.setSkillName(skill.getSkillName());
+        dto.setProficiencyLevel(skill.getProficiencyLevel());
+        dto.setYearsExperience(skill.getYearsExperience());
+        return dto;
+    }
+
+    /**
+     * Converts a {@link FreelancerDTO} to a {@link Freelancer} entity.
+     *
+     * @param dto the freelancer DTO
+     * @return the corresponding {@link Freelancer} entity
+     */
+
+    private Freelancer mapToEntity(FreelancerDTO dto) {
+    	
+    	User user=userRepository.findById(dto.getUserId()).orElseThrow();
+    	
+        Freelancer freelancer = new Freelancer();
+        freelancer.setId(user.getId());
+        freelancer.setTitle(dto.getTitle());
+        freelancer.setBio(dto.getBio());
+        freelancer.setHourlyRate(dto.getHourlyRate());
+        freelancer.setAvailability(dto.getAvailability() != null ? dto.getAvailability() : "AVAILABLE");
+        return freelancer;
+    }
+}
+
+package com.freelancenexus.userservice.service;
+
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.freelancenexus.userservice.config.GeminiConfig;
+
+import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
+
+/**
+ * GeminiIntegrationService
+ *
+ * <p>Integration layer responsible for communicating with the Google Gemini API.
+ * Handles building request payloads, invoking the remote model via a configured
+ * {@link WebClient}, extracting text responses, and parsing JSON content embedded
+ * in markdown code blocks. Implements simple retry and timeout behavior and returns
+ * structured results for higher-level AI services.</p>
+ *
+ * <p>All network errors are logged and returned as error payloads to allow callers
+ * to implement graceful fallbacks.</p>
+ *
+ * @since 1.0
+ */
+@Service
+public class GeminiIntegrationService {
+
+    /**
+     * WebClient configured for calling the Gemini API.
+     */
+    private final WebClient geminiWebClient;
+
+    /**
+     * Configuration properties (API key, model, timeouts, retries) for Gemini.
+     */
+    private final GeminiConfig geminiConfig;
+
+    /**
+     * Jackson ObjectMapper used to parse JSON responses and extract structured content.
+     */
+    private final ObjectMapper objectMapper;
+
+    private final Logger log= LoggerFactory.getLogger(GeminiIntegrationService.class);
+    
+    public GeminiIntegrationService(WebClient geminiWebClient, GeminiConfig geminiConfig, ObjectMapper objectMapper) {
+		super();
+		this.geminiWebClient = geminiWebClient;
+		this.geminiConfig = geminiConfig;
+		this.objectMapper = objectMapper;
+	}
+
+	/**
+     * Call the Gemini API with a plain text prompt and return the raw response text.
+     *
+     * <p>This method constructs the request body, posts to the Gemini endpoint, applies
+     * timeout and retry policies, and extracts the generated text from the JSON response.
+     * Network or parsing errors are logged and returned as an error string.</p>
+     *
+     * @param prompt the prompt text to send to Gemini
+     * @return the extracted response text or an error description
+     */
+    public String callGemini(String prompt) {
+        try {
+            log.info("Calling Gemini API with prompt length: {}", prompt.length());
+
+            Map<String, Object> requestBody = buildGeminiRequest(prompt);
+            String url = String.format("/%s:generateContent?key=%s", 
+                    geminiConfig.getModel(), geminiConfig.getApiKey());
+
+            String response = geminiWebClient.post()
+                    .uri(url)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofMillis(geminiConfig.getTimeout()))
+                    .retryWhen(Retry.backoff(geminiConfig.getMaxRetries(), Duration.ofSeconds(2))
+                            .filter(throwable -> throwable instanceof Exception))
+                    .onErrorResume(error -> {
+                        log.error("Gemini API call failed: {}", error.getMessage());
+                        return Mono.just("{\"error\": \"" + error.getMessage() + "\"}");
+                    })
+                    .block();
+
+            return extractTextFromResponse(response);
+
+        } catch (Exception e) {
+            log.error("Error calling Gemini API", e);
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Call the Gemini API with a prompt and return a parsed JSON tree.
+     *
+     * <p>If the model returns JSON wrapped in markdown code fences (```json ... ```),
+     * this method extracts the JSON block before parsing. On parsing failure an empty
+     * JSON object node is returned.</p>
+     *
+     * @param prompt the prompt text to send to Gemini
+     * @return {@link JsonNode} parsed from the Gemini response (may be empty on error)
+     */
+    public JsonNode callGeminiForJson(String prompt) {
+        try {
+            String response = callGemini(prompt);
+            // Extract JSON from markdown code blocks if present
+            String jsonStr = response;
+            if (response.contains("```json")) {
+                jsonStr = response.substring(response.indexOf("```json") + 7);
+                jsonStr = jsonStr.substring(0, jsonStr.indexOf("```"));
+            } else if (response.contains("```")) {
+                jsonStr = response.substring(response.indexOf("```") + 3);
+                jsonStr = jsonStr.substring(0, jsonStr.indexOf("```"));
+            }
+            return objectMapper.readTree(jsonStr.trim());
+        } catch (Exception e) {
+            log.error("Error parsing JSON from Gemini response", e);
+            return objectMapper.createObjectNode();
+        }
+    }
+
+    /**
+     * Build the request body map required by the Gemini generateContent API.
+     *
+     * <p>Includes the prompt content and a generationConfig map (temperature, topK, topP,
+     * maxOutputTokens). Callers may adjust configuration via {@link GeminiConfig} if needed.</p>
+     *
+     * @param prompt the prompt text to include in the request
+     * @return a map representing the JSON request body to send to Gemini
+     */
+    private Map<String, Object> buildGeminiRequest(String prompt) {
+        Map<String, Object> request = new HashMap<>();
+        
+        Map<String, Object> content = new HashMap<>();
+        Map<String, String> part = new HashMap<>();
+        part.put("text", prompt);
+        content.put("parts", new Object[]{part});
+        
+        request.put("contents", new Object[]{content});
+        
+        // Configuration for better responses
+        Map<String, Object> generationConfig = new HashMap<>();
+        generationConfig.put("temperature", 0.7);
+        generationConfig.put("topK", 40);
+        generationConfig.put("topP", 0.95);
+        generationConfig.put("maxOutputTokens", 2048);
+        request.put("generationConfig", generationConfig);
+        
+        return request;
+    }
+
+    /**
+     * Extract the textual content from the Gemini API JSON response.
+     *
+     * <p>Parses the API response, checks for an error field, and navigates the
+     * "candidates -> content -> parts" structure to return the generated text.
+     * Returns a descriptive message if no content is present or parsing fails.</p>
+     *
+     * @param jsonResponse the raw JSON string returned by the Gemini API
+     * @return extracted generated text or an error message
+     */
+    private String extractTextFromResponse(String jsonResponse) {
+        try {
+            JsonNode root = objectMapper.readTree(jsonResponse);
+            
+            if (root.has("error")) {
+                log.error("Gemini API error: {}", root.get("error"));
+                return "Error from API: " + root.get("error").asText();
+            }
+            
+            JsonNode candidates = root.path("candidates");
+            if (candidates.isArray() && candidates.size() > 0) {
+                JsonNode content = candidates.get(0).path("content");
+                JsonNode parts = content.path("parts");
+                if (parts.isArray() && parts.size() > 0) {
+                    return parts.get(0).path("text").asText();
+                }
+            }
+            
+            return "No response from Gemini API";
+        } catch (Exception e) {
+            log.error("Error extracting text from Gemini response", e);
+            return "Error parsing response: " + e.getMessage();
+        }
+    }
+}
+
+
+package com.freelancenexus.userservice.service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.PaymentHistoryDTO;
+import com.freelancenexus.userservice.dto.PaymentRequestDTO;
+import com.freelancenexus.userservice.dto.PaymentResponseDTO;
+import com.freelancenexus.userservice.dto.TransactionStatusDTO;
+import com.freelancenexus.userservice.dto.UPIPaymentDTO;
+import com.freelancenexus.userservice.event.PaymentCompletedEvent;
+import com.freelancenexus.userservice.model.Payment;
+import com.freelancenexus.userservice.model.PaymentStatus;
+import com.freelancenexus.userservice.model.TransactionHistory;
+import com.freelancenexus.userservice.repository.PaymentRepository;
+import com.freelancenexus.userservice.repository.TransactionHistoryRepository;
+@Service
+public class PaymentService {
+    
+    private final PaymentRepository paymentRepository;
+    private final TransactionHistoryRepository transactionHistoryRepository;
+    private final UPIPaymentService upiPaymentService;
+    private final RabbitTemplate rabbitTemplate;
+    
+	private final Logger log= LoggerFactory.getLogger(PaymentService.class);
+
+    public PaymentService(PaymentRepository paymentRepository,
+			TransactionHistoryRepository transactionHistoryRepository, UPIPaymentService upiPaymentService,
+			RabbitTemplate rabbitTemplate) {
+		super();
+		this.paymentRepository = paymentRepository;
+		this.transactionHistoryRepository = transactionHistoryRepository;
+		this.upiPaymentService = upiPaymentService;
+		this.rabbitTemplate = rabbitTemplate;
+	}
+
+	/**
+     * Initiate a new payment
+     */
+    @Transactional
+    public PaymentResponseDTO initiatePayment(PaymentRequestDTO request) {
+        log.info("Initiating payment for project: {}", request.getProjectId());
+        
+        // Validate UPI ID
+        if (!upiPaymentService.isValidUPIId(request.getUpiId())) {
+            throw new IllegalArgumentException("Invalid UPI ID format");
+        }
+        
+        // Generate unique transaction ID
+        String transactionId = generateTransactionId();
+        
+        // Create payment entity
+        Payment payment = new Payment(transactionId, request.getProjectId(), request.getPayerId(), request.getPayeeId(), request.getAmount(),
+        		request.getCurrency(), request.getPaymentMethod(), request.getUpiId(),PaymentStatus.PENDING, 
+        		request.getDescription());
+        
+        payment = paymentRepository.save(payment);
+        
+        // Record transaction history
+        recordTransactionHistory(payment.getId(), 
+                PaymentStatus.PENDING.name(), 
+                "Payment initiated");
+        
+        // Generate UPI payment link
+        UPIPaymentDTO upiPayment = upiPaymentService.generateUPIPaymentLink(
+                transactionId, 
+                request.getAmount(), 
+                request.getUpiId(),
+                request.getCurrency()
+        );
+        
+        log.info("Payment initiated successfully with transaction ID: {}", transactionId);
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Verify and complete payment
+     */
+    @Transactional
+    public TransactionStatusDTO verifyPayment(String transactionId) {
+        log.info("Verifying payment: {}", transactionId);
+        
+        Payment payment = paymentRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
+        
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            log.warn("Payment {} is not in PENDING status: {}", transactionId, payment.getStatus());
+            
+            return new TransactionStatusDTO(transactionId, payment.getStatus(), payment.getAmount(), payment.getCurrency(),
+            		LocalDateTime.now(),"Payment is already " + payment.getStatus());
+        }
+        
+        // Verify with UPI service
+        UPIPaymentService.TransactionVerificationResult verificationResult = 
+                upiPaymentService.verifyUPIPayment(transactionId);
+        
+        if (verificationResult.isSuccess()) {
+            // Update payment status to COMPLETED
+            payment.setStatus(PaymentStatus.COMPLETED);
+            payment.setPaymentDate(LocalDateTime.now());
+            paymentRepository.save(payment);
+            
+            // Record transaction history
+            recordTransactionHistory(payment.getId(), 
+                    PaymentStatus.COMPLETED.name(), 
+                    "Payment completed successfully");
+            
+            // Publish payment completed event
+            publishPaymentCompletedEvent(payment);
+            
+            log.info("Payment completed successfully: {}", transactionId);
+            
+            return new TransactionStatusDTO(transactionId, PaymentStatus.COMPLETED,payment.getAmount(), payment.getCurrency(),
+            		payment.getPaymentDate(), "Payment completed successfully");
+            		
+        } else {
+            // Update payment status to FAILED
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+            
+            // Record transaction history
+            recordTransactionHistory(payment.getId(), 
+                    PaymentStatus.FAILED.name(), 
+                    verificationResult.getMessage());
+            
+            log.warn("Payment verification failed: {}", transactionId);
+            
+            return  new TransactionStatusDTO(transactionId, PaymentStatus.FAILED, payment.getAmount(), payment.getCurrency(),
+            		LocalDateTime.now(), verificationResult.getMessage());
+        }
+    }
+    
+    /**
+     * Get payment by ID
+     */
+    public PaymentResponseDTO getPaymentById(Long id) {
+        log.info("Fetching payment by ID: {}", id);
+        
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + id));
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get payment by transaction ID
+     */
+    public PaymentResponseDTO getPaymentByTransactionId(String transactionId) {
+        log.info("Fetching payment by transaction ID: {}", transactionId);
+        
+        Payment payment = paymentRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get all payments for a project
+     */
+    public List<PaymentResponseDTO> getPaymentsByProject(Long projectId) {
+        log.info("Fetching payments for project: {}", projectId);
+        
+        return paymentRepository.findByProjectId(projectId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get payment history for a user (both as payer and payee)
+     */
+    public List<PaymentResponseDTO> getUserPaymentHistory(Long userId) {
+        log.info("Fetching payment history for user: {}", userId);
+        
+        return paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Refund a payment
+     */
+    @Transactional
+    public PaymentResponseDTO refundPayment(Long paymentId, String reason) {
+        log.info("Initiating refund for payment: {}", paymentId);
+        
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+        
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            throw new IllegalStateException("Can only refund completed payments");
+        }
+        
+        // Initiate UPI refund
+        UPIPaymentService.RefundResult refundResult = upiPaymentService.initiateRefund(payment.getTransactionId(), payment.getAmount());
+        
+        if (!refundResult.isSuccess()) {
+            throw new RuntimeException("Refund failed: " + refundResult.getMessage());
+        }
+        
+        // Update payment status to REFUNDED
+        payment.setStatus(PaymentStatus.REFUNDED);
+        payment = paymentRepository.save(payment);
+        
+        // Record transaction history
+        recordTransactionHistory(payment.getId(), 
+                PaymentStatus.REFUNDED.name(), 
+                "Payment refunded. Reason: " + reason + ". Refund ID: " + refundResult.getRefundTransactionId());
+        
+        log.info("Payment refunded successfully: {}", paymentId);
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get transaction history for a payment
+     */
+    public List<PaymentHistoryDTO> getTransactionHistory(Long paymentId) {
+        log.info("Fetching transaction history for payment: {}", paymentId);
+        
+        return transactionHistoryRepository.findByPaymentIdOrderByChangedAtDesc(paymentId).stream()
+                .map(this::mapToHistoryDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get all transaction history for a user
+     */
+    public List<PaymentHistoryDTO> getUserTransactionHistory(Long userId) {
+        log.info("Fetching transaction history for user: {}", userId);
+        
+        // Get all payment IDs for user
+        List<Long> paymentIds = paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
+                .map(Payment::getId)
+                .collect(Collectors.toList());
+        
+        if (paymentIds.isEmpty()) {
+            return List.of();
+        }
+        
+        return transactionHistoryRepository.findByPaymentIdInOrderByChangedAtDesc(paymentIds).stream()
+                .map(this::mapToHistoryDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Record transaction history
+     */
+    private void recordTransactionHistory(Long paymentId, String statusChange, String notes) {
+        TransactionHistory history = new TransactionHistory(paymentId,statusChange,notes);
+                
+        
+        transactionHistoryRepository.save(history);
+        log.debug("Transaction history recorded for payment: {}", paymentId);
+    }
+    
+    /**
+     * Publish payment completed event to RabbitMQ
+     */
+    private void publishPaymentCompletedEvent(Payment payment) {
+        try {
+            PaymentCompletedEvent event = new PaymentCompletedEvent(payment.getId(), payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
+            		payment.getAmount(), payment.getCurrency(), payment.getPaymentDate());
+            
+            rabbitTemplate.convertAndSend("payment.completed", event);
+            
+            log.info("Payment completed event published for transaction: {}", payment.getTransactionId());
+        } catch (Exception e) {
+            log.error("Failed to publish payment completed event: {}", e.getMessage(), e);
+            // Don't throw exception - payment is already completed
+        }
+    }
+    
+    /**
+     * Generate unique transaction ID
+     */
+    private String generateTransactionId() {
+        return "TXN-" + UUID.randomUUID().toString().toUpperCase();
+    }
+    
+    /**
+     * Map Payment entity to PaymentResponseDTO
+     */
+    private PaymentResponseDTO mapToResponseDTO(Payment payment) {
+        return new PaymentResponseDTO(payment.getId(),payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
+        		payment.getAmount(), payment.getCurrency(), payment.getPaymentMethod(), payment.getUpiId(), payment.getStatus(),
+        		payment.getPaymentDate(), payment.getDescription(), payment.getCreatedAt(), payment.getUpdatedAt());
+    }
+    
+    /**
+     * Map TransactionHistory entity to PaymentHistoryDTO
+     */
+    private PaymentHistoryDTO mapToHistoryDTO(TransactionHistory history) {
+        return new PaymentHistoryDTO(history.getId(), history.getPaymentId(),history.getStatusChange(), history.getNotes(), history.getChangedAt());
+    }
+}
+
+
+package com.freelancenexus.userservice.service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.PortfolioDTO;
+import com.freelancenexus.userservice.exception.ResourceNotFoundException;
+import com.freelancenexus.userservice.model.Freelancer;
+import com.freelancenexus.userservice.model.Portfolio;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
+import com.freelancenexus.userservice.repository.PortfolioRepository;
+
+
+
+/**
+ * Service class for managing freelancer portfolios.
+ * Provides operations to add, retrieve, update, and delete portfolios.
+ *
+ * <p>This class uses {@link PortfolioRepository} and {@link FreelancerRepository}
+ * to interact with the database and perform CRUD operations on {@link Portfolio} entities.</p>
+ *
+ * @author YourName
+ * @version 1.0
+ */
+
+@Service
+public class PortfolioService {
+	private final Logger log= LoggerFactory.getLogger(PortfolioService.class);
+    private final PortfolioRepository portfolioRepository;
+    private final FreelancerRepository freelancerRepository;
+    
+    public PortfolioService(PortfolioRepository portfolioRepository, FreelancerRepository freelancerRepository) {
+		super();
+		this.portfolioRepository = portfolioRepository;
+		this.freelancerRepository = freelancerRepository;
+	}
+
+	/**
+     * Adds a new portfolio for a given freelancer.
+     *
+     * @param freelancerId the ID of the freelancer to associate the portfolio with
+     * @param portfolioDTO the portfolio details to be added
+     * @return the saved portfolio as a {@link PortfolioDTO}
+     * @throws ResourceNotFoundException if the freelancer does not exist
+     */
+
+    @Transactional
+    public PortfolioDTO addPortfolio(Long freelancerId, PortfolioDTO portfolioDTO) {
+        log.info("Adding portfolio for freelancer ID: {}", freelancerId);
+        
+        Freelancer freelancer = freelancerRepository.findById(freelancerId)
+            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
+        
+        Portfolio portfolio = mapToEntity(portfolioDTO);
+        freelancer.addPortfolio(portfolio);
+        
+        Portfolio saved = portfolioRepository.save(portfolio);
+        log.info("Portfolio added with ID: {}", saved.getId());
+        
+        return mapToDTO(saved);
+    }
+
+    /**
+     * Retrieves all portfolios associated with a given freelancer.
+     *
+     * @param freelancerId the ID of the freelancer
+     * @return a list of {@link PortfolioDTO} objects
+     * @throws ResourceNotFoundException if the freelancer does not exist
+     */
+
+    @Transactional(readOnly = true)
+    public List<PortfolioDTO> getFreelancerPortfolios(Long freelancerId) {
+        log.info("Fetching portfolios for freelancer ID: {}", freelancerId);
+        
+        if (!freelancerRepository.existsById(freelancerId)) {
+            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
+        }
+        
+        List<Portfolio> portfolios = portfolioRepository.findByFreelancerId(freelancerId);
+        
+        return portfolios.stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves a portfolio by its ID.
+     *
+     * @param portfolioId the ID of the portfolio
+     * @return the portfolio as a {@link PortfolioDTO}
+     * @throws ResourceNotFoundException if the portfolio does not exist
+     */
+
+    @Transactional(readOnly = true)
+    public PortfolioDTO getPortfolioById(Long portfolioId) {
+        log.info("Fetching portfolio by ID: {}", portfolioId);
+        
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+            .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId));
+        
+        return mapToDTO(portfolio);
+    }
+
+    /**
+     * Updates an existing portfolio with new details.
+     *
+     * @param portfolioId the ID of the portfolio to update
+     * @param portfolioDTO the updated portfolio details
+     * @return the updated portfolio as a {@link PortfolioDTO}
+     * @throws ResourceNotFoundException if the portfolio does not exist
+     */
+
+    @Transactional
+    public PortfolioDTO updatePortfolio(Long portfolioId, PortfolioDTO portfolioDTO) {
+        log.info("Updating portfolio with ID: {}", portfolioId);
+        
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+            .orElseThrow(() -> new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId));
+        
+        if (portfolioDTO.getTitle() != null) {
+            portfolio.setTitle(portfolioDTO.getTitle());
+        }
+        if (portfolioDTO.getDescription() != null) {
+            portfolio.setDescription(portfolioDTO.getDescription());
+        }
+        if (portfolioDTO.getProjectUrl() != null) {
+            portfolio.setProjectUrl(portfolioDTO.getProjectUrl());
+        }
+        if (portfolioDTO.getImageUrl() != null) {
+            portfolio.setImageUrl(portfolioDTO.getImageUrl());
+        }
+        if (portfolioDTO.getTechnologiesUsed() != null) {
+            portfolio.setTechnologiesUsed(portfolioDTO.getTechnologiesUsed());
+        }
+        if (portfolioDTO.getCompletionDate() != null) {
+            portfolio.setCompletionDate(portfolioDTO.getCompletionDate());
+        }
+        
+        Portfolio updated = portfolioRepository.save(portfolio);
+        log.info("Portfolio updated successfully: {}", portfolioId);
+        
+        return mapToDTO(updated);
+    }
+
+    /**
+     * Deletes a portfolio by its ID.
+     *
+     * @param portfolioId the ID of the portfolio to delete
+     * @throws ResourceNotFoundException if the portfolio does not exist
+     */
+
+    @Transactional
+    public void deletePortfolio(Long portfolioId) {
+        log.info("Deleting portfolio with ID: {}", portfolioId);
+        
+        if (!portfolioRepository.existsById(portfolioId)) {
+            throw new ResourceNotFoundException("Portfolio not found with ID: " + portfolioId);
+        }
+        
+        portfolioRepository.deleteById(portfolioId);
+        log.info("Portfolio deleted successfully: {}", portfolioId);
+    }
+
+    /**
+     * Converts a {@link Portfolio} entity to a {@link PortfolioDTO}.
+     *
+     * @param portfolio the portfolio entity
+     * @return the corresponding {@link PortfolioDTO}
+     */
+
+    private PortfolioDTO mapToDTO(Portfolio portfolio) {
+        PortfolioDTO dto = new PortfolioDTO();
+        dto.setId(portfolio.getId());
+        dto.setTitle(portfolio.getTitle());
+        dto.setDescription(portfolio.getDescription());
+        dto.setProjectUrl(portfolio.getProjectUrl());
+        dto.setImageUrl(portfolio.getImageUrl());
+        dto.setTechnologiesUsed(portfolio.getTechnologiesUsed());
+        dto.setCompletionDate(portfolio.getCompletionDate());
+        dto.setCreatedAt(portfolio.getCreatedAt());
+        return dto;
+    }
+
+    /**
+     * Converts a {@link PortfolioDTO} to a {@link Portfolio} entity.
+     *
+     * @param dto the portfolio DTO
+     * @return the corresponding {@link Portfolio} entity
+     */
+
+    private Portfolio mapToEntity(PortfolioDTO dto) {
+        Portfolio portfolio = new Portfolio();
+        portfolio.setTitle(dto.getTitle());
+        portfolio.setDescription(dto.getDescription());
+        portfolio.setProjectUrl(dto.getProjectUrl());
+        portfolio.setImageUrl(dto.getImageUrl());
+        portfolio.setTechnologiesUsed(dto.getTechnologiesUsed());
+        portfolio.setCompletionDate(dto.getCompletionDate());
+        return portfolio;
+    }
+}
+
+
+package com.freelancenexus.userservice.service;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.freelancenexus.userservice.dto.ProjectCreateDTO;
+import com.freelancenexus.userservice.dto.ProjectDTO;
+import com.freelancenexus.userservice.model.Project;
+import com.freelancenexus.userservice.model.ProjectStatus;
+import com.freelancenexus.userservice.model.User;
+import com.freelancenexus.userservice.repository.ProjectRepository;
+import com.freelancenexus.userservice.repository.ProposalRepository;
+import com.freelancenexus.userservice.repository.UserRepository;
+
+/**
+ * ProjectService
+ *
+ * <p>Core service layer for project management. Handles creation, retrieval, update,
+ * assignment and soft-deletion (cancellation) of projects. Coordinates persistence
+ * via {@link ProjectRepository}, proposal counting via {@link ProposalRepository},
+ * and event publication to RabbitMQ. Methods that modify state are annotated with
+ * {@link Transactional} to ensure data consistency.</p>
+ *
+ * <p>Typical responsibilities:
+ * <ul>
+ *   <li>Persist new projects</li>
+ *   <li>Update existing projects</li>
+ *   <li>Soft-delete (cancel) projects</li>
+ *   <li>Assign freelancers to projects</li>
+ *   <li>Convert between entity and DTO representations</li>
+ *   <li>Publish domain events for downstream consumers</li>
+ * </ul>
+ * </p>
+ *
+ * @since 1.0
+ */
+@Service
+public class ProjectService {
+	private final Logger log= LoggerFactory.getLogger(ProjectService.class);
+    /**
+     * Repository for project CRUD operations.
+     */
+	@Autowired
+    private ProjectRepository projectRepository;
+
+    /**
+     * Repository for proposal access used to compute proposal counts and queries.
+     */
+	@Autowired
+    private ProposalRepository proposalRepository;
+
+    /**
+     * RabbitTemplate used to publish project-related events to RabbitMQ.
+     */
+	@Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    /**
+     * Jackson ObjectMapper used to serialize/deserialize skill lists.
+     */
+	@Autowired
+    private ObjectMapper objectMapper;
+
+	@Autowired
+	private UserRepository userRepository;
+    /**
+     * Exchange name for publishing project events (injected from configuration).
+     */
+    @Value("${rabbitmq.exchange.project}")
+    private String projectExchange;
+
+    /**
+     * Routing key used for project.created events (injected from configuration).
+     */
+    @Value("${rabbitmq.routing.project.created}")
+    private String projectCreatedRoutingKey;
+
+   
+
+	/**
+     * Create a new project.
+     *
+     * <p>Persists the project entity, publishes a project.created event, and returns
+     * a {@link ProjectDTO} representing the persisted project.</p>
+     *
+     * @param createDTO validated DTO containing project creation details
+     * @return the created project's {@link ProjectDTO}
+     */
+    @Transactional
+    public ProjectDTO createProject(ProjectCreateDTO createDTO) {
+        log.info("Creating new project: {}", createDTO.getTitle());
+
+        Project project = new Project();
+        project.setClientId(createDTO.getClientId());
+        project.setTitle(createDTO.getTitle());
+        project.setDescription(createDTO.getDescription());
+        project.setBudgetMin(createDTO.getBudgetMin());
+        project.setBudgetMax(createDTO.getBudgetMax());
+        project.setDurationDays(createDTO.getDurationDays());
+        project.setRequiredSkills(convertSkillsToJson(createDTO.getRequiredSkills()));
+        project.setCategory(createDTO.getCategory());
+        project.setStatus(ProjectStatus.OPEN);
+        project.setDeadline(createDTO.getDeadline());
+
+        Project savedProject = projectRepository.save(project);
+        log.info("Project created with ID: {}", savedProject.getId());
+
+        // Publish event to RabbitMQ
+        publishProjectCreatedEvent(savedProject);
+
+        return convertToDTO(savedProject);
+    }
+
+    /**
+     * Retrieve a project by its id.
+     *
+     * @param id unique identifier of the project
+     * @return the project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    public ProjectDTO getProjectById(Long id) {
+        log.info("Fetching project by ID: {}", id);
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+        return convertToDTO(project);
+    }
+
+    /**
+     * Update an existing project.
+     *
+     * <p>Only fields present in {@link ProjectCreateDTO} are updated. The method
+     * validates existence and persists changes within a transaction.</p>
+     *
+     * @param id unique identifier of the project to update
+     * @param updateDTO DTO containing updated project fields
+     * @return the updated project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public ProjectDTO updateProject(Long id, ProjectCreateDTO updateDTO) {
+        log.info("Updating project ID: {}", id);
+
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+
+        project.setTitle(updateDTO.getTitle());
+        project.setDescription(updateDTO.getDescription());
+        project.setBudgetMin(updateDTO.getBudgetMin());
+        project.setBudgetMax(updateDTO.getBudgetMax());
+        project.setDurationDays(updateDTO.getDurationDays());
+        project.setRequiredSkills(convertSkillsToJson(updateDTO.getRequiredSkills()));
+        project.setCategory(updateDTO.getCategory());
+        project.setDeadline(updateDTO.getDeadline());
+
+        Project updatedProject = projectRepository.save(project);
+        return convertToDTO(updatedProject);
+    }
+
+    /**
+     * Soft-delete (cancel) a project.
+     *
+     * <p>Marks the project's status as {@link ProjectStatus#CANCELLED} rather than
+     * removing it from the database, allowing historical data and associated proposals
+     * to remain for audit and reporting.</p>
+     *
+     * @param id unique identifier of the project to cancel
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public void deleteProject(Long id) {
+        log.info("Deleting project ID: {}", id);
+        
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + id));
+        
+        project.setStatus(ProjectStatus.CANCELLED);
+        projectRepository.save(project);
+    }
+
+    /**
+     * Retrieve all projects.
+     *
+     * @return list of {@link ProjectDTO} for all projects
+     */
+    public List<ProjectDTO> getAllProjects() {
+        log.info("Fetching all projects");
+        return projectRepository.findAll().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve projects created by a specific client.
+     *
+     * @param clientId unique identifier of the client
+     * @return list of {@link ProjectDTO} for that client
+     */
+    public List<ProjectDTO> getProjectsByClientId(Long clientId) {
+        log.info("Fetching projects for client ID: {}", clientId);
+        return projectRepository.findByClientId(clientId).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve all open projects available for bidding.
+     *
+     * @return list of open {@link ProjectDTO}
+     */
+    public List<ProjectDTO> getOpenProjects() {
+        log.info("Fetching all open projects");
+        return projectRepository.findAllOpenProjects().stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Search projects by keyword and optional status.
+     *
+     * <p>Performs a case-insensitive keyword search against title and description,
+     * filtering by provided status (defaults to OPEN when status is null).</p>
+     *
+     * @param keyword search keyword
+     * @param status optional status string (e.g., "OPEN")
+     * @return list of matching {@link ProjectDTO}
+     * @throws IllegalArgumentException if provided status is invalid
+     */
+    public List<ProjectDTO> searchProjects(String keyword, String status) {
+        log.info("Searching projects with keyword: {} and status: {}", keyword, status);
+        
+        ProjectStatus projectStatus = status != null ? ProjectStatus.valueOf(status.toUpperCase()) : ProjectStatus.OPEN;
+        
+        return projectRepository.searchByKeywordAndStatus(keyword, projectStatus).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve projects by category.
+     *
+     * @param category the project category
+     * @return list of {@link ProjectDTO} in the specified category
+     */
+    public List<ProjectDTO> getProjectsByCategory(String category) {
+        log.info("Fetching projects by category: {}", category);
+        return projectRepository.findByCategory(category).stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Assign a freelancer to a project and transition the project to IN_PROGRESS.
+     *
+     * @param projectId the project id
+     * @param freelancerId the freelancer id to assign
+     * @return the updated project's {@link ProjectDTO}
+     * @throws RuntimeException if the project is not found
+     */
+    @Transactional
+    public ProjectDTO assignFreelancer(Long projectId, Long freelancerId) {
+        log.info("Assigning freelancer {} to project {}", freelancerId, projectId);
+        
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
+        
+        project.setAssignedFreelancer(freelancerId);
+        project.setStatus(ProjectStatus.IN_PROGRESS);
+        
+        Project updatedProject = projectRepository.save(project);
+        return convertToDTO(updatedProject);
+    }
+
+    @Transactional
+    public ProjectDTO updateProjectStatus(Long projectId, ProjectStatus status) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new RuntimeException("Project not found"));
+     
+        project.setStatus(status);
+        return convertToDTO(projectRepository.save(project));
+    }
+    /**
+     * Convert a {@link Project} entity to a {@link ProjectDTO}.
+     *
+     * <p>Maps entity fields to the DTO and computes the current proposal count.</p>
+     *
+     * @param project the entity to convert
+     * @return the mapped {@link ProjectDTO}
+     */
+    private ProjectDTO convertToDTO(Project project) {
+        ProjectDTO dto = new ProjectDTO();
+        dto.setId(project.getId());
+        dto.setClientId(project.getClientId());
+        dto.setTitle(project.getTitle());
+        dto.setDescription(project.getDescription());
+        dto.setBudgetMin(project.getBudgetMin());
+        dto.setBudgetMax(project.getBudgetMax());
+        dto.setDurationDays(project.getDurationDays());
+        dto.setRequiredSkills(parseSkillsFromJson(project.getRequiredSkills()));
+        dto.setCategory(project.getCategory());
+        dto.setStatus(project.getStatus());
+        dto.setDeadline(project.getDeadline());
+        dto.setAssignedFreelancer(project.getAssignedFreelancer());
+        dto.setCreatedAt(project.getCreatedAt());
+        dto.setUpdatedAt(project.getUpdatedAt());
+        dto.setProposalCount((int) proposalRepository.countByProjectId(project.getId()));
+        User client = userRepository.findById(project.getClientId()).orElse(null);
+        
+        if (client != null) {
+            dto.setClientName(client.getFullName());
+            dto.setClientJoinDate(client.getCreatedAt());
+            dto.setClientProjectCount(
+                projectRepository.countByClientId(project.getClientId())
+            );
+        }
+        return dto;
+    }
+
+    /**
+     * Serialize a list of skills to a JSON string for storage.
+     *
+     * @param skills list of skill strings
+     * @return JSON string representation of skills, or "[]" on error
+     */
+    private String convertSkillsToJson(List<String> skills) {
+        try {
+            return objectMapper.writeValueAsString(skills);
+        } catch (Exception e) {
+            log.error("Error converting skills to JSON", e);
+            return "[]";
+        }
+    }
+
+    /**
+     * Parse a stored skills JSON string back into a list of skills.
+     *
+     * <p>Attempts JSON parsing and falls back to comma-splitting on error.</p>
+     *
+     * @param skillsJson the stored skills string
+     * @return list of skill strings
+     */
+    private List<String> parseSkillsFromJson(String skillsJson) {
+        try {
+            return objectMapper.readValue(skillsJson, List.class);
+        } catch (Exception e) {
+            log.error("Error parsing skills from JSON", e);
+            return Arrays.asList(skillsJson.split(","));
+        }
+    }
+
+    /**
+     * Publish a project.created event to RabbitMQ.
+     *
+     * <p>Converts the project to {@link ProjectDTO} and sends it to the configured exchange
+     * with the configured routing key. Exceptions are logged but do not prevent the caller
+     * from continuing.</p>
+     *
+     * @param project the project that was created
+     */
+    private void publishProjectCreatedEvent(Project project) {
+        try {
+            ProjectDTO dto = convertToDTO(project);
+            rabbitTemplate.convertAndSend(projectExchange, projectCreatedRoutingKey, dto);
+            log.info("Published project.created event for project ID: {}", project.getId());
+        } catch (Exception e) {
+            log.error("Error publishing project.created event", e);
+        }
+    }
+}
+
+
+
+package com.freelancenexus.userservice.service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.ProposalDTO;
+import com.freelancenexus.userservice.dto.ProposalSubmitDTO;
+import com.freelancenexus.userservice.model.Freelancer;
+import com.freelancenexus.userservice.model.Project;
+import com.freelancenexus.userservice.model.ProjectStatus;
+import com.freelancenexus.userservice.model.Proposal;
+import com.freelancenexus.userservice.model.ProposalStatus;
+import com.freelancenexus.userservice.model.User;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
+import com.freelancenexus.userservice.repository.ProjectRepository;
+import com.freelancenexus.userservice.repository.ProposalRepository;
+import com.freelancenexus.userservice.repository.UserRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * Service class for managing proposals in the project service. Handles
+ * operations such as submitting, accepting, rejecting, and retrieving
+ * proposals.
+ */
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ProposalService {
+	@Autowired
+	private ProposalRepository proposalRepository;
+	@Autowired
+	private ProjectRepository projectRepository;
+	@Autowired
+	private RabbitTemplate rabbitTemplate;
+	private final Logger log = LoggerFactory.getLogger(ProposalService.class);
+
+	@Autowired
+	private FreelancerRepository freelancerRepository;
+
+	@Autowired
+	private UserRepository userRepository;
+
+	@Value("${rabbitmq.exchange.project}")
+	private String projectExchange;
+
+	@Value("${rabbitmq.routing.proposal.submitted}")
+	private String proposalSubmittedRoutingKey;
+
+	/**
+	 * Submits a proposal for a given project.
+	 *
+	 * @param projectId the ID of the project for which the proposal is submitted
+	 * @param submitDTO the data transfer object containing proposal details
+	 * @return the submitted proposal as a DTO
+	 * @throws RuntimeException if the project does not exist, is not open, or if
+	 *                          the freelancer has already submitted a proposal
+	 */
+	@Transactional
+	public ProposalDTO submitProposal(Long projectId, ProposalSubmitDTO submitDTO) {
+		log.info("Submitting proposal for project ID: {} by freelancer: {}", projectId, submitDTO.getFreelancerId());
+
+		Project project = projectRepository.findById(projectId)
+				.orElseThrow(() -> new RuntimeException("Project not found with ID: " + projectId));
+
+		if (project.getStatus() != ProjectStatus.OPEN) {
+			throw new RuntimeException("Project is not accepting proposals");
+		}
+
+		if (proposalRepository.existsByProjectIdAndFreelancerId(projectId, submitDTO.getFreelancerId())) {
+			throw new RuntimeException("Freelancer already submitted a proposal for this project");
+		}
+
+		Proposal proposal = new Proposal();
+		proposal.setProject(project);
+		proposal.setFreelancerId(submitDTO.getFreelancerId());
+		proposal.setCoverLetter(submitDTO.getCoverLetter());
+		proposal.setProposedBudget(submitDTO.getProposedBudget());
+		proposal.setDeliveryDays(submitDTO.getDeliveryDays());
+		proposal.setStatus(ProposalStatus.PENDING);
+
+		Proposal savedProposal = proposalRepository.save(proposal);
+		log.info("Proposal created with ID: {}", savedProposal.getId());
+
+		publishProposalSubmittedEvent(savedProposal);
+
+		return convertToDTO(savedProposal);
+	}
+
+	/**
+	 * Retrieves all proposals for a specific project.
+	 *
+	 * @param projectId the ID of the project
+	 * @return a list of proposals as DTOs
+	 */
+	public List<ProposalDTO> getProposalsByProjectId(Long projectId) {
+	    List<Proposal> proposals = proposalRepository.findByProjectIdWithProject(projectId);
+	    return proposals.stream().map(this::convertToDTO).collect(Collectors.toList());
+	}
+	/**
+	 * Retrieves all proposals submitted by a specific freelancer.
+	 *
+	 * @param freelancerId the ID of the freelancer
+	 * @return a list of proposals as DTOs
+	 */
+
+	public List<ProposalDTO> getProposalsByFreelancerId(Long freelancerId) {
+		List<Proposal> proposals = proposalRepository.findByFreelancerIdFetchProject(freelancerId);
+		return proposals.stream().map(this::convertToDTO).collect(Collectors.toList());
+	}
+
+	/**
+	 * Retrieves a proposal by its ID.
+	 *
+	 * @param id the ID of the proposal
+	 * @return the proposal as a DTO
+	 * @throws RuntimeException if the proposal does not exist
+	 */
+	public ProposalDTO getProposalById(Long id) {
+		log.info("Fetching proposal by ID: {}", id);
+		Proposal proposal = proposalRepository.findById(id)
+				.orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + id));
+		return convertToDTO(proposal);
+	}
+
+	/**
+	 * Accepts a proposal and updates the project and other proposals accordingly.
+	 *
+	 * @param proposalId the ID of the proposal to accept
+	 * @return the accepted proposal as a DTO
+	 * @throws RuntimeException if the proposal does not exist or is not in pending
+	 *                          status
+	 */
+	@Transactional
+	public ProposalDTO acceptProposal(Long proposalId) {
+		log.info("Accepting proposal ID: {}", proposalId);
+
+		Proposal proposal = proposalRepository.findById(proposalId)
+				.orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + proposalId));
+
+		if (proposal.getStatus() != ProposalStatus.PENDING) {
+			throw new RuntimeException("Proposal is not in pending status");
+		}
+
+		proposal.setStatus(ProposalStatus.ACCEPTED);
+
+		List<Proposal> otherProposals = proposalRepository.findByProjectIdAndStatus(proposal.getProject().getId(),
+				ProposalStatus.PENDING);
+
+		otherProposals.stream().filter(p -> !p.getId().equals(proposalId)).forEach(p -> {
+			p.setStatus(ProposalStatus.REJECTED);
+			proposalRepository.save(p);
+		});
+
+		Proposal acceptedProposal = proposalRepository.save(proposal);
+
+		Project project = proposal.getProject();
+		project.setAssignedFreelancer(proposal.getFreelancerId());
+		project.setStatus(ProjectStatus.IN_PROGRESS);
+		projectRepository.save(project);
+
+		return convertToDTO(acceptedProposal);
+	}
+
+	/**
+	 * Rejects a proposal.
+	 *
+	 * @param proposalId the ID of the proposal to reject
+	 * @return the rejected proposal as a DTO
+	 * @throws RuntimeException if the proposal does not exist or is not in pending
+	 *                          status
+	 */
+	@Transactional
+	public ProposalDTO rejectProposal(Long proposalId) {
+		log.info("Rejecting proposal ID: {}", proposalId);
+
+		Proposal proposal = proposalRepository.findById(proposalId)
+				.orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + proposalId));
+
+		if (proposal.getStatus() != ProposalStatus.PENDING) {
+			throw new RuntimeException("Proposal is not in pending status");
+		}
+
+		proposal.setStatus(ProposalStatus.REJECTED);
+		Proposal rejectedProposal = proposalRepository.save(proposal);
+
+		return convertToDTO(rejectedProposal);
+	}
+
+	/**
+	 * Retrieves ranked proposals for a specific project, ordered by AI score in
+	 * descending order.
+	 *
+	 * @param projectId the ID of the project
+	 * @return a list of ranked proposals as DTOs
+	 */
+	public List<ProposalDTO> getRankedProposalsByProjectId(Long projectId) {
+		log.info("Fetching ranked proposals for project ID: {}", projectId);
+		return proposalRepository.findByProjectIdOrderByAiScoreDesc(projectId).stream().map(this::convertToDTO)
+				.collect(Collectors.toList());
+	}
+
+	/**
+	 * Converts a Proposal entity to a ProposalDTO.
+	 *
+	 * @param proposal the Proposal entity
+	 * @return the ProposalDTO
+	 */
+	private ProposalDTO convertToDTO(Proposal proposal) {
+		ProposalDTO dto = new ProposalDTO();
+		dto.setId(proposal.getId());
+		dto.setProjectId(proposal.getProject().getId());
+		dto.setProjectTitle(proposal.getProject().getTitle());
+		dto.setFreelancerId(proposal.getFreelancerId());
+		dto.setCoverLetter(proposal.getCoverLetter());
+		dto.setProposedBudget(proposal.getProposedBudget());
+		dto.setDeliveryDays(proposal.getDeliveryDays());
+		dto.setAiScore(proposal.getAiScore());
+		dto.setStatus(proposal.getStatus());
+		dto.setSubmittedAt(proposal.getSubmittedAt());
+		dto.setUpdatedAt(proposal.getUpdatedAt());
+		dto.setProjectDescription(proposal.getProject().getDescription());
+
+		// ⭐ 1. Load freelancer entity
+		Freelancer freelancer = freelancerRepository.findById(proposal.getFreelancerId()).orElse(null);
+
+		// ⭐ 2. Load full user details (fullName, email, image, etc.)
+		User user = userRepository.findById(proposal.getFreelancerId()).orElse(null);
+		if (freelancer != null) {
+			dto.setFreelancerSkills(freelancer.getSkills());
+			dto.setFreelancerRating(freelancer.getAverageRating());
+		}
+		if (user != null) {
+			dto.setFreelancerName(user.getFullName()); // ⭐ FULL NAME from user table
+		}
+		return dto;
+	}
+
+
+	@Transactional
+	public ProposalDTO withdrawProposal(Long proposalId) {
+		log.info("Withdrawing proposal ID: {}", proposalId);
+
+		Proposal proposal = proposalRepository.findById(proposalId)
+				.orElseThrow(() -> new RuntimeException("Proposal not found with ID: " + proposalId));
+
+		if (proposal.getStatus() != ProposalStatus.PENDING) {
+			throw new RuntimeException("Only pending proposals can be withdrawn");
+		}
+
+		proposal.setStatus(ProposalStatus.WITHDRAWN);
+
+		Proposal saved = proposalRepository.save(proposal);
+		return convertToDTO(saved);
+	}
+
+	/**
+	 * Publishes a proposal submitted event to RabbitMQ.
+	 *
+	 * @param proposal the Proposal entity
+	 */
+	private void publishProposalSubmittedEvent(Proposal proposal) {
+		try {
+			ProposalDTO dto = convertToDTO(proposal);
+			rabbitTemplate.convertAndSend(projectExchange, proposalSubmittedRoutingKey, dto);
+			log.info("Published proposal.submitted event for proposal ID: {}", proposal.getId());
+		} catch (Exception e) {
+			log.error("Error publishing proposal.submitted event", e);
+		}
+	}
+}
+
+package com.freelancenexus.userservice.service;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.RatingDTO;
+import com.freelancenexus.userservice.exception.DuplicateRatingException;
+import com.freelancenexus.userservice.exception.ResourceNotFoundException;
+import com.freelancenexus.userservice.model.Freelancer;
+import com.freelancenexus.userservice.model.Project;
+import com.freelancenexus.userservice.model.ProjectStatus;
+import com.freelancenexus.userservice.model.Rating;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
+import com.freelancenexus.userservice.repository.ProjectRepository;
+import com.freelancenexus.userservice.repository.RatingRepository;
+@Service
+public class RatingService {
+	private final Logger log= LoggerFactory.getLogger(RatingService.class);
+    private final RatingRepository ratingRepository;
+    private final FreelancerRepository freelancerRepository;
+    private final FreelancerService freelancerService;
+    private final ProjectRepository projectRepository;
+    
+    public RatingService(RatingRepository ratingRepository, FreelancerRepository freelancerRepository,
+			FreelancerService freelancerService, ProjectRepository projectRepository ) {
+		super();
+		this.ratingRepository = ratingRepository;
+		this.freelancerRepository = freelancerRepository;
+		this.freelancerService = freelancerService;
+		this.projectRepository = projectRepository;
+	}
+
+	@Transactional
+	public RatingDTO addRating(Long freelancerId, RatingDTO ratingDTO) {
+	    log.info("Adding rating for freelancer ID: {} by client ID: {}", freelancerId, ratingDTO.getClientId());
+	 
+	    Freelancer freelancer = freelancerRepository.findById(freelancerId)
+	            .orElseThrow(() -> new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId));
+	 
+	    // ⭐ CHECK PROJECT STATUS BEFORE RATING
+	    if (ratingDTO.getProjectId() == null) {
+	        throw new RuntimeException("Project ID is required to give rating");
+	    }
+	 
+	    Project project = projectRepository.findById(ratingDTO.getProjectId())
+	            .orElseThrow(() -> new ResourceNotFoundException("Project not found"));
+	 
+	    // ⭐ ONLY ALLOW RATING WHEN COMPLETED
+	    if (project.getStatus() != ProjectStatus.COMPLETED) {
+	        throw new RuntimeException("You can rate only after project completion");
+	    }
+	 
+	    // ⭐ Prevent duplicate rating
+	    if (ratingRepository.existsByFreelancerIdAndClientIdAndProjectId(
+	            freelancerId, ratingDTO.getClientId(), ratingDTO.getProjectId())) {
+	        throw new DuplicateRatingException("Rating already exists for this project");
+	    }
+	 
+	    Rating rating = mapToEntity(ratingDTO);
+	    freelancer.addRating(rating);
+	 
+	    Rating saved = ratingRepository.save(rating);
+	    log.info("Rating added with ID: {}", saved.getId());
+	 
+	    freelancerService.updateFreelancerStats(freelancerId);
+	 
+	    return mapToDTO(saved);
+	}
+    
+    @Transactional(readOnly = true)
+    public List<RatingDTO> getFreelancerRatings(Long freelancerId) {
+        log.info("Fetching ratings for freelancer ID: {}", freelancerId);
+        
+        if (!freelancerRepository.existsById(freelancerId)) {
+            throw new ResourceNotFoundException("Freelancer not found with ID: " + freelancerId);
+        }
+        
+        List<Rating> ratings = ratingRepository.findByFreelancerIdOrderByCreatedAtDesc(freelancerId);
+        
+        return ratings.stream()
+            .map(this::mapToDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public BigDecimal getAverageRating(Long freelancerId) {
+        log.info("Calculating average rating for freelancer ID: {}", freelancerId);
+        
+        BigDecimal average = ratingRepository.calculateAverageRating(freelancerId);
+        return average != null ? average : BigDecimal.ZERO;
+    }
+    
+    @Transactional(readOnly = true)
+    public long getRatingCount(Long freelancerId) {
+        return ratingRepository.countByFreelancerId(freelancerId);
+    }
+    
+    private RatingDTO mapToDTO(Rating rating) {
+        RatingDTO dto = new RatingDTO();
+        dto.setId(rating.getId());
+        dto.setClientId(rating.getClientId());
+        dto.setProjectId(rating.getProjectId());
+        dto.setRating(rating.getRating());
+        dto.setReview(rating.getReview());
+        dto.setCreatedAt(rating.getCreatedAt());
+        return dto;
+    }
+    
+    private Rating mapToEntity(RatingDTO dto) {
+        Rating rating = new Rating();
+        rating.setClientId(dto.getClientId());
+        rating.setProjectId(dto.getProjectId());
+        rating.setRating(dto.getRating());
+        rating.setReview(dto.getReview());
+        return rating;
+    }
+}
+
+
+package com.freelancenexus.userservice.service;
+
+import java.math.BigDecimal;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import com.freelancenexus.userservice.dto.UPIPaymentDTO;
+
+@Service
+public class UPIPaymentService {
+    
+    // Simulated UPI transaction storage
+    private final Map<String, UPIPaymentDTO> upiTransactions = new ConcurrentHashMap<>();
+    private final SecureRandom random = new SecureRandom();
+	private final Logger log= LoggerFactory.getLogger(UPIPaymentService.class);
+
+    /**
+     * Generate UPI payment link for a transaction
+     */
+    public UPIPaymentDTO generateUPIPaymentLink(String transactionId, BigDecimal amount, String upiId, String currency) {
+        log.info("Generating UPI payment link for transaction: {}", transactionId);
+        
+        // Generate simulated UPI payment link
+        String paymentLink = String.format("upi://pay?pa=%s&pn=FreelanceNexus&am=%s&cu=%s&tn=%s",
+                upiId, amount.toString(), currency, transactionId);
+        
+        // Generate simulated QR code (base64 encoded string)
+        String qrCode = generateSimulatedQRCode(paymentLink);
+        
+        UPIPaymentDTO upiPayment = new UPIPaymentDTO(transactionId,upiId,amount, currency,paymentLink,
+    			qrCode,900L,"INITIATED","UPI payment link generated successfully");
+        
+        // Store in simulated transaction storage
+        upiTransactions.put(transactionId, upiPayment);
+        
+        log.info("UPI payment link generated for transaction: {}", transactionId);
+        return upiPayment;
+    }
+    
+    /**
+     * Verify UPI payment transaction
+     * Simulates checking with UPI gateway
+     */
+    public TransactionVerificationResult verifyUPIPayment(String transactionId) {
+        log.info("Verifying UPI payment for transaction: {}", transactionId);
+        
+        UPIPaymentDTO upiTransaction = upiTransactions.get(transactionId);
+        
+        if (upiTransaction == null) {
+            log.warn("UPI transaction not found: {}", transactionId);
+            return new TransactionVerificationResult(false, "INVALID", "Transaction not found");
+        }
+        
+        // Simulate UPI payment verification (90% success rate)
+        boolean isSuccessful = random.nextInt(100) < 90;
+        
+        String status = isSuccessful ? "SUCCESS" : "FAILED";
+        String message = isSuccessful ? 
+                "Payment verified successfully" : 
+                "Payment verification failed - Insufficient funds or user cancelled";
+        
+        upiTransaction.setStatus(status);
+        upiTransaction.setMessage(message);
+        
+        log.info("UPI payment verification result for {}: {}", transactionId, status);
+        
+        return new TransactionVerificationResult(isSuccessful, status, message);
+    }
+    
+    /**
+     * Process UPI payment callback
+     * Simulates webhook from UPI gateway
+     */
+    public Map<String, Object> processPaymentCallback(Map<String, Object> callbackData) {
+        log.info("Processing UPI payment callback");
+        
+        String transactionId = (String) callbackData.get("transactionId");
+        String status = (String) callbackData.get("status");
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("transactionId", transactionId);
+        response.put("acknowledged", true);
+        response.put("timestamp", System.currentTimeMillis());
+        
+        UPIPaymentDTO upiTransaction = upiTransactions.get(transactionId);
+        if (upiTransaction != null) {
+            upiTransaction.setStatus(status);
+            response.put("updated", true);
+        } else {
+            response.put("updated", false);
+            response.put("message", "Transaction not found");
+        }
+        
+        log.info("Callback processed for transaction: {}", transactionId);
+        return response;
+    }
+    
+    /**
+     * Initiate UPI refund
+     */
+    public RefundResult initiateRefund(String transactionId, BigDecimal amount) {
+        log.info("Initiating UPI refund for transaction: {}", transactionId);
+        
+        UPIPaymentDTO upiTransaction = upiTransactions.get(transactionId);
+        
+        if (upiTransaction == null) {
+            return new RefundResult(false, null, "Transaction not found");
+        }
+        
+        if (!"SUCCESS".equals(upiTransaction.getStatus())) {
+            return new RefundResult(false, null, "Can only refund successful transactions");
+        }
+        
+        // Generate refund transaction ID
+        String refundTransactionId = "RFD-" + UUID.randomUUID().toString();
+        
+        // Simulate refund processing (95% success rate)
+        boolean isSuccessful = random.nextInt(100) < 95;
+        
+        String message = isSuccessful ? 
+                "Refund initiated successfully. Amount will be credited within 5-7 business days" :
+                "Refund initiation failed. Please try again later";
+        
+        log.info("Refund {} for transaction: {}", isSuccessful ? "successful" : "failed", transactionId);
+        
+        return new RefundResult(isSuccessful, refundTransactionId, message);
+    }
+    
+    /**
+     * Generate simulated QR code
+     */
+    private String generateSimulatedQRCode(String data) {
+        // In production, use actual QR code library
+        // This simulates a base64 encoded QR code
+        byte[] qrBytes = new byte[256];
+        random.nextBytes(qrBytes);
+        return Base64.getEncoder().encodeToString(qrBytes);
+    }
+    
+    /**
+     * Check if UPI ID is valid (simulated)
+     */
+    public boolean isValidUPIId(String upiId) {
+        return upiId != null && upiId.matches("^[\\w.-]+@[\\w.-]+$");
+    }
+    
+    // Inner classes for results
+    
+    public static class TransactionVerificationResult {
+        private final boolean success;
+        private final String status;
+        private final String message;
+        
+        public TransactionVerificationResult(boolean success, String status, String message) {
+            this.success = success;
+            this.status = status;
+            this.message = message;
+        }
+        
+        public boolean isSuccess() {
+            return success;
+        }
+        
+        public String getStatus() {
+            return status;
+        }
+        
+        public String getMessage() {
+            return message;
+        }
+    }
+    
+    public static class RefundResult {
+        private final boolean success;
+        private final String refundTransactionId;
+        private final String message;
+        
+        public RefundResult(boolean success, String refundTransactionId, String message) {
+            this.success = success;
+            this.refundTransactionId = refundTransactionId;
+            this.message = message;
+        }
+        
+        public boolean isSuccess() {
+            return success;
+        }
+        
+        public String getRefundTransactionId() {
+            return refundTransactionId;
+        }
+        
+        public String getMessage() {
+            return message;
+        }
+    }
+}
+
+
+package com.freelancenexus.userservice.service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.LoginResponseDTO;
+import com.freelancenexus.userservice.dto.UserLoginDTO;
+import com.freelancenexus.userservice.dto.UserRegistrationDTO;
+import com.freelancenexus.userservice.dto.UserResponseDTO;
+import com.freelancenexus.userservice.dto.UserUpdateDTO;
+import com.freelancenexus.userservice.exception.DuplicateResourceException;
+import com.freelancenexus.userservice.exception.UnauthorizedException;
+import com.freelancenexus.userservice.exception.UserNotFoundException;
+import com.freelancenexus.userservice.model.User;
+import com.freelancenexus.userservice.repository.UserRepository;
+import com.freelancenexus.userservice.security.JwtTokenProvider;
+
+@Service
+public class UserService {
+	private final Logger log= LoggerFactory.getLogger(UserService.class);
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtTokenProvider jwtTokenProvider;
+    
+    @Autowired
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder,
+			JwtTokenProvider jwtTokenProvider) {
+		super();
+		this.userRepository = userRepository;
+		this.passwordEncoder = passwordEncoder;
+		this.jwtTokenProvider = jwtTokenProvider;
+	}
+
+	@Transactional
+    public UserResponseDTO registerUser(UserRegistrationDTO registrationDTO) {
+        log.info("Registering new user with email: {}", registrationDTO.getEmail());
+        
+        // Check if user already exists
+        if (userRepository.existsByEmail(registrationDTO.getEmail())) {
+            throw new DuplicateResourceException("User with email " + registrationDTO.getEmail() + " already exists");
+        }
+        
+        // Create user in database
+        User user = new User();
+        user.setEmail(registrationDTO.getEmail());
+        user.setPassword(passwordEncoder.encode(registrationDTO.getPassword()));
+        user.setFullName(registrationDTO.getFullName());
+        user.setPhone(registrationDTO.getPhone());
+        user.setRole(registrationDTO.getRole());
+        user.setIsActive(true);
+        user.setProfileImageUrl(registrationDTO.getProfileImageUrl());
+        
+        User savedUser = userRepository.save(user);
+        log.info("User registered successfully with ID: {}", savedUser.getId());
+        
+        return mapToResponseDTO(savedUser);
+    }
+    
+    @Transactional(readOnly = true)
+    public LoginResponseDTO loginUser(UserLoginDTO loginDTO) {
+        log.info("Authenticating user with email: {}", loginDTO.getEmail());
+        
+        // Find user by email
+        User user = userRepository.findByEmail(loginDTO.getEmail())
+            .orElseThrow(() -> new UnauthorizedException("Invalid email or password"));
+        
+        // Check if user is active
+        if (!user.getIsActive()) {
+            throw new UnauthorizedException("Account is inactive");
+        }
+        
+        // Verify password
+        if (!passwordEncoder.matches(loginDTO.getPassword(), user.getPassword())) {
+            throw new UnauthorizedException("Invalid email or password");
+        }
+        
+        // Generate JWT token
+        String token = jwtTokenProvider.generateToken(
+            user.getEmail(), 
+            user.getId(), 
+            user.getRole().name()
+        );
+        
+        // Create response
+        LoginResponseDTO loginResponse = new LoginResponseDTO();
+        loginResponse.setAccessToken(token);
+        loginResponse.setTokenType("Bearer");
+        loginResponse.setExpiresIn(86400L); // 24 hours in seconds
+        loginResponse.setUser(mapToResponseDTO(user));
+        
+        log.info("User authenticated successfully: {}", loginDTO.getEmail());
+        return loginResponse;
+    }
+    
+    @Transactional(readOnly = true)
+    public UserResponseDTO getCurrentUserProfile() {
+        Long userId = getCurrentUserId();
+        
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserNotFoundException("User not found"));
+        
+        return mapToResponseDTO(user);
+    }
+    
+    @Transactional
+    public UserResponseDTO updateCurrentUserProfile(UserUpdateDTO updateDTO) {
+        Long userId = getCurrentUserId();
+        
+        User user = userRepository.findById(userId)
+            .orElseThrow(() -> new UserNotFoundException("User not found"));
+        
+        // Update fields if provided
+        if (updateDTO.getFullName() != null) {
+            user.setFullName(updateDTO.getFullName());
+        }
+        if (updateDTO.getPhone() != null) {
+            user.setPhone(updateDTO.getPhone());
+        }
+        if (updateDTO.getProfileImageUrl() != null) {
+            user.setProfileImageUrl(updateDTO.getProfileImageUrl());
+        }
+        
+        User updatedUser = userRepository.save(user);
+        log.info("User profile updated successfully: {}", user.getId());
+        
+        return mapToResponseDTO(updatedUser);
+    }
+    
+    @Transactional(readOnly = true)
+    public UserResponseDTO getUserById(Long id) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+        
+        return mapToResponseDTO(user);
+    }
+    
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> getAllUsers() {
+        return userRepository.findAll().stream()
+            .map(this::mapToResponseDTO)
+            .collect(Collectors.toList());
+    }
+    
+    @Transactional
+    public void deleteUser(Long id) {
+        User user = userRepository.findById(id)
+            .orElseThrow(() -> new UserNotFoundException("User not found with id: " + id));
+        
+        userRepository.delete(user);
+        log.info("User deleted successfully: {}", id);
+    }
+    
+private Long getCurrentUserId() {
+    var auth = SecurityContextHolder.getContext().getAuthentication();
+
+    if (auth != null && auth.getPrincipal() instanceof Long principal) {
+        return principal;
+    }
+
+    throw new UnauthorizedException("User not authenticated");
+}
+
+    private UserResponseDTO mapToResponseDTO(User user) {
+        UserResponseDTO dto = new UserResponseDTO();
+        dto.setId(user.getId());
+        dto.setEmail(user.getEmail());
+        dto.setFullName(user.getFullName());
+        dto.setPhone(user.getPhone());
+        dto.setRole(user.getRole());
+        dto.setIsActive(user.getIsActive());
+        dto.setProfileImageUrl(user.getProfileImageUrl());
+        dto.setCreatedAt(user.getCreatedAt());
+        dto.setUpdatedAt(user.getUpdatedAt());
+        return dto;
+    }
+}
