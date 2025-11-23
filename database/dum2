@@ -1,3 +1,546 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import proposalService from '../../services/proposalService';
+import paymentService from '../../services/paymentService';
+import Loader from '../common/Loader';
+ 
+const PaymentForm = () => {
+  const { proposalId } = useParams();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+ 
+  const [proposal, setProposal] = useState(null);
+  const [paymentData, setPaymentData] = useState({
+    upiId: '',
+    amount: '',
+    description: ''
+  });
+ 
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState('');
+ 
+  // Load proposal data
+  useEffect(() => {
+    const fetchProposal = async () => {
+      try {
+        const data = await proposalService.getProposalById(proposalId);
+        setProposal(data);
+ 
+        setPaymentData(prev => ({
+          ...prev,
+          amount: data.proposedBudget,
+          description: `Payment for project: ${data.projectTitle}`
+        }));
+      } catch (err) {
+        setError('Failed to load proposal details');
+      } finally {
+        setLoading(false);
+      }
+    };
+ 
+    fetchProposal();
+  }, [proposalId]);
+ 
+  const handleChange = (e) => {
+    setPaymentData({ ...paymentData, [e.target.name]: e.target.value });
+  };
+ 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setProcessing(true);
+ 
+    try {
+      if (!proposal) throw new Error("Proposal not loaded");
+ 
+      // Correct backend request structure
+      const paymentReq = {
+        projectId: proposal.projectId,
+        payerId: user.id,
+        payeeId: proposal.freelancerId,
+        amount: parseFloat(paymentData.amount),
+        currency: "INR",
+        paymentMethod: "UPI",
+        upiId: paymentData.upiId,
+        description: paymentData.description
+      };
+ 
+      await paymentService.initiatePayment(paymentReq);
+ 
+      navigate('/payment-history', {
+        state: { message: 'Payment initiated successfully!' }
+      });
+ 
+    } catch (err) {
+      console.error('Payment error:', err);
+ 
+      const message =
+        err.response?.data?.message ||
+        (typeof err.response?.data === 'string' ? err.response.data : null) ||
+        'Payment failed. Please try again.';
+ 
+      setError(message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+ 
+  if (loading) return <Loader />;
+ 
+  return (
+<div className="container mt-4">
+<div className="row">
+<div className="col-lg-8 mx-auto">
+ 
+          <h2 className="mb-4">Make Payment</h2>
+ 
+          {error && <div className="alert alert-danger">{error}</div>}
+ 
+          {/* Payment Details */}
+<div className="card shadow-sm mb-4">
+<div className="card-header bg-primary text-white">
+<h5 className="mb-0">Payment Details</h5>
+</div>
+ 
+            <div className="card-body">
+<div className="row mb-3">
+<div className="col-sm-6">
+<strong>Project:</strong>
+<div>{proposal.projectTitle}</div>
+</div>
+ 
+                <div className="col-sm-6">
+<strong>Freelancer:</strong>
+<div>{proposal.freelancerName}</div>
+</div>
+</div>
+ 
+              <div className="row">
+<div className="col-sm-6">
+<strong>Agreed Amount:</strong>
+<div className="text-success fs-4">₹{proposal.proposedBudget}</div>
+</div>
+ 
+                <div className="col-sm-6">
+<strong>Duration:</strong>
+<div>{proposal.deliveryDays} days</div>
+</div>
+</div>
+</div>
+</div>
+ 
+          {/* Payment Form */}
+<form onSubmit={handleSubmit}>
+<div className="card shadow-sm mb-4">
+<div className="card-header bg-success text-white">
+<h5 className="mb-0">💳 UPI Payment</h5>
+</div>
+ 
+              <div className="card-body">
+ 
+                <div className="mb-3">
+<label className="form-label">UPI ID *</label>
+<input
+                    type="text"
+                    className="form-control"
+                    name="upiId"
+                    value={paymentData.upiId}
+                    onChange={handleChange}
+                    placeholder="username@upi"
+                    required
+                  />
+<small className="text-muted">
+                    Enter your UPI ID (e.g., yourname@paytm, yourname@ybl)
+</small>
+</div>
+ 
+                <div className="mb-3">
+<label className="form-label">Amount (₹)</label>
+<input
+                    type="number"
+                    className="form-control"
+                    name="amount"
+                    value={paymentData.amount}
+                    readOnly
+                  />
+</div>
+ 
+                <div className="mb-3">
+<label className="form-label">Description</label>
+<textarea
+                    className="form-control"
+                    name="description"
+                    rows="2"
+                    value={paymentData.description}
+                    onChange={handleChange}
+                  />
+</div>
+ 
+                <div className="alert alert-info">
+<small>
+<strong>Note:</strong> You will be redirected to your UPI app to complete the payment.
+                    The amount will be held in escrow until the project is completed.
+</small>
+</div>
+ 
+              </div>
+</div>
+ 
+            <div className="d-grid gap-2 d-md-flex justify-content-md-end">
+<button
+                type="button"
+                className="btn btn-outline-secondary"
+                onClick={() => navigate(-1)}
+>
+                Cancel
+</button>
+ 
+              <button
+                type="submit"
+                className="btn btn-success"
+                disabled={processing}
+>
+                {processing ? 'Processing...' : `Pay ₹${paymentData.amount}`}
+</button>
+</div>
+</form>
+ 
+        </div>
+</div>
+</div>
+  );
+};
+ 
+export default PaymentForm;
+
+
+
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
+import paymentService from '../../services/paymentService';
+import Loader from '../common/Loader';
+
+const PaymentHistory = () => {
+  const { user } = useAuth();
+  const [payments, setPayments] = useState([]);
+  const [filter, setFilter] = useState('ALL');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const data = await paymentService.getPaymentHistory(user.id);
+        setPayments(data);
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPayments();
+  }, [user.id]);
+
+  const filteredPayments = payments.filter(p => 
+    filter === 'ALL' || p.status === filter
+  );
+
+  if (loading) return <Loader />;
+
+  return (
+    <div className="container mt-4">
+      <div className="row mb-4">
+        <div className="col">
+          <h2>Payment History</h2>
+          <p className="text-muted">View all your transactions</p>
+        </div>
+      </div>
+
+      {/* Filter */}
+      <div className="row mb-4">
+        <div className="col">
+          <div className="btn-group" role="group">
+            <button 
+              className={`btn ${filter === 'ALL' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setFilter('ALL')}
+            >
+              All ({payments.length})
+            </button>
+            <button 
+              className={`btn ${filter === 'COMPLETED' ? 'btn-success' : 'btn-outline-success'}`}
+              onClick={() => setFilter('COMPLETED')}
+            >
+              Completed ({payments.filter(p => p.status === 'COMPLETED').length})
+            </button>
+            <button 
+              className={`btn ${filter === 'PENDING' ? 'btn-warning' : 'btn-outline-warning'}`}
+              onClick={() => setFilter('PENDING')}
+            >
+              Pending ({payments.filter(p => p.status === 'PENDING').length})
+            </button>
+            <button 
+              className={`btn ${filter === 'FAILED' ? 'btn-danger' : 'btn-outline-danger'}`}
+              onClick={() => setFilter('FAILED')}
+            >
+              Failed ({payments.filter(p => p.status === 'FAILED').length})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Payments List */}
+      {filteredPayments.length === 0 ? (
+        <div className="alert alert-info">
+          <h5>No payment history</h5>
+          <p className="mb-0">You haven't made any payments yet.</p>
+        </div>
+      ) : (
+        <div className="card shadow-sm">
+          <div className="card-body p-0">
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead className="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Project</th>
+                    <th>
+                      {user?.roles?.includes('CLIENT') ? 'Freelancer' : 'Client'}
+                    </th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredPayments.map((payment) => (
+                    <tr key={payment.id}>
+                      <td>
+                        <small>{new Date(payment.createdAt).toLocaleDateString()}</small>
+                      </td>
+                      <td>
+                        <strong>{payment.projectTitle}</strong>
+                        <br />
+                        <small className="text-muted">{payment.description}</small>
+                      </td>
+                      <td>
+                        {user?.roles?.includes('CLIENT') 
+                          ? payment.freelancerName 
+                          : payment.clientName}
+                      </td>
+                      <td>
+                        <strong className="text-success">₹{payment.amount}</strong>
+                      </td>
+                      <td>
+                        <span className="badge bg-info">{payment.paymentMethod}</span>
+                      </td>
+                      <td>
+                        <span className={`badge bg-${
+                          payment.status === 'COMPLETED' ? 'success' :
+                          payment.status === 'PENDING' ? 'warning' :
+                          payment.status === 'FAILED' ? 'danger' :
+                          'secondary'
+                        }`}>
+                          {payment.status}
+                        </span>
+                      </td>
+                      <td>
+                        {payment.status === 'PENDING' && (
+                          <button className="btn btn-sm btn-outline-primary">
+                            Verify
+                          </button>
+                        )}
+                        {payment.status === 'COMPLETED' && (
+                          <button className="btn btn-sm btn-outline-secondary">
+                            Receipt
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="row mt-4">
+        <div className="col-md-4">
+          <div className="card shadow-sm">
+            <div className="card-body text-center">
+              <h6 className="text-muted">Total Transactions</h6>
+              <h3>{payments.length}</h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card shadow-sm">
+            <div className="card-body text-center">
+              <h6 className="text-muted">Total Amount</h6>
+              <h3 className="text-success">
+                ₹{payments.reduce((sum, p) => sum + p.amount, 0)}
+              </h3>
+            </div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="card shadow-sm">
+            <div className="card-body text-center">
+              <h6 className="text-muted">Success Rate</h6>
+              <h3 className="text-info">
+                {payments.length > 0 
+                  ? Math.round((payments.filter(p => p.status === 'COMPLETED').length / payments.length) * 100)
+                  : 0}%
+              </h3>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default PaymentHistory;
+
+
+
+import React, { useState } from 'react';
+
+const UPIPayment = ({ amount, onPaymentSuccess, onPaymentFailure }) => {
+  const [upiId, setUpiId] = useState('');
+  const [processing, setProcessing] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+
+    try {
+      // Simulate UPI payment processing
+      // In production, this would integrate with actual UPI gateway
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const transactionId = 'TXN' + Date.now();
+      onPaymentSuccess({ transactionId, upiId, amount });
+    } catch (error) {
+      onPaymentFailure(error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <div className="card shadow-sm">
+      <div className="card-header bg-success text-white">
+        <h5 className="mb-0">💳 Pay with UPI</h5>
+      </div>
+      <div className="card-body">
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label className="form-label">Enter UPI ID</label>
+            <input
+              type="text"
+              className="form-control"
+              value={upiId}
+              onChange={(e) => setUpiId(e.target.value)}
+              placeholder="username@upi"
+              required
+            />
+            <small className="text-muted">
+              Supported: GPay, PhonePe, Paytm, BHIM
+            </small>
+          </div>
+
+          <div className="mb-3">
+            <label className="form-label">Amount</label>
+            <input
+              type="text"
+              className="form-control"
+              value={`₹${amount}`}
+              readOnly
+            />
+          </div>
+
+          <div className="alert alert-info">
+            <small>
+              <strong>Note:</strong> You will receive a payment request on your UPI app. 
+              Please approve it to complete the transaction.
+            </small>
+          </div>
+
+          <div className="d-grid">
+            <button 
+              type="submit" 
+              className="btn btn-success"
+              disabled={processing || !upiId}
+            >
+              {processing ? (
+                <>
+                  <span className="spinner-border spinner-border-sm me-2"></span>
+                  Processing...
+                </>
+              ) : (
+                `Pay ₹${amount}`
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default UPIPayment;
+
+
+
+
+import api from './api';
+
+const paymentService = {
+  initiatePayment: async (paymentData) => {
+    const response = await api.post('/api/payments/initiate', paymentData);
+    return response.data;
+  },
+
+  processUPIPayment: async (paymentId, upiData) => {
+    const response = await api.post(`/api/payments/${paymentId}/upi`, upiData);
+    return response.data;
+  },
+
+  getPaymentById: async (paymentId) => {
+    const response = await api.get(`/api/payments/${paymentId}`);
+    return response.data;
+  },
+
+  getPaymentHistory: async (userId) => {
+    const response = await api.get(`/api/payments/user/${userId}`);
+    return response.data;
+  },
+
+  getPaymentByProposal: async (proposalId) => {
+    const response = await api.get(`/api/payments/proposal/${proposalId}`);
+    return response.data;
+  },
+
+  verifyPayment: async (paymentId, transactionId) => {
+    const response = await api.post(`/api/payments/${paymentId}/verify`, { transactionId });
+    return response.data;
+  },
+
+  requestRefund: async (paymentId, reason) => {
+    const response = await api.post(`/api/payments/${paymentId}/refund`, { reason });
+    return response.data;
+  }
+};
+
+export default paymentService;
+
+
+
 package com.freelancenexus.userservice.service;
 
 import java.time.LocalDateTime;
@@ -20,6 +563,7 @@ import com.freelancenexus.userservice.event.PaymentCompletedEvent;
 import com.freelancenexus.userservice.model.Payment;
 import com.freelancenexus.userservice.model.PaymentStatus;
 import com.freelancenexus.userservice.model.TransactionHistory;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
 import com.freelancenexus.userservice.repository.PaymentRepository;
 import com.freelancenexus.userservice.repository.TransactionHistoryRepository;
 @Service
@@ -31,1353 +575,682 @@ public class PaymentService {
     private final RabbitTemplate rabbitTemplate;
     
 	private final Logger log= LoggerFactory.getLogger(PaymentService.class);
-
-    public PaymentService(PaymentRepository paymentRepository,
-			TransactionHistoryRepository transactionHistoryRepository, UPIPaymentService upiPaymentService,
-			RabbitTemplate rabbitTemplate) {
-		super();
-		this.paymentRepository = paymentRepository;
-		this.transactionHistoryRepository = transactionHistoryRepository;
-		this.upiPaymentService = upiPaymentService;
-		this.rabbitTemplate = rabbitTemplate;
-	}
-
-	/**
-     * Initiate a new payment
-     */
-    @Transactional
-    public PaymentResponseDTO initiatePayment(PaymentRequestDTO request) {
-        log.info("Initiating payment for project: {}", request.getProjectId());
-        
-        // Validate UPI ID
-        if (!upiPaymentService.isValidUPIId(request.getUpiId())) {
-            throw new IllegalArgumentException("Invalid UPI ID format");
-        }
-        
-        // Generate unique transaction ID
-        String transactionId = generateTransactionId();
-        
-        // Create payment entity
-        Payment payment = new Payment(transactionId, request.getProjectId(), request.getPayerId(), request.getPayeeId(), request.getAmount(),
-        		request.getCurrency(), request.getPaymentMethod(), request.getUpiId(),PaymentStatus.PENDING, 
-        		request.getDescription());
-        
-        payment = paymentRepository.save(payment);
-        
-        // Record transaction history
-        recordTransactionHistory(payment.getId(), 
-                PaymentStatus.PENDING.name(), 
-                "Payment initiated");
-        
-        // Generate UPI payment link
-        UPIPaymentDTO upiPayment = upiPaymentService.generateUPIPaymentLink(
-                transactionId, 
-                request.getAmount(), 
-                request.getUpiId(),
-                request.getCurrency()
-        );
-        
-        log.info("Payment initiated successfully with transaction ID: {}", transactionId);
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Verify and complete payment
-     */
-    @Transactional
-    public TransactionStatusDTO verifyPayment(String transactionId) {
-        log.info("Verifying payment: {}", transactionId);
-        
-        Payment payment = paymentRepository.findByTransactionId(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
-        
-        if (payment.getStatus() != PaymentStatus.PENDING) {
-            log.warn("Payment {} is not in PENDING status: {}", transactionId, payment.getStatus());
-            
-            return new TransactionStatusDTO(transactionId, payment.getStatus(), payment.getAmount(), payment.getCurrency(),
-            		LocalDateTime.now(),"Payment is already " + payment.getStatus());
-        }
-        
-        // Verify with UPI service
-        UPIPaymentService.TransactionVerificationResult verificationResult = 
-                upiPaymentService.verifyUPIPayment(transactionId);
-        
-        if (verificationResult.isSuccess()) {
-            // Update payment status to COMPLETED
-            payment.setStatus(PaymentStatus.COMPLETED);
-            payment.setPaymentDate(LocalDateTime.now());
-            paymentRepository.save(payment);
-            
-            // Record transaction history
-            recordTransactionHistory(payment.getId(), 
-                    PaymentStatus.COMPLETED.name(), 
-                    "Payment completed successfully");
-            
-            // Publish payment completed event
-            publishPaymentCompletedEvent(payment);
-            
-            log.info("Payment completed successfully: {}", transactionId);
-            
-            return new TransactionStatusDTO(transactionId, PaymentStatus.COMPLETED,payment.getAmount(), payment.getCurrency(),
-            		payment.getPaymentDate(), "Payment completed successfully");
-            		
-        } else {
-            // Update payment status to FAILED
-            payment.setStatus(PaymentStatus.FAILED);
-            paymentRepository.save(payment);
-            
-            // Record transaction history
-            recordTransactionHistory(payment.getId(), 
-                    PaymentStatus.FAILED.name(), 
-                    verificationResult.getMessage());
-            
-            log.warn("Payment verification failed: {}", transactionId);
-            
-            return  new TransactionStatusDTO(transactionId, PaymentStatus.FAILED, payment.getAmount(), payment.getCurrency(),
-            		LocalDateTime.now(), verificationResult.getMessage());
-        }
-    }
-    
-    /**
-     * Get payment by ID
-     */
-    public PaymentResponseDTO getPaymentById(Long id) {
-        log.info("Fetching payment by ID: {}", id);
-        
-        Payment payment = paymentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + id));
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Get payment by transaction ID
-     */
-    public PaymentResponseDTO getPaymentByTransactionId(String transactionId) {
-        log.info("Fetching payment by transaction ID: {}", transactionId);
-        
-        Payment payment = paymentRepository.findByTransactionId(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Get all payments for a project
-     */
-    public List<PaymentResponseDTO> getPaymentsByProject(Long projectId) {
-        log.info("Fetching payments for project: {}", projectId);
-        
-        return paymentRepository.findByProjectId(projectId).stream()
-                .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Get payment history for a user (both as payer and payee)
-     */
-    public List<PaymentResponseDTO> getUserPaymentHistory(Long userId) {
-        log.info("Fetching payment history for user: {}", userId);
-        
-        return paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
-                .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Refund a payment
-     */
-    @Transactional
-    public PaymentResponseDTO refundPayment(Long paymentId, String reason) {
-        log.info("Initiating refund for payment: {}", paymentId);
-        
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
-        
-        if (payment.getStatus() != PaymentStatus.COMPLETED) {
-            throw new IllegalStateException("Can only refund completed payments");
-        }
-        
-        // Initiate UPI refund
-        UPIPaymentService.RefundResult refundResult = upiPaymentService.initiateRefund(payment.getTransactionId(), payment.getAmount());
-        
-        if (!refundResult.isSuccess()) {
-            throw new RuntimeException("Refund failed: " + refundResult.getMessage());
-        }
-        
-        // Update payment status to REFUNDED
-        payment.setStatus(PaymentStatus.REFUNDED);
-        payment = paymentRepository.save(payment);
-        
-        // Record transaction history
-        recordTransactionHistory(payment.getId(), 
-                PaymentStatus.REFUNDED.name(), 
-                "Payment refunded. Reason: " + reason + ". Refund ID: " + refundResult.getRefundTransactionId());
-        
-        log.info("Payment refunded successfully: {}", paymentId);
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Get transaction history for a payment
-     */
-    public List<PaymentHistoryDTO> getTransactionHistory(Long paymentId) {
-        log.info("Fetching transaction history for payment: {}", paymentId);
-        
-        return transactionHistoryRepository.findByPaymentIdOrderByChangedAtDesc(paymentId).stream()
-                .map(this::mapToHistoryDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Get all transaction history for a user
-     */
-    public List<PaymentHistoryDTO> getUserTransactionHistory(Long userId) {
-        log.info("Fetching transaction history for user: {}", userId);
-        
-        // Get all payment IDs for user
-        List<Long> paymentIds = paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
-                .map(Payment::getId)
-                .collect(Collectors.toList());
-        
-        if (paymentIds.isEmpty()) {
-            return List.of();
-        }
-        
-        return transactionHistoryRepository.findByPaymentIdInOrderByChangedAtDesc(paymentIds).stream()
-                .map(this::mapToHistoryDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Record transaction history
-     */
-    private void recordTransactionHistory(Long paymentId, String statusChange, String notes) {
-        TransactionHistory history = new TransactionHistory(paymentId,statusChange,notes);
-                
-        
-        transactionHistoryRepository.save(history);
-        log.debug("Transaction history recorded for payment: {}", paymentId);
-    }
-    
-    /**
-     * Publish payment completed event to RabbitMQ
-     */
-    private void publishPaymentCompletedEvent(Payment payment) {
-        try {
-            PaymentCompletedEvent event = new PaymentCompletedEvent(payment.getId(), payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
-            		payment.getAmount(), payment.getCurrency(), payment.getPaymentDate());
-            
-            rabbitTemplate.convertAndSend("payment.completed", event);
-            
-            log.info("Payment completed event published for transaction: {}", payment.getTransactionId());
-        } catch (Exception e) {
-            log.error("Failed to publish payment completed event: {}", e.getMessage(), e);
-            // Don't throw exception - payment is already completed
-        }
-    }
-    
-    /**
-     * Generate unique transaction ID
-     */
-    private String generateTransactionId() {
-        return "TXN-" + UUID.randomUUID().toString().toUpperCase();
-    }
-    
-    /**
-     * Map Payment entity to PaymentResponseDTO
-     */
-    private PaymentResponseDTO mapToResponseDTO(Payment payment) {
-        return new PaymentResponseDTO(payment.getId(),payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
-        		payment.getAmount(), payment.getCurrency(), payment.getPaymentMethod(), payment.getUpiId(), payment.getStatus(),
-        		payment.getPaymentDate(), payment.getDescription(), payment.getCreatedAt(), payment.getUpdatedAt());
-    }
-    
-    /**
-     * Map TransactionHistory entity to PaymentHistoryDTO
-     */
-    private PaymentHistoryDTO mapToHistoryDTO(TransactionHistory history) {
-        return new PaymentHistoryDTO(history.getId(), history.getPaymentId(),history.getStatusChange(), history.getNotes(), history.getChangedAt());
-    }
-}
-
-
-package com.freelancenexus.userservice.service;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.freelancenexus.userservice.dto.PaymentHistoryDTO;
-import com.freelancenexus.userservice.dto.PaymentRequestDTO;
-import com.freelancenexus.userservice.dto.PaymentResponseDTO;
-import com.freelancenexus.userservice.dto.TransactionStatusDTO;
-import com.freelancenexus.userservice.dto.UPIPaymentDTO;
-import com.freelancenexus.userservice.event.PaymentCompletedEvent;
-import com.freelancenexus.userservice.model.Payment;
-import com.freelancenexus.userservice.model.PaymentStatus;
-import com.freelancenexus.userservice.model.TransactionHistory;
-import com.freelancenexus.userservice.repository.PaymentRepository;
-import com.freelancenexus.userservice.repository.TransactionHistoryRepository;
-@Service
-public class PaymentService {
-    
-    private final PaymentRepository paymentRepository;
-    private final TransactionHistoryRepository transactionHistoryRepository;
-    private final UPIPaymentService upiPaymentService;
-    private final RabbitTemplate rabbitTemplate;
-    
-	private final Logger log= LoggerFactory.getLogger(PaymentService.class);
-
-    public PaymentService(PaymentRepository paymentRepository,
-			TransactionHistoryRepository transactionHistoryRepository, UPIPaymentService upiPaymentService,
-			RabbitTemplate rabbitTemplate) {
-		super();
-		this.paymentRepository = paymentRepository;
-		this.transactionHistoryRepository = transactionHistoryRepository;
-		this.upiPaymentService = upiPaymentService;
-		this.rabbitTemplate = rabbitTemplate;
-	}
-
-	/**
-     * Initiate a new payment
-     */
-    @Transactional
-    public PaymentResponseDTO initiatePayment(PaymentRequestDTO request) {
-        log.info("Initiating payment for project: {}", request.getProjectId());
-        
-        // Validate UPI ID
-        if (!upiPaymentService.isValidUPIId(request.getUpiId())) {
-            throw new IllegalArgumentException("Invalid UPI ID format");
-        }
-        
-        // Generate unique transaction ID
-        String transactionId = generateTransactionId();
-        
-        // Create payment entity
-        Payment payment = new Payment(transactionId, request.getProjectId(), request.getPayerId(), request.getPayeeId(), request.getAmount(),
-        		request.getCurrency(), request.getPaymentMethod(), request.getUpiId(),PaymentStatus.PENDING, 
-        		request.getDescription());
-        
-        payment = paymentRepository.save(payment);
-        
-        // Record transaction history
-        recordTransactionHistory(payment.getId(), 
-                PaymentStatus.PENDING.name(), 
-                "Payment initiated");
-        
-        // Generate UPI payment link
-        UPIPaymentDTO upiPayment = upiPaymentService.generateUPIPaymentLink(
-                transactionId, 
-                request.getAmount(), 
-                request.getUpiId(),
-                request.getCurrency()
-        );
-        
-        log.info("Payment initiated successfully with transaction ID: {}", transactionId);
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Verify and complete payment
-     */
-    @Transactional
-    public TransactionStatusDTO verifyPayment(String transactionId) {
-        log.info("Verifying payment: {}", transactionId);
-        
-        Payment payment = paymentRepository.findByTransactionId(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
-        
-        if (payment.getStatus() != PaymentStatus.PENDING) {
-            log.warn("Payment {} is not in PENDING status: {}", transactionId, payment.getStatus());
-            
-            return new TransactionStatusDTO(transactionId, payment.getStatus(), payment.getAmount(), payment.getCurrency(),
-            		LocalDateTime.now(),"Payment is already " + payment.getStatus());
-        }
-        
-        // Verify with UPI service
-        UPIPaymentService.TransactionVerificationResult verificationResult = 
-                upiPaymentService.verifyUPIPayment(transactionId);
-        
-        if (verificationResult.isSuccess()) {
-            // Update payment status to COMPLETED
-            payment.setStatus(PaymentStatus.COMPLETED);
-            payment.setPaymentDate(LocalDateTime.now());
-            paymentRepository.save(payment);
-            
-            // Record transaction history
-            recordTransactionHistory(payment.getId(), 
-                    PaymentStatus.COMPLETED.name(), 
-                    "Payment completed successfully");
-            
-            // Publish payment completed event
-            publishPaymentCompletedEvent(payment);
-            
-            log.info("Payment completed successfully: {}", transactionId);
-            
-            return new TransactionStatusDTO(transactionId, PaymentStatus.COMPLETED,payment.getAmount(), payment.getCurrency(),
-            		payment.getPaymentDate(), "Payment completed successfully");
-            		
-        } else {
-            // Update payment status to FAILED
-            payment.setStatus(PaymentStatus.FAILED);
-            paymentRepository.save(payment);
-            
-            // Record transaction history
-            recordTransactionHistory(payment.getId(), 
-                    PaymentStatus.FAILED.name(), 
-                    verificationResult.getMessage());
-            
-            log.warn("Payment verification failed: {}", transactionId);
-            
-            return  new TransactionStatusDTO(transactionId, PaymentStatus.FAILED, payment.getAmount(), payment.getCurrency(),
-            		LocalDateTime.now(), verificationResult.getMessage());
-        }
-    }
-    
-    /**
-     * Get payment by ID
-     */
-    public PaymentResponseDTO getPaymentById(Long id) {
-        log.info("Fetching payment by ID: {}", id);
-        
-        Payment payment = paymentRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + id));
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Get payment by transaction ID
-     */
-    public PaymentResponseDTO getPaymentByTransactionId(String transactionId) {
-        log.info("Fetching payment by transaction ID: {}", transactionId);
-        
-        Payment payment = paymentRepository.findByTransactionId(transactionId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Get all payments for a project
-     */
-    public List<PaymentResponseDTO> getPaymentsByProject(Long projectId) {
-        log.info("Fetching payments for project: {}", projectId);
-        
-        return paymentRepository.findByProjectId(projectId).stream()
-                .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Get payment history for a user (both as payer and payee)
-     */
-    public List<PaymentResponseDTO> getUserPaymentHistory(Long userId) {
-        log.info("Fetching payment history for user: {}", userId);
-        
-        return paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
-                .map(this::mapToResponseDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Refund a payment
-     */
-    @Transactional
-    public PaymentResponseDTO refundPayment(Long paymentId, String reason) {
-        log.info("Initiating refund for payment: {}", paymentId);
-        
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
-        
-        if (payment.getStatus() != PaymentStatus.COMPLETED) {
-            throw new IllegalStateException("Can only refund completed payments");
-        }
-        
-        // Initiate UPI refund
-        UPIPaymentService.RefundResult refundResult = upiPaymentService.initiateRefund(payment.getTransactionId(), payment.getAmount());
-        
-        if (!refundResult.isSuccess()) {
-            throw new RuntimeException("Refund failed: " + refundResult.getMessage());
-        }
-        
-        // Update payment status to REFUNDED
-        payment.setStatus(PaymentStatus.REFUNDED);
-        payment = paymentRepository.save(payment);
-        
-        // Record transaction history
-        recordTransactionHistory(payment.getId(), 
-                PaymentStatus.REFUNDED.name(), 
-                "Payment refunded. Reason: " + reason + ". Refund ID: " + refundResult.getRefundTransactionId());
-        
-        log.info("Payment refunded successfully: {}", paymentId);
-        
-        return mapToResponseDTO(payment);
-    }
-    
-    /**
-     * Get transaction history for a payment
-     */
-    public List<PaymentHistoryDTO> getTransactionHistory(Long paymentId) {
-        log.info("Fetching transaction history for payment: {}", paymentId);
-        
-        return transactionHistoryRepository.findByPaymentIdOrderByChangedAtDesc(paymentId).stream()
-                .map(this::mapToHistoryDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Get all transaction history for a user
-     */
-    public List<PaymentHistoryDTO> getUserTransactionHistory(Long userId) {
-        log.info("Fetching transaction history for user: {}", userId);
-        
-        // Get all payment IDs for user
-        List<Long> paymentIds = paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
-                .map(Payment::getId)
-                .collect(Collectors.toList());
-        
-        if (paymentIds.isEmpty()) {
-            return List.of();
-        }
-        
-        return transactionHistoryRepository.findByPaymentIdInOrderByChangedAtDesc(paymentIds).stream()
-                .map(this::mapToHistoryDTO)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Record transaction history
-     */
-    private void recordTransactionHistory(Long paymentId, String statusChange, String notes) {
-        TransactionHistory history = new TransactionHistory(paymentId,statusChange,notes);
-                
-        
-        transactionHistoryRepository.save(history);
-        log.debug("Transaction history recorded for payment: {}", paymentId);
-    }
-    
-    /**
-     * Publish payment completed event to RabbitMQ
-     */
-    private void publishPaymentCompletedEvent(Payment payment) {
-        try {
-            PaymentCompletedEvent event = new PaymentCompletedEvent(payment.getId(), payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
-            		payment.getAmount(), payment.getCurrency(), payment.getPaymentDate());
-            
-            rabbitTemplate.convertAndSend("payment.completed", event);
-            
-            log.info("Payment completed event published for transaction: {}", payment.getTransactionId());
-        } catch (Exception e) {
-            log.error("Failed to publish payment completed event: {}", e.getMessage(), e);
-            // Don't throw exception - payment is already completed
-        }
-    }
-    
-    /**
-     * Generate unique transaction ID
-     */
-    private String generateTransactionId() {
-        return "TXN-" + UUID.randomUUID().toString().toUpperCase();
-    }
-    
-    /**
-     * Map Payment entity to PaymentResponseDTO
-     */
-    private PaymentResponseDTO mapToResponseDTO(Payment payment) {
-        return new PaymentResponseDTO(payment.getId(),payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
-        		payment.getAmount(), payment.getCurrency(), payment.getPaymentMethod(), payment.getUpiId(), payment.getStatus(),
-        		payment.getPaymentDate(), payment.getDescription(), payment.getCreatedAt(), payment.getUpdatedAt());
-    }
-    
-    /**
-     * Map TransactionHistory entity to PaymentHistoryDTO
-     */
-    private PaymentHistoryDTO mapToHistoryDTO(TransactionHistory history) {
-        return new PaymentHistoryDTO(history.getId(), history.getPaymentId(),history.getStatusChange(), history.getNotes(), history.getChangedAt());
-    }
-}
-
-
-
-package com.freelancenexus.userservice.dto;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import com.freelancenexus.userservice.model.ProposalStatus;
-import com.freelancenexus.userservice.model.Skill;
-
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-
-/**
- * Data Transfer Object (DTO) for transferring proposal data.
- * Contains all the fields required for representing a proposal.
- */
-
-public class ProposalDTO {
-
-    /**
-     * The unique identifier of the proposal.
-     */
-    private Long id;
-
-    /**
-     * The ID of the project associated with the proposal.
-     */
-    private Long projectId;
-
-    /**
-     * The title of the project associated with the proposal.
-     */
-    private String projectTitle;
-
-    /**
-     * The ID of the freelancer who submitted the proposal.
-     */
-    private Long freelancerId;
-
-    /**
-     * The cover letter submitted with the proposal.
-     */
-    private String coverLetter;
-
-    /**
-     * The budget proposed by the freelancer.
-     */
-    private BigDecimal proposedBudget;
-
-    /**
-     * The number of days proposed for delivery.
-     */
-    private Integer deliveryDays;
-
-    /**
-     * The AI-generated score for the proposal (0-100).
-     */
-    private BigDecimal aiScore;
-
-    /**
-     * The current status of the proposal.
-     */
-    @Enumerated(EnumType.STRING)
-    private ProposalStatus status;
-
-    /**
-     * The timestamp when the proposal was submitted.
-     */
-    private LocalDateTime submittedAt;
-
-    /**
-     * The timestamp when the proposal was last updated.
-     */
-    private LocalDateTime updatedAt;
-
-    private String projectDescription;
-    
-    
-	private String freelancerName;
-    private List<String> freelancerSkills;
-    private BigDecimal freelancerRating;
-    
-    
-    public String getFreelancerName() {
-		return freelancerName;
-	}
-
-	public void setFreelancerName(String freelancerName) {
-		this.freelancerName = freelancerName;
-	}
-
-	public List<String> getFreelancerSkills() {
-		return freelancerSkills;
-	}
 	
-	
-
-	public void setFreelancerSkills(List<String> list) {
-		this.freelancerSkills = list;
+	private final FreelancerRepository freelancerRepository;
+	 
+	public PaymentService(PaymentRepository paymentRepository,
+	                      TransactionHistoryRepository transactionHistoryRepository,
+	                      UPIPaymentService upiPaymentService,
+	                      RabbitTemplate rabbitTemplate,
+	                      FreelancerRepository freelancerRepository) {
+	 
+	    this.paymentRepository = paymentRepository;
+	    this.transactionHistoryRepository = transactionHistoryRepository;
+	    this.upiPaymentService = upiPaymentService;
+	    this.rabbitTemplate = rabbitTemplate;
+	    this.freelancerRepository = freelancerRepository;
 	}
 
-	public BigDecimal getFreelancerRating() {
-		return freelancerRating;
-	}
-
-	public void setFreelancerRating(BigDecimal freelancerRating) {
-		this.freelancerRating = freelancerRating;
-	}
-
-
-	public String getProjectDescription() {
-		return projectDescription;
-	}
-
-	public void setProjectDescription(String projectDescription) {
-		this.projectDescription = projectDescription;
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public Long getProjectId() {
-		return projectId;
-	}
-
-	public void setProjectId(Long projectId) {
-		this.projectId = projectId;
-	}
-
-	public String getProjectTitle() {
-		return projectTitle;
-	}
-
-	public void setProjectTitle(String projectTitle) {
-		this.projectTitle = projectTitle;
-	}
-
-	public Long getFreelancerId() {
-		return freelancerId;
-	}
-
-	public void setFreelancerId(Long freelancerId) {
-		this.freelancerId = freelancerId;
-	}
-
-	public String getCoverLetter() {
-		return coverLetter;
-	}
-
-	public void setCoverLetter(String coverLetter) {
-		this.coverLetter = coverLetter;
-	}
-
-	public BigDecimal getProposedBudget() {
-		return proposedBudget;
-	}
-
-	public void setProposedBudget(BigDecimal proposedBudget) {
-		this.proposedBudget = proposedBudget;
-	}
-
-	public Integer getDeliveryDays() {
-		return deliveryDays;
-	}
-
-	public void setDeliveryDays(Integer deliveryDays) {
-		this.deliveryDays = deliveryDays;
-	}
-
-	public BigDecimal getAiScore() {
-		return aiScore;
-	}
-
-	public void setAiScore(BigDecimal aiScore) {
-		this.aiScore = aiScore;
-	}
-
-	public ProposalStatus getStatus() {
-		return status;
-	}
-
-	public void setStatus(ProposalStatus status) {
-		this.status = status;
-	}
-
-	public LocalDateTime getSubmittedAt() {
-		return submittedAt;
-	}
-
-	public void setSubmittedAt(LocalDateTime submittedAt) {
-		this.submittedAt = submittedAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-
-	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
-			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
-			LocalDateTime submittedAt, LocalDateTime updatedAt, String projectDescription) {
-		super();
-		this.id = id;
-		this.projectId = projectId;
-		this.projectTitle = projectTitle;
-		this.freelancerId = freelancerId;
-		this.coverLetter = coverLetter;
-		this.proposedBudget = proposedBudget;
-		this.deliveryDays = deliveryDays;
-		this.aiScore = aiScore;
-		this.status = status;
-		this.submittedAt = submittedAt;
-		this.updatedAt = updatedAt;
-		this.projectDescription = projectDescription;
-	}
-
-	public ProposalDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-
-	public ProposalDTO(Long id, Long projectId, String projectTitle, Long freelancerId, String coverLetter,
-			BigDecimal proposedBudget, Integer deliveryDays, BigDecimal aiScore, ProposalStatus status,
-			LocalDateTime submittedAt, LocalDateTime updatedAt, String projectDescription, String freelancerName,
-			List<String> freelancerSkills, BigDecimal freelancerRating) {
-		super();
-		this.id = id;
-		this.projectId = projectId;
-		this.projectTitle = projectTitle;
-		this.freelancerId = freelancerId;
-		this.coverLetter = coverLetter;
-		this.proposedBudget = proposedBudget;
-		this.deliveryDays = deliveryDays;
-		this.aiScore = aiScore;
-		this.status = status;
-		this.submittedAt = submittedAt;
-		this.updatedAt = updatedAt;
-		this.projectDescription = projectDescription;
-		this.freelancerName = freelancerName;
-		this.freelancerSkills = freelancerSkills;
-		this.freelancerRating = freelancerRating;
-	}
-    
-    
-    
-}
-package com.freelancenexus.userservice.dto;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import com.freelancenexus.userservice.model.ProjectStatus;
-
-/**
- * ProjectDTO
- *
- * <p>Data Transfer Object representing project information returned by API endpoints.
- * Contains project details, status, budget information, required skills, and metadata.
- * Excludes sensitive information and is used for transferring project data to clients.</p>
- *
- * <p>Typically returned by project retrieval, creation, and update endpoints.</p>
- *
- * @since 1.0
- */
-public class ProjectDTO {
-    
-    /**
-     * Unique identifier of the project.
-     */
-    private Long id;
-    
-    /**
-     * Unique identifier of the client who created the project.
-     */
-    private Long clientId;
-    
-    /**
-     * Project title.
-     */
-    private String title;
-    
-    /**
-     * Detailed description of the project and its requirements.
-     */
-    private String description;
-    
-    /**
-     * Minimum budget amount for the project.
-     */
-    private BigDecimal budgetMin;
-    
-    /**
-     * Maximum budget amount for the project.
-     */
-    private BigDecimal budgetMax;
-    
-    /**
-     * Estimated project duration in days.
-     */
-    private Integer durationDays;
-    
-    /**
-     * List of required skills to complete the project.
-     */
-    private List<String> requiredSkills;
-    
-    /**
-     * Project category (e.g., "Web Development", "Mobile App", "Design").
-     */
-    private String category;
-    
-    /**
-     * Current status of the project (e.g., OPEN, IN_PROGRESS, COMPLETED).
-     *
-     * @see ProjectStatus
-     */
-    private ProjectStatus status;
-    
-    /**
-     * Project deadline date.
-     */
-    private LocalDate deadline;
-    
-    /**
-     * Unique identifier of the freelancer assigned to the project (if any).
-     * {@code null} if no freelancer is assigned.
-     */
-    private Long assignedFreelancer;
-    
-    /**
-     * Timestamp when the project was created.
-     */
-    private LocalDateTime createdAt;
-    
-    /**
-     * Timestamp when the project was last updated.
-     */
-    private LocalDateTime updatedAt;
-    
-    /**
-     * Number of proposals submitted for this project.
-     */
-    private Integer proposalCount;
-
-    private String clientName;
-    
-    private LocalDateTime clientJoinDate;
-    
-    private Long clientProjectCount;
    
+
+	/**
+     * Initiate a new payment
+     */
+    @Transactional
+    public PaymentResponseDTO initiatePayment(PaymentRequestDTO request) {
+        log.info("Initiating payment for project: {}", request.getProjectId());
+        
+        // Validate UPI ID
+        if (!upiPaymentService.isValidUPIId(request.getUpiId())) {
+            throw new IllegalArgumentException("Invalid UPI ID format");
+        }
+        
+        // Generate unique transaction ID
+        String transactionId = generateTransactionId();
+        
+        // Create payment entity
+        Long payeeUserId = freelancerRepository.findById(request.getPayeeId())
+                .orElseThrow(() -> new RuntimeException("Freelancer not found: " + request.getPayeeId()))
+                .getUserId();
+         
+        // Create payment entity
+        Payment payment = new Payment(
+                transactionId,
+                request.getProjectId(),
+                request.getPayerId(),
+                payeeUserId,                  // FINAL FIX HERE
+                request.getAmount(),
+                request.getCurrency(),
+                request.getPaymentMethod(),
+                request.getUpiId(),
+                PaymentStatus.PENDING,
+                request.getDescription()
+        );
+        
+        payment = paymentRepository.save(payment);
+        
+        // Record transaction history
+        recordTransactionHistory(payment.getId(), 
+                PaymentStatus.PENDING.name(), 
+                "Payment initiated");
+        
+        // Generate UPI payment link
+        UPIPaymentDTO upiPayment = upiPaymentService.generateUPIPaymentLink(
+                transactionId, 
+                request.getAmount(), 
+                request.getUpiId(),
+                request.getCurrency()
+        );
+        
+        log.info("Payment initiated successfully with transaction ID: {}", transactionId);
+        
+        return mapToResponseDTO(payment);
+    }
     
-	public String getClientName() {
-		return clientName;
-	}
-
-
-	public void setClientName(String clientName) {
-		this.clientName = clientName;
-	}
-
-
-	public LocalDateTime getClientJoinDate() {
-		return clientJoinDate;
-	}
-
-
-	public void setClientJoinDate(LocalDateTime clientJoinDate) {
-		this.clientJoinDate = clientJoinDate;
-	}
-
-
-	public Long getClientProjectCount() {
-		return clientProjectCount;
-	}
-
-
-	public void setClientProjectCount(Long clientProjectCount) {
-		this.clientProjectCount = clientProjectCount;
-	}
-
-
-	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
-			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
-			ProjectStatus status, LocalDate deadline, Long assignedFreelancer,
-			LocalDateTime createdAt, LocalDateTime updatedAt, Integer proposalCount) {
-		super();
-		this.id = id;
-		this.clientId = clientId;
-		this.title = title;
-		this.description = description;
-		this.budgetMin = budgetMin;
-		this.budgetMax = budgetMax;
-		this.durationDays = durationDays;
-		this.requiredSkills = requiredSkills;
-		this.category = category;
-		this.status = status;
-		this.deadline = deadline;
-		this.assignedFreelancer = assignedFreelancer;
-		this.createdAt = createdAt;
-		this.updatedAt = updatedAt;
-		this.proposalCount = proposalCount;
-	}
-
-	
-	public ProjectDTO(Long id, Long clientId, String title, String description, BigDecimal budgetMin,
-			BigDecimal budgetMax, Integer durationDays, List<String> requiredSkills, String category,
-			ProjectStatus status, LocalDate deadline, Long assignedFreelancer, LocalDateTime createdAt,
-			LocalDateTime updatedAt, Integer proposalCount, String clientName, LocalDateTime clientJoinDate,
-			Long clientProjectCount) {
-		super();
-		this.id = id;
-		this.clientId = clientId;
-		this.title = title;
-		this.description = description;
-		this.budgetMin = budgetMin;
-		this.budgetMax = budgetMax;
-		this.durationDays = durationDays;
-		this.requiredSkills = requiredSkills;
-		this.category = category;
-		this.status = status;
-		this.deadline = deadline;
-		this.assignedFreelancer = assignedFreelancer;
-		this.createdAt = createdAt;
-		this.updatedAt = updatedAt;
-		this.proposalCount = proposalCount;
-		this.clientName = clientName;
-		this.clientJoinDate = clientJoinDate;
-		this.clientProjectCount = clientProjectCount;
-	}
-
-
-	public ProjectDTO() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public Long getClientId() {
-		return clientId;
-	}
-
-	public void setClientId(Long clientId) {
-		this.clientId = clientId;
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
-	public void setTitle(String title) {
-		this.title = title;
-	}
-
-	public String getDescription() {
-		return description;
-	}
-
-	public void setDescription(String description) {
-		this.description = description;
-	}
-
-	public BigDecimal getBudgetMin() {
-		return budgetMin;
-	}
-
-	public void setBudgetMin(BigDecimal budgetMin) {
-		this.budgetMin = budgetMin;
-	}
-
-	public BigDecimal getBudgetMax() {
-		return budgetMax;
-	}
-
-	public void setBudgetMax(BigDecimal budgetMax) {
-		this.budgetMax = budgetMax;
-	}
-
-	public Integer getDurationDays() {
-		return durationDays;
-	}
-
-	public void setDurationDays(Integer durationDays) {
-		this.durationDays = durationDays;
-	}
-
-	public List<String> getRequiredSkills() {
-		return requiredSkills;
-	}
-
-	public void setRequiredSkills(List<String> requiredSkills) {
-		this.requiredSkills = requiredSkills;
-	}
-
-	public String getCategory() {
-		return category;
-	}
-
-	public void setCategory(String category) {
-		this.category = category;
-	}
-
-	public ProjectStatus getStatus() {
-		return status;
-	}
-
-	public void setStatus(ProjectStatus status) {
-		this.status = status;
-	}
-
-	public LocalDate getDeadline() {
-		return deadline;
-	}
-
-	public void setDeadline(LocalDate deadline) {
-		this.deadline = deadline;
-	}
-
-	public Long getAssignedFreelancer() {
-		return assignedFreelancer;
-	}
-
-	public void setAssignedFreelancer(Long assignedFreelancer) {
-		this.assignedFreelancer = assignedFreelancer;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-	public Integer getProposalCount() {
-		return proposalCount;
-	}
-
-	public void setProposalCount(Integer proposalCount) {
-		this.proposalCount = proposalCount;
-	}
-	
-	
+    /**
+     * Verify and complete payment
+     */
+    @Transactional
+    public TransactionStatusDTO verifyPayment(String transactionId) {
+        log.info("Verifying payment: {}", transactionId);
+        
+        Payment payment = paymentRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
+        
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            log.warn("Payment {} is not in PENDING status: {}", transactionId, payment.getStatus());
+            
+            return new TransactionStatusDTO(transactionId, payment.getStatus(), payment.getAmount(), payment.getCurrency(),
+            		LocalDateTime.now(),"Payment is already " + payment.getStatus());
+        }
+        
+        // Verify with UPI service
+        UPIPaymentService.TransactionVerificationResult verificationResult = 
+                upiPaymentService.verifyUPIPayment(transactionId);
+        
+        if (verificationResult.isSuccess()) {
+            // Update payment status to COMPLETED
+            payment.setStatus(PaymentStatus.COMPLETED);
+            payment.setPaymentDate(LocalDateTime.now());
+            paymentRepository.save(payment);
+            
+            // Record transaction history
+            recordTransactionHistory(payment.getId(), 
+                    PaymentStatus.COMPLETED.name(), 
+                    "Payment completed successfully");
+            
+            // Publish payment completed event
+            publishPaymentCompletedEvent(payment);
+            
+            log.info("Payment completed successfully: {}", transactionId);
+            
+            return new TransactionStatusDTO(transactionId, PaymentStatus.COMPLETED,payment.getAmount(), payment.getCurrency(),
+            		payment.getPaymentDate(), "Payment completed successfully");
+            		
+        } else {
+            // Update payment status to FAILED
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+            
+            // Record transaction history
+            recordTransactionHistory(payment.getId(), 
+                    PaymentStatus.FAILED.name(), 
+                    verificationResult.getMessage());
+            
+            log.warn("Payment verification failed: {}", transactionId);
+            
+            return  new TransactionStatusDTO(transactionId, PaymentStatus.FAILED, payment.getAmount(), payment.getCurrency(),
+            		LocalDateTime.now(), verificationResult.getMessage());
+        }
+    }
     
+    /**
+     * Get payment by ID
+     */
+    public PaymentResponseDTO getPaymentById(Long id) {
+        log.info("Fetching payment by ID: {}", id);
+        
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + id));
+        
+        return mapToResponseDTO(payment);
+    }
     
+    /**
+     * Get payment by transaction ID
+     */
+    public PaymentResponseDTO getPaymentByTransactionId(String transactionId) {
+        log.info("Fetching payment by transaction ID: {}", transactionId);
+        
+        Payment payment = paymentRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get all payments for a project
+     */
+    public List<PaymentResponseDTO> getPaymentsByProject(Long projectId) {
+        log.info("Fetching payments for project: {}", projectId);
+        
+        return paymentRepository.findByProjectId(projectId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get payment history for a user (both as payer and payee)
+     */
+    public List<PaymentResponseDTO> getUserPaymentHistory(Long userId) {
+        log.info("Fetching payment history for user: {}", userId);
+        
+        return paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Refund a payment
+     */
+    @Transactional
+    public PaymentResponseDTO refundPayment(Long paymentId, String reason) {
+        log.info("Initiating refund for payment: {}", paymentId);
+        
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+        
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            throw new IllegalStateException("Can only refund completed payments");
+        }
+        
+        // Initiate UPI refund
+        UPIPaymentService.RefundResult refundResult = upiPaymentService.initiateRefund(payment.getTransactionId(), payment.getAmount());
+        
+        if (!refundResult.isSuccess()) {
+            throw new RuntimeException("Refund failed: " + refundResult.getMessage());
+        }
+        
+        // Update payment status to REFUNDED
+        payment.setStatus(PaymentStatus.REFUNDED);
+        payment = paymentRepository.save(payment);
+        
+        // Record transaction history
+        recordTransactionHistory(payment.getId(), 
+                PaymentStatus.REFUNDED.name(), 
+                "Payment refunded. Reason: " + reason + ". Refund ID: " + refundResult.getRefundTransactionId());
+        
+        log.info("Payment refunded successfully: {}", paymentId);
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get transaction history for a payment
+     */
+    public List<PaymentHistoryDTO> getTransactionHistory(Long paymentId) {
+        log.info("Fetching transaction history for payment: {}", paymentId);
+        
+        return transactionHistoryRepository.findByPaymentIdOrderByChangedAtDesc(paymentId).stream()
+                .map(this::mapToHistoryDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get all transaction history for a user
+     */
+    public List<PaymentHistoryDTO> getUserTransactionHistory(Long userId) {
+        log.info("Fetching transaction history for user: {}", userId);
+        
+        // Get all payment IDs for user
+        List<Long> paymentIds = paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
+                .map(Payment::getId)
+                .collect(Collectors.toList());
+        
+        if (paymentIds.isEmpty()) {
+            return List.of();
+        }
+        
+        return transactionHistoryRepository.findByPaymentIdInOrderByChangedAtDesc(paymentIds).stream()
+                .map(this::mapToHistoryDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Record transaction history
+     */
+    private void recordTransactionHistory(Long paymentId, String statusChange, String notes) {
+        TransactionHistory history = new TransactionHistory(paymentId,statusChange,notes);
+                
+        
+        transactionHistoryRepository.save(history);
+        log.debug("Transaction history recorded for payment: {}", paymentId);
+    }
+    
+    /**
+     * Publish payment completed event to RabbitMQ
+     */
+    private void publishPaymentCompletedEvent(Payment payment) {
+        try {
+            PaymentCompletedEvent event = new PaymentCompletedEvent(payment.getId(), payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
+            		payment.getAmount(), payment.getCurrency(), payment.getPaymentDate());
+            
+            rabbitTemplate.convertAndSend("payment.completed", event);
+            
+            log.info("Payment completed event published for transaction: {}", payment.getTransactionId());
+        } catch (Exception e) {
+            log.error("Failed to publish payment completed event: {}", e.getMessage(), e);
+            // Don't throw exception - payment is already completed
+        }
+    }
+    
+    /**
+     * Generate unique transaction ID
+     */
+    private String generateTransactionId() {
+        return "TXN-" + UUID.randomUUID().toString().toUpperCase();
+    }
+    
+    /**
+     * Map Payment entity to PaymentResponseDTO
+     */
+    private PaymentResponseDTO mapToResponseDTO(Payment payment) {
+        return new PaymentResponseDTO(payment.getId(),payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
+        		payment.getAmount(), payment.getCurrency(), payment.getPaymentMethod(), payment.getUpiId(), payment.getStatus(),
+        		payment.getPaymentDate(), payment.getDescription(), payment.getCreatedAt(), payment.getUpdatedAt());
+    }
+    
+    /**
+     * Map TransactionHistory entity to PaymentHistoryDTO
+     */
+    private PaymentHistoryDTO mapToHistoryDTO(TransactionHistory history) {
+        return new PaymentHistoryDTO(history.getId(), history.getPaymentId(),history.getStatusChange(), history.getNotes(), history.getChangedAt());
+    }
+}
+
+
+
+package com.freelancenexus.userservice.service;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.freelancenexus.userservice.dto.PaymentHistoryDTO;
+import com.freelancenexus.userservice.dto.PaymentRequestDTO;
+import com.freelancenexus.userservice.dto.PaymentResponseDTO;
+import com.freelancenexus.userservice.dto.TransactionStatusDTO;
+import com.freelancenexus.userservice.dto.UPIPaymentDTO;
+import com.freelancenexus.userservice.event.PaymentCompletedEvent;
+import com.freelancenexus.userservice.model.Payment;
+import com.freelancenexus.userservice.model.PaymentStatus;
+import com.freelancenexus.userservice.model.TransactionHistory;
+import com.freelancenexus.userservice.repository.FreelancerRepository;
+import com.freelancenexus.userservice.repository.PaymentRepository;
+import com.freelancenexus.userservice.repository.TransactionHistoryRepository;
+@Service
+public class PaymentService {
+    
+    private final PaymentRepository paymentRepository;
+    private final TransactionHistoryRepository transactionHistoryRepository;
+    private final UPIPaymentService upiPaymentService;
+    private final RabbitTemplate rabbitTemplate;
+    
+	private final Logger log= LoggerFactory.getLogger(PaymentService.class);
+	
+	private final FreelancerRepository freelancerRepository;
+	 
+	public PaymentService(PaymentRepository paymentRepository,
+	                      TransactionHistoryRepository transactionHistoryRepository,
+	                      UPIPaymentService upiPaymentService,
+	                      RabbitTemplate rabbitTemplate,
+	                      FreelancerRepository freelancerRepository) {
+	 
+	    this.paymentRepository = paymentRepository;
+	    this.transactionHistoryRepository = transactionHistoryRepository;
+	    this.upiPaymentService = upiPaymentService;
+	    this.rabbitTemplate = rabbitTemplate;
+	    this.freelancerRepository = freelancerRepository;
+	}
+
+   
+
+	/**
+     * Initiate a new payment
+     */
+    @Transactional
+    public PaymentResponseDTO initiatePayment(PaymentRequestDTO request) {
+        log.info("Initiating payment for project: {}", request.getProjectId());
+        
+        // Validate UPI ID
+        if (!upiPaymentService.isValidUPIId(request.getUpiId())) {
+            throw new IllegalArgumentException("Invalid UPI ID format");
+        }
+        
+        // Generate unique transaction ID
+        String transactionId = generateTransactionId();
+        
+        // Create payment entity
+        Long payeeUserId = freelancerRepository.findById(request.getPayeeId())
+                .orElseThrow(() -> new RuntimeException("Freelancer not found: " + request.getPayeeId()))
+                .getUserId();
+         
+        // Create payment entity
+        Payment payment = new Payment(
+                transactionId,
+                request.getProjectId(),
+                request.getPayerId(),
+                payeeUserId,                  // FINAL FIX HERE
+                request.getAmount(),
+                request.getCurrency(),
+                request.getPaymentMethod(),
+                request.getUpiId(),
+                PaymentStatus.PENDING,
+                request.getDescription()
+        );
+        
+        payment = paymentRepository.save(payment);
+        
+        // Record transaction history
+        recordTransactionHistory(payment.getId(), 
+                PaymentStatus.PENDING.name(), 
+                "Payment initiated");
+        
+        // Generate UPI payment link
+        UPIPaymentDTO upiPayment = upiPaymentService.generateUPIPaymentLink(
+                transactionId, 
+                request.getAmount(), 
+                request.getUpiId(),
+                request.getCurrency()
+        );
+        
+        log.info("Payment initiated successfully with transaction ID: {}", transactionId);
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Verify and complete payment
+     */
+    @Transactional
+    public TransactionStatusDTO verifyPayment(String transactionId) {
+        log.info("Verifying payment: {}", transactionId);
+        
+        Payment payment = paymentRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
+        
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            log.warn("Payment {} is not in PENDING status: {}", transactionId, payment.getStatus());
+            
+            return new TransactionStatusDTO(transactionId, payment.getStatus(), payment.getAmount(), payment.getCurrency(),
+            		LocalDateTime.now(),"Payment is already " + payment.getStatus());
+        }
+        
+        // Verify with UPI service
+        UPIPaymentService.TransactionVerificationResult verificationResult = 
+                upiPaymentService.verifyUPIPayment(transactionId);
+        
+        if (verificationResult.isSuccess()) {
+            // Update payment status to COMPLETED
+            payment.setStatus(PaymentStatus.COMPLETED);
+            payment.setPaymentDate(LocalDateTime.now());
+            paymentRepository.save(payment);
+            
+            // Record transaction history
+            recordTransactionHistory(payment.getId(), 
+                    PaymentStatus.COMPLETED.name(), 
+                    "Payment completed successfully");
+            
+            // Publish payment completed event
+            publishPaymentCompletedEvent(payment);
+            
+            log.info("Payment completed successfully: {}", transactionId);
+            
+            return new TransactionStatusDTO(transactionId, PaymentStatus.COMPLETED,payment.getAmount(), payment.getCurrency(),
+            		payment.getPaymentDate(), "Payment completed successfully");
+            		
+        } else {
+            // Update payment status to FAILED
+            payment.setStatus(PaymentStatus.FAILED);
+            paymentRepository.save(payment);
+            
+            // Record transaction history
+            recordTransactionHistory(payment.getId(), 
+                    PaymentStatus.FAILED.name(), 
+                    verificationResult.getMessage());
+            
+            log.warn("Payment verification failed: {}", transactionId);
+            
+            return  new TransactionStatusDTO(transactionId, PaymentStatus.FAILED, payment.getAmount(), payment.getCurrency(),
+            		LocalDateTime.now(), verificationResult.getMessage());
+        }
+    }
+    
+    /**
+     * Get payment by ID
+     */
+    public PaymentResponseDTO getPaymentById(Long id) {
+        log.info("Fetching payment by ID: {}", id);
+        
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + id));
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get payment by transaction ID
+     */
+    public PaymentResponseDTO getPaymentByTransactionId(String transactionId) {
+        log.info("Fetching payment by transaction ID: {}", transactionId);
+        
+        Payment payment = paymentRepository.findByTransactionId(transactionId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + transactionId));
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get all payments for a project
+     */
+    public List<PaymentResponseDTO> getPaymentsByProject(Long projectId) {
+        log.info("Fetching payments for project: {}", projectId);
+        
+        return paymentRepository.findByProjectId(projectId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get payment history for a user (both as payer and payee)
+     */
+    public List<PaymentResponseDTO> getUserPaymentHistory(Long userId) {
+        log.info("Fetching payment history for user: {}", userId);
+        
+        return paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
+                .map(this::mapToResponseDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Refund a payment
+     */
+    @Transactional
+    public PaymentResponseDTO refundPayment(Long paymentId, String reason) {
+        log.info("Initiating refund for payment: {}", paymentId);
+        
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+        
+        if (payment.getStatus() != PaymentStatus.COMPLETED) {
+            throw new IllegalStateException("Can only refund completed payments");
+        }
+        
+        // Initiate UPI refund
+        UPIPaymentService.RefundResult refundResult = upiPaymentService.initiateRefund(payment.getTransactionId(), payment.getAmount());
+        
+        if (!refundResult.isSuccess()) {
+            throw new RuntimeException("Refund failed: " + refundResult.getMessage());
+        }
+        
+        // Update payment status to REFUNDED
+        payment.setStatus(PaymentStatus.REFUNDED);
+        payment = paymentRepository.save(payment);
+        
+        // Record transaction history
+        recordTransactionHistory(payment.getId(), 
+                PaymentStatus.REFUNDED.name(), 
+                "Payment refunded. Reason: " + reason + ". Refund ID: " + refundResult.getRefundTransactionId());
+        
+        log.info("Payment refunded successfully: {}", paymentId);
+        
+        return mapToResponseDTO(payment);
+    }
+    
+    /**
+     * Get transaction history for a payment
+     */
+    public List<PaymentHistoryDTO> getTransactionHistory(Long paymentId) {
+        log.info("Fetching transaction history for payment: {}", paymentId);
+        
+        return transactionHistoryRepository.findByPaymentIdOrderByChangedAtDesc(paymentId).stream()
+                .map(this::mapToHistoryDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Get all transaction history for a user
+     */
+    public List<PaymentHistoryDTO> getUserTransactionHistory(Long userId) {
+        log.info("Fetching transaction history for user: {}", userId);
+        
+        // Get all payment IDs for user
+        List<Long> paymentIds = paymentRepository.findByPayerIdOrPayeeId(userId, userId).stream()
+                .map(Payment::getId)
+                .collect(Collectors.toList());
+        
+        if (paymentIds.isEmpty()) {
+            return List.of();
+        }
+        
+        return transactionHistoryRepository.findByPaymentIdInOrderByChangedAtDesc(paymentIds).stream()
+                .map(this::mapToHistoryDTO)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Record transaction history
+     */
+    private void recordTransactionHistory(Long paymentId, String statusChange, String notes) {
+        TransactionHistory history = new TransactionHistory(paymentId,statusChange,notes);
+                
+        
+        transactionHistoryRepository.save(history);
+        log.debug("Transaction history recorded for payment: {}", paymentId);
+    }
+    
+    /**
+     * Publish payment completed event to RabbitMQ
+     */
+    private void publishPaymentCompletedEvent(Payment payment) {
+        try {
+            PaymentCompletedEvent event = new PaymentCompletedEvent(payment.getId(), payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
+            		payment.getAmount(), payment.getCurrency(), payment.getPaymentDate());
+            
+            rabbitTemplate.convertAndSend("payment.completed", event);
+            
+            log.info("Payment completed event published for transaction: {}", payment.getTransactionId());
+        } catch (Exception e) {
+            log.error("Failed to publish payment completed event: {}", e.getMessage(), e);
+            // Don't throw exception - payment is already completed
+        }
+    }
+    
+    /**
+     * Generate unique transaction ID
+     */
+    private String generateTransactionId() {
+        return "TXN-" + UUID.randomUUID().toString().toUpperCase();
+    }
+    
+    /**
+     * Map Payment entity to PaymentResponseDTO
+     */
+    private PaymentResponseDTO mapToResponseDTO(Payment payment) {
+        return new PaymentResponseDTO(payment.getId(),payment.getTransactionId(), payment.getProjectId(), payment.getPayerId(), payment.getPayeeId(),
+        		payment.getAmount(), payment.getCurrency(), payment.getPaymentMethod(), payment.getUpiId(), payment.getStatus(),
+        		payment.getPaymentDate(), payment.getDescription(), payment.getCreatedAt(), payment.getUpdatedAt());
+    }
+    
+    /**
+     * Map TransactionHistory entity to PaymentHistoryDTO
+     */
+    private PaymentHistoryDTO mapToHistoryDTO(TransactionHistory history) {
+        return new PaymentHistoryDTO(history.getId(), history.getPaymentId(),history.getStatusChange(), history.getNotes(), history.getChangedAt());
+    }
 }
 
 package com.freelancenexus.userservice.dto;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
-
-/**
- * Data Transfer Object (DTO) for representing a freelancer.
- * Includes details such as title, bio, hourly rate, and skills.
- */
-public class FreelancerDTO {
+public class PaymentHistoryDTO {
     
-    /**
-     * The unique identifier of the freelancer.
-     */
     private Long id;
-    
-    /**
-     * The user ID associated with the freelancer.
-     * Must not be null.
-     */
-    @NotNull(message = "User ID is required")
-    private Long userId;
-    
-    /**
-     * The title or headline of the freelancer profile.
-     * Must not be blank and cannot exceed 255 characters.
-     */
-    @NotBlank(message = "Title is required")
-    @Size(max = 255, message = "Title must not exceed 255 characters")
-    private String title;
-    
-    /**
-     * The biography or description of the freelancer.
-     * Cannot exceed 5000 characters.
-     */
-    @Size(max = 5000, message = "Bio must not exceed 5000 characters")
-    private String bio;
-    
-    /**
-     * The hourly rate of the freelancer.
-     * Must be positive and follow a valid format.
-     */
-    @DecimalMin(value = "0.0", inclusive = false, message = "Hourly rate must be positive")
-    @Digits(integer = 8, fraction = 2, message = "Invalid hourly rate format")
-    private BigDecimal hourlyRate;
-    
-    /**
-     * The availability status of the freelancer.
-     * Must match one of the predefined statuses.
-     */
-    
-    @Pattern(
-    	    regexp = "AVAILABLE|BUSY|UNAVAILABLE|FULL_TIME|PART_TIME",
-    	    message = "Invalid availability status"
-    	)
-    	private String availability;
-    
-    /**
-     * The total earnings of the freelancer.
-     */
-    private BigDecimal totalEarnings;
-
-    /**
-     * The number of completed projects by the freelancer.
-     */
-    private Integer completedProjects;
-
-    /**
-     * The average rating of the freelancer.
-     */
-    private BigDecimal averageRating;
-    
-    /**
-     * The list of skills associated with the freelancer.
-     */
-    private List<SkillDTO> skills;
-    
-    /**
-     * The timestamp when the freelancer profile was created.
-     */
-    private LocalDateTime createdAt;
-
-    /**
-     * The timestamp when the freelancer profile was last updated.
-     */
-    private LocalDateTime updatedAt;
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
+    private Long paymentId;
+    private String statusChange;
+    private String notes;
+    private LocalDateTime changedAt;
+	public PaymentHistoryDTO(Long id, Long paymentId, String statusChange, String notes, LocalDateTime changedAt) {
+		super();
 		this.id = id;
+		this.paymentId = paymentId;
+		this.statusChange = statusChange;
+		this.notes = notes;
+		this.changedAt = changedAt;
 	}
-
-	public Long getUserId() {
-		return userId;
-	}
-
-	public void setUserId(Long userId) {
-		this.userId = userId;
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
-	public void setTitle(String title) {
-		this.title = title;
-	}
-
-	public String getBio() {
-		return bio;
-	}
-
-	public void setBio(String bio) {
-		this.bio = bio;
-	}
-
-	public BigDecimal getHourlyRate() {
-		return hourlyRate;
-	}
-
-	public void setHourlyRate(BigDecimal hourlyRate) {
-		this.hourlyRate = hourlyRate;
-	}
-
-	public String getAvailability() {
-		return availability;
-	}
-
-	public void setAvailability(String availability) {
-		this.availability = availability;
-	}
-
-	public BigDecimal getTotalEarnings() {
-		return totalEarnings;
-	}
-
-	public void setTotalEarnings(BigDecimal totalEarnings) {
-		this.totalEarnings = totalEarnings;
-	}
-
-	public Integer getCompletedProjects() {
-		return completedProjects;
-	}
-
-	public void setCompletedProjects(Integer completedProjects) {
-		this.completedProjects = completedProjects;
-	}
-
-	public BigDecimal getAverageRating() {
-		return averageRating;
-	}
-
-	public void setAverageRating(BigDecimal averageRating) {
-		this.averageRating = averageRating;
-	}
-
-	public List<SkillDTO> getSkills() {
-		return skills;
-	}
-
-	public void setSkills(List<SkillDTO> skills) {
-		this.skills = skills;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-	public FreelancerDTO() {
+	public PaymentHistoryDTO() {
 		super();
 		// TODO Auto-generated constructor stub
 	}
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public Long getPaymentId() {
+		return paymentId;
+	}
+	public void setPaymentId(Long paymentId) {
+		this.paymentId = paymentId;
+	}
+	public String getStatusChange() {
+		return statusChange;
+	}
+	public void setStatusChange(String statusChange) {
+		this.statusChange = statusChange;
+	}
+	public String getNotes() {
+		return notes;
+	}
+	public void setNotes(String notes) {
+		this.notes = notes;
+	}
+	public LocalDateTime getChangedAt() {
+		return changedAt;
+	}
+	public void setChangedAt(LocalDateTime changedAt) {
+		this.changedAt = changedAt;
+	}
+    
     
     
 }
@@ -1645,616 +1518,73 @@ public class PaymentResponseDTO {
     
 }
 
-
 package com.freelancenexus.userservice.model;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "users", indexes = {
-    @Index(name = "idx_email", columnList = "email"),
-    @Index(name = "idx_role", columnList = "role")
-})
-public class User {
+@Table(name = "payments")
+@EntityListeners(AuditingEntityListener.class)
+public class Payment {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "email", unique = true, nullable = false)
-    private String email;
+    @Column(name = "transaction_id", unique = true, nullable = false)
+    private String transactionId;
     
-    @Column(name = "password")
-    private String password;
+    @Column(name = "project_id", nullable = false)
+    private Long projectId;
     
-    @Column(name = "full_name", nullable = false)
-    private String fullName;
+    @Column(name = "payer_id", nullable = false)
+    private Long payerId;  // Client user ID
     
-    @Column(name = "phone", length = 20)
-    private String phone;
+    @Column(name = "payee_id", nullable = false)
+    private Long payeeId;  // Freelancer user ID
     
-    @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
-    private UserRole role;
+    @Column(nullable = false, precision = 10, scale = 2)
+    private BigDecimal amount;
     
-    @Column(name = "is_active", nullable = false)
-    private Boolean isActive = true;
+    @Column(length = 10, nullable = false)
+    private String currency;
     
-    @Column(name = "profile_image_url", length = 500)
-    private String profileImageUrl;
+    @Column(name = "payment_method", length = 50)
+    private String paymentMethod;
     
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "upi_id", length = 100)
+    private String upiId;
     
-    @UpdateTimestamp
-    @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-	public String getEmail() {
-		return email;
-	}
-
-	public void setEmail(String email) {
-		this.email = email;
-	}
-
-	public String getPassword() {
-		return password;
-	}
-
-	public void setPassword(String password) {
-		this.password = password;
-	}
-
-	public String getFullName() {
-		return fullName;
-	}
-
-	public void setFullName(String fullName) {
-		this.fullName = fullName;
-	}
-
-	public String getPhone() {
-		return phone;
-	}
-
-	public void setPhone(String phone) {
-		this.phone = phone;
-	}
-
-	public UserRole getRole() {
-		return role;
-	}
-
-	public void setRole(UserRole role) {
-		this.role = role;
-	}
-
-	public Boolean getIsActive() {
-		return isActive;
-	}
-
-	public void setIsActive(Boolean isActive) {
-		this.isActive = isActive;
-	}
-
-	public String getProfileImageUrl() {
-		return profileImageUrl;
-	}
-
-	public void setProfileImageUrl(String profileImageUrl) {
-		this.profileImageUrl = profileImageUrl;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-	public User(Long id, String email, String password, String fullName, String phone, UserRole role, Boolean isActive,
-			String profileImageUrl, LocalDateTime createdAt, LocalDateTime updatedAt) {
-		super();
-		this.id = id;
-		this.email = email;
-		this.password = password;
-		this.fullName = fullName;
-		this.phone = phone;
-		this.role = role;
-		this.isActive = isActive;
-		this.profileImageUrl = profileImageUrl;
-		this.createdAt = createdAt;
-		this.updatedAt = updatedAt;
-	}
-
-	public User() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-	
-    
-    
-}
-
-package com.freelancenexus.userservice.model;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Set;
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
-
-/**
- * Entity representing a freelancer.
- */
-@Entity
-@Table(name = "freelancers")
-public class Freelancer {
-    
-    /**
-     * The unique identifier of the freelancer.
-     */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    /**
-     * The user ID associated with the freelancer.
-     */
-    @Column(name = "user_id", unique = true, nullable = false)
-    private Long userId;
-    
-//    @OneToOne
-//    @JoinColumn(name = "userId")
-//    private User user;
-  
-    
-    /**
-     * The title or headline of the freelancer profile.
-     */
-    @Column(nullable = false, length = 255)
-    private String title;
-    
-    /**
-     * The biography or description of the freelancer.
-     */
-    @Column(columnDefinition = "TEXT")
-    private String bio;
-    
-    /**
-     * The hourly rate of the freelancer.
-     */
-    @Column(name = "hourly_rate", precision = 10, scale = 2)
-    private BigDecimal hourlyRate;
-    
-    /**
-     * The availability status of the freelancer.
-     */
-    @Column(length = 50)
-    private String availability;
-    
-    /**
-     * The total earnings of the freelancer.
-     */
-    @Column(name = "total_earnings", precision = 12, scale = 2)
-    private BigDecimal totalEarnings = BigDecimal.ZERO;
-    
-    /**
-     * The number of completed projects by the freelancer.
-     */
-    @Column(name = "completed_projects")
-    private Integer completedProjects = 0;
-    
-    /**
-     * The average rating of the freelancer.
-     */
-    @Column(name = "average_rating", precision = 3, scale = 2)
-    private BigDecimal averageRating = BigDecimal.ZERO;
-    
-    /**
-     * The list of skills associated with the freelancer.
-     */
-    @JsonIgnore
-    @OneToMany(mappedBy = "freelancer", fetch = FetchType.LAZY)
-    private Set<Skill> skills;
-     
-    @JsonIgnore
-    @OneToMany(mappedBy = "freelancer", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<Portfolio> portfolios = new LinkedHashSet<>();
-     
-    @JsonIgnore
-    @OneToMany(mappedBy = "freelancer", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Rating> ratings = new ArrayList<>();
-    
-    /**
-     * The timestamp when the freelancer profile was created.
-     */
-    @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
-    
-    /**
-     * The timestamp when the freelancer profile was last updated.
-     */
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-    
-    /**
-     * Sets the creation and update timestamps before persisting the entity.
-     */
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
-    }
-    
-    /**
-     * Sets the update timestamp before updating the entity.
-     */
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
-    
-    /**
-     * Adds a skill to the freelancer.
-     *
-     * @param skill the skill to add
-     */
-    public void addSkill(Skill skill) {
-        skills.add(skill);
-        skill.setFreelancer(this);
-    }
-    
-    /**
-     * Removes a skill from the freelancer.
-     *
-     * @param skill the skill to remove
-     */
-    public void removeSkill(Skill skill) {
-        skills.remove(skill);
-        skill.setFreelancer(null);
-    }
-    
-    /**
-     * Adds a portfolio item to the freelancer.
-     *
-     * @param portfolio the portfolio item to add
-     */
-    public void addPortfolio(Portfolio portfolio) {
-        portfolios.add(portfolio);
-        portfolio.setFreelancer(this);
-    }
-    
-    /**
-     * Removes a portfolio item from the freelancer.
-     *
-     * @param portfolio the portfolio item to remove
-     */
-    public void removePortfolio(Portfolio portfolio) {
-        portfolios.remove(portfolio);
-        portfolio.setFreelancer(null);
-    }
-    
-    /**
-     * Adds a rating to the freelancer.
-     *
-     * @param rating the rating to add
-     */
-    public void addRating(Rating rating) {
-        ratings.add(rating);
-        rating.setFreelancer(this);
-    }
-
-	public Long getId() {
-		return id;
-	}
-
-	public void setId(Long id) {
-		this.id = id;
-	}
-
-
-	public String getTitle() {
-		return title;
-	}
-
-	public void setTitle(String title) {
-		this.title = title;
-	}
-
-	public String getBio() {
-		return bio;
-	}
-
-	public void setBio(String bio) {
-		this.bio = bio;
-	}
-
-	public BigDecimal getHourlyRate() {
-		return hourlyRate;
-	}
-
-	public void setHourlyRate(BigDecimal hourlyRate) {
-		this.hourlyRate = hourlyRate;
-	}
-
-	public String getAvailability() {
-		return availability;
-	}
-
-	public void setAvailability(String availability) {
-		this.availability = availability;
-	}
-
-	public BigDecimal getTotalEarnings() {
-		return totalEarnings;
-	}
-
-	public void setTotalEarnings(BigDecimal totalEarnings) {
-		this.totalEarnings = totalEarnings;
-	}
-
-	public Long getUserId() {
-		return userId;
-	}
-
-	public void setUserId(Long userId) {
-		this.userId = userId;
-	}
-
-	public Integer getCompletedProjects() {
-		return completedProjects;
-	}
-
-	public void setCompletedProjects(Integer completedProjects) {
-		this.completedProjects = completedProjects;
-	}
-
-	public BigDecimal getAverageRating() {
-		return averageRating;
-	}
-
-	public void setAverageRating(BigDecimal averageRating) {
-		this.averageRating = averageRating;
-	}
-
-	public Set<Skill> getSkills() {
-		return skills;
-	}
-
-	public void setSkills(Set<Skill> skills) {
-		this.skills = skills;
-	}
-
-	public Set<Portfolio> getPortfolios() {
-		return portfolios;
-	}
-
-	public void setPortfolios(Set<Portfolio> portfolios) {
-		this.portfolios = portfolios;
-	}
-
-	public List<Rating> getRatings() {
-		return ratings;
-	}
-
-	public void setRatings(List<Rating> ratings) {
-		this.ratings = ratings;
-	}
-
-	public LocalDateTime getCreatedAt() {
-		return createdAt;
-	}
-
-	public void setCreatedAt(LocalDateTime createdAt) {
-		this.createdAt = createdAt;
-	}
-
-	public LocalDateTime getUpdatedAt() {
-		return updatedAt;
-	}
-
-	public void setUpdatedAt(LocalDateTime updatedAt) {
-		this.updatedAt = updatedAt;
-	}
-
-//	public Freelancer(Long id,String title, String bio, BigDecimal hourlyRate, String availability,
-//			BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating, List<Skill> skills,
-//			List<Portfolio> portfolios, List<Rating> ratings, LocalDateTime createdAt, LocalDateTime updatedAt) {
-//		super();
-//		this.id = id;
-//		this.title = title;
-//		this.bio = bio;
-//		this.hourlyRate = hourlyRate;
-//		this.availability = availability;
-//		this.totalEarnings = totalEarnings;
-//		this.completedProjects = completedProjects;
-//		this.averageRating = averageRating;
-//		this.skills = skills;
-//		this.portfolios = portfolios;
-//		this.ratings = ratings;
-//		this.createdAt = createdAt;
-//		this.updatedAt = updatedAt;
-//	}
-	
-	
-
-	public Freelancer() {
-		super();
-		// TODO Auto-generated constructor stub
-	}
-
-	public Freelancer(Long id, Long userId, String title, String bio, BigDecimal hourlyRate, String availability,
-			BigDecimal totalEarnings, Integer completedProjects, BigDecimal averageRating, Set<Skill> skills,
-			Set<Portfolio> portfolios, List<Rating> ratings, LocalDateTime createdAt, LocalDateTime updatedAt) {
-		super();
-		this.id = id;
-		this.userId = userId;
-		this.title = title;
-		this.bio = bio;
-		this.hourlyRate = hourlyRate;
-		this.availability = availability;
-		this.totalEarnings = totalEarnings;
-		this.completedProjects = completedProjects;
-		this.averageRating = averageRating;
-		this.skills = skills;
-		this.portfolios = portfolios;
-		this.ratings = ratings;
-		this.createdAt = createdAt;
-		this.updatedAt = updatedAt;
-	}
-    
-    
-}
-
-package com.freelancenexus.userservice.model;
-
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
-/**
- * Proposal
- *
- * <p>JPA entity representing a freelancer's proposal/bid for a project.
- * Stores proposal details including cover letter, budget, delivery timeline,
- * and AI-computed ranking score for client comparison.</p>
- *
- * <p>Proposals progress through a lifecycle: PENDING → ACCEPTED/REJECTED.
- * Multiple proposals can exist for a single project from different freelancers.</p>
- *
- * @since 1.0
- */
-@Entity
-@Table(name = "proposals")
-public class Proposal {
-
-    /**
-     * Primary key identifier for the proposal.
-     */
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    /**
-     * Many-to-one relationship with the Project entity.
-     * Each proposal is submitted for exactly one project.
-     * Lazy fetch type for performance optimization.
-     *
-     * @see Project
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id", nullable = false)
-    private Project project;
-
-    /**
-     * Unique identifier of the freelancer submitting the proposal.
-     */
-    @Column(name = "freelancer_id", nullable = false)
-    private Long freelancerId;
-
-    /**
-     * Cover letter or motivation statement from the freelancer explaining
-     * why they are a good fit for the project.
-     */
-    @Column(name = "cover_letter", columnDefinition = "TEXT")
-    private String coverLetter;
-
-    /**
-     * Freelancer's proposed budget for completing the project.
-     * Precision: 10 digits total, 2 after decimal.
-     */
-    @Column(name = "proposed_budget", precision = 10, scale = 2)
-    private BigDecimal proposedBudget;
-
-    /**
-     * Estimated number of days the freelancer needs to complete the project.
-     */
-    @Column(name = "delivery_days")
-    private Integer deliveryDays;
-
-    /**
-     * AI-computed ranking score on a scale of 0-100 indicating the proposal's
-     * quality and fit for the project. Computed by the AI service for client comparison.
-     * Precision: 5 digits total, 2 after decimal.
-     */
-    @Column(name = "ai_score", precision = 5, scale = 2)
-    private BigDecimal aiScore;
-
-    /**
-     * Current status of the proposal (PENDING, ACCEPTED, REJECTED).
-     * Default value is PENDING.
-     *
-     * @see ProposalStatus
-     */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ProposalStatus status = ProposalStatus.PENDING;
-
-    /**
-     * Timestamp when the proposal was submitted. Managed by Hibernate.
-     */
+    private PaymentStatus status;
+    
+    @Column(name = "payment_date")
+    private LocalDateTime paymentDate;
+    
+    @Column(columnDefinition = "TEXT")
+    private String description;
+    
     @CreationTimestamp
-    @Column(name = "submitted_at", nullable = false, updatable = false)
-    private LocalDateTime submittedAt;
-
-    /**
-     * Timestamp when the proposal was last updated. Managed by Hibernate.
-     */
-    @UpdateTimestamp
+    @Column(name="created_at", nullable=false)
+    private LocalDateTime createdAt;
+    
+    @LastModifiedDate
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -2266,68 +1596,100 @@ public class Proposal {
 		this.id = id;
 	}
 
-	public Project getProject() {
-		return project;
+	public String getTransactionId() {
+		return transactionId;
 	}
 
-	public void setProject(Project project) {
-		this.project = project;
+	public void setTransactionId(String transactionId) {
+		this.transactionId = transactionId;
 	}
 
-	public Long getFreelancerId() {
-		return freelancerId;
+	public Long getProjectId() {
+		return projectId;
 	}
 
-	public void setFreelancerId(Long freelancerId) {
-		this.freelancerId = freelancerId;
+	public void setProjectId(Long projectId) {
+		this.projectId = projectId;
 	}
 
-	public String getCoverLetter() {
-		return coverLetter;
+	public Long getPayerId() {
+		return payerId;
 	}
 
-	public void setCoverLetter(String coverLetter) {
-		this.coverLetter = coverLetter;
+	public void setPayerId(Long payerId) {
+		this.payerId = payerId;
 	}
 
-	public BigDecimal getProposedBudget() {
-		return proposedBudget;
+	public Long getPayeeId() {
+		return payeeId;
 	}
 
-	public void setProposedBudget(BigDecimal proposedBudget) {
-		this.proposedBudget = proposedBudget;
+	public void setPayeeId(Long payeeId) {
+		this.payeeId = payeeId;
 	}
 
-	public Integer getDeliveryDays() {
-		return deliveryDays;
+	public BigDecimal getAmount() {
+		return amount;
 	}
 
-	public void setDeliveryDays(Integer deliveryDays) {
-		this.deliveryDays = deliveryDays;
+	public void setAmount(BigDecimal amount) {
+		this.amount = amount;
 	}
 
-	public BigDecimal getAiScore() {
-		return aiScore;
+	public String getCurrency() {
+		return currency;
 	}
 
-	public void setAiScore(BigDecimal aiScore) {
-		this.aiScore = aiScore;
+	public void setCurrency(String currency) {
+		this.currency = currency;
 	}
 
-	public ProposalStatus getStatus() {
+	public String getPaymentMethod() {
+		return paymentMethod;
+	}
+
+	public void setPaymentMethod(String paymentMethod) {
+		this.paymentMethod = paymentMethod;
+	}
+
+	public String getUpiId() {
+		return upiId;
+	}
+
+	public void setUpiId(String upiId) {
+		this.upiId = upiId;
+	}
+
+	public PaymentStatus getStatus() {
 		return status;
 	}
 
-	public void setStatus(ProposalStatus status) {
+	public void setStatus(PaymentStatus status) {
 		this.status = status;
 	}
 
-	public LocalDateTime getSubmittedAt() {
-		return submittedAt;
+	public LocalDateTime getPaymentDate() {
+		return paymentDate;
 	}
 
-	public void setSubmittedAt(LocalDateTime submittedAt) {
-		this.submittedAt = submittedAt;
+	public void setPaymentDate(LocalDateTime paymentDate) {
+		this.paymentDate = paymentDate;
+	}
+
+	public String getDescription() {
+		return description;
+	}
+
+	public void setDescription(String description) {
+		this.description = description;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
 	}
 
 	public LocalDateTime getUpdatedAt() {
@@ -2337,27 +1699,64 @@ public class Proposal {
 	public void setUpdatedAt(LocalDateTime updatedAt) {
 		this.updatedAt = updatedAt;
 	}
+	
+	public Payment(String transactionId, Long projectId, Long payerId, Long payeeId,
+            BigDecimal amount, String currency, String paymentMethod,
+            String upiId, PaymentStatus status, String description) {
 
-	public Proposal(Long id, Project project, Long freelancerId, String coverLetter, BigDecimal proposedBudget,
-			Integer deliveryDays, BigDecimal aiScore, ProposalStatus status, LocalDateTime submittedAt,
-			LocalDateTime updatedAt) {
-		super();
-		this.id = id;
-		this.project = project;
-		this.freelancerId = freelancerId;
-		this.coverLetter = coverLetter;
-		this.proposedBudget = proposedBudget;
-		this.deliveryDays = deliveryDays;
-		this.aiScore = aiScore;
-		this.status = status;
-		this.submittedAt = submittedAt;
-		this.updatedAt = updatedAt;
+	 this.transactionId = transactionId;
+	 this.projectId = projectId;
+	 this.payerId = payerId;
+	 this.payeeId = payeeId;
+	 this.amount = amount;
+	 this.currency = currency;
+	 this.paymentMethod = paymentMethod;
+	 this.upiId = upiId;
+	 this.status = status;
+	 this.description = description;
 	}
 
-	public Proposal() {
+	public Payment() {
 		super();
 		// TODO Auto-generated constructor stub
 	}
     
     
+}
+
+
+package com.freelancenexus.userservice.model;
+
+public enum PaymentStatus {
+    PENDING,
+    COMPLETED,
+    FAILED,
+    REFUNDED
+}
+
+package com.freelancenexus.userservice.repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.freelancenexus.userservice.model.Payment;
+import com.freelancenexus.userservice.model.PaymentStatus;
+
+@Repository
+public interface PaymentRepository extends JpaRepository<Payment, Long> {
+    
+    Optional<Payment> findByTransactionId(String transactionId);
+    
+    List<Payment> findByProjectId(Long projectId);
+    
+    List<Payment> findByPayerId(Long payerId);
+    
+    List<Payment> findByPayeeId(Long payeeId);
+    
+    List<Payment> findByStatus(PaymentStatus status);
+    
+    List<Payment> findByPayerIdOrPayeeId(Long payerId, Long payeeId);
 }
